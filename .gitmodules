@@ -1,0 +1,3 @@
+[submodule "rocksdb"]
+	path = ./3rdparty/rocksdb
+	url = https://github.com/facebook/rocksdb
