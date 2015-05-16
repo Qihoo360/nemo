@@ -1,4 +1,4 @@
-[submodule "rocksdb"]
-	path = ./3rdparty/rocksdb
-	url = https://github.com/facebook/rocksdb
-	branch = v3.10
+[submodule "3rdparty/rocksdb"]
+    path = 3rdparty/rocksdb
+    url = https://github.com/facebook/rocksdb.git
+    branch = v3.10
