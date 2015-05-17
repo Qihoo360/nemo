@@ -15,14 +15,18 @@ class Nemo
 {
 public:
     Nemo(const std::string &db_path, Options options);
+    ~Nemo();
 
     Status Hset(const std::string &key, const std::string &field, const std::string &val);
     Status Hget(const std::string &key, const std::string &field, std::string *val);
 
 private:
-    std::string db_path_;
 
+    std::string db_path_;
     std::unique_ptr<DB> db_;
+
+    Nemo(const Nemo &rval);
+    void operator =(const Nemo &rval);
 
 };
 

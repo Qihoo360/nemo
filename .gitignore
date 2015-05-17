@@ -28,3 +28,5 @@
 *.app
 
 output/
+*tags
+example/main

@@ -14,15 +14,18 @@ Nemo::Nemo(const std::string &db_path, Options options) :
     Status s = DB::Open(options, db_path_, &db);
     if (!s.ok()) {
         log_err("open db %s error %s", db_path_.c_str(), s.ToString().c_str());
+    } else {
+        log_info("open db success");
     }
+    
     db_ = std::unique_ptr<DB>(db);
-
 }
 
 Status Nemo::Hset(const std::string &key, const std::string &field, const std::string &val)
 {
     Status s;
     s = db_->Put(rocksdb::WriteOptions(), key + field, val);
+    log_info("val %s", val.c_str());
     return s;
 }
 
@@ -32,6 +35,7 @@ Status Nemo::Hget(const std::string &key, const std::string &field, std::string 
 
     s = db_->Get(rocksdb::ReadOptions(), key + field, val);
     log_info("val %s", val->c_str());
+
     return s;
 }
 

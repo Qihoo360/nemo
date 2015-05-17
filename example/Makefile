@@ -8,7 +8,9 @@ LIB_PATH = -L../output/lib/ \
 
 LIBS = -lpthread \
 	   -lnemo \
-	   -lrocksdb
+	   -lrocksdb \
+	   -lz \
+	   -lbz2
 
 INCLUDE_PATH = -I../include/ \
 			   -I$(ROCKSDB_PATH)/include/ \
