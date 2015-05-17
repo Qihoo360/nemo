@@ -10,7 +10,9 @@ LIBS = -lpthread \
 	   -lnemo \
 	   -lrocksdb \
 	   -lz \
-	   -lbz2
+	   -lbz2 \
+	   -lsnappy \
+	   -lrt
 
 INCLUDE_PATH = -I../include/ \
 			   -I$(ROCKSDB_PATH)/include/ \
