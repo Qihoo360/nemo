@@ -27,7 +27,7 @@ BASE_OBJS += $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(patsubst %.cc,%.o,$(BASE_OBJS))
 
 all: $(LIBRARY)
-	make -C $(ROCKSDB_PATH)
+	# make -C $(ROCKSDB_PATH)
 	@echo "Success, go, go, go..."
 
 
