@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -Wall -DDEBUG -g -O2 -std=c++11
+CXXFLAGS = -Wall -W -DDEBUG -g -O0 -D__XDEBUG__ -fPIC -std=c++11
 
 OBJECT = nemo
 SRC_DIR = ./src

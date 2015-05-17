@@ -17,8 +17,12 @@ public:
     Nemo(const std::string &db_path, Options options);
     ~Nemo();
 
-    Status Hset(const std::string &key, const std::string &field, const std::string &val);
-    Status Hget(const std::string &key, const std::string &field, std::string *val);
+    /*
+     * The Hash function interface
+     */
+    Status HSet(const std::string &key, const std::string &field, const std::string &val);
+    Status HGet(const std::string &key, const std::string &field, std::string *val);
+    Status HKeys(const std::string &key, std::vector<std::string> *fields);
 
 private:
 
