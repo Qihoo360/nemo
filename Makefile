@@ -1,4 +1,5 @@
 CXX = g++
+CXXFLAGS = -Wall -DDEBUG -g -O2 -std=c++11
 
 OBJECT = nemo
 SRC_DIR = ./src
@@ -11,8 +12,8 @@ ROCKSDB_PATH = ./3rdparty/rocksdb/
 
 
 INCLUDE_PATH = -I./include/ \
-			   $(ROCKSDB_PATH)/include/ \
-			   $(ROCKSDB_PATH)/include/rocksdb \
+			   -I$(ROCKSDB_PATH)/include/ \
+			   -I$(ROCKSDB_PATH)/include/rocksdb \
 			   -I./src/
 
 LIBRARY = libnemo.a
@@ -38,6 +39,7 @@ $(LIBRARY): $(OBJS)
 	rm -rf $@
 	ar -rcs $@ $(OBJS)
 	cp -r ./include $(OUTPUT)/
+	cp -r $(ROCKSDB_PATH)/include/* ./include/
 	mv ./libnemo.a $(OUTPUT)/lib/
 
 $(OBJECT): $(OBJS)
