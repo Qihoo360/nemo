@@ -1,5 +1,5 @@
 #include "nemo_kv.h"
-#include "iterator.h"
+#include "nemo_iterator.h"
 #include "xdebug.h"
 
 rocksdb::Status nemo::Nemo::Set(const std::string &key, const std::string &val) {
