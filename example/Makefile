@@ -10,7 +10,9 @@ LIBS = -lpthread \
 	   -lnemo \
 	   -lrocksdb \
 	   -lz \
-	   -lbz2
+	   -lbz2 \
+	   -lsnappy \
+	   -lrt
 
 INCLUDE_PATH = -I../include/ \
 			   -I$(ROCKSDB_PATH)/include/ \
@@ -32,6 +34,5 @@ $(OBJS): %.o : %.cc
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDE_PATH) 
 
 clean: 
-	rm -rf $(OBJECT)
 	rm -rf $(OBJECT)
 
