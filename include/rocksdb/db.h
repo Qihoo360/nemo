@@ -44,7 +44,6 @@ class ColumnFamilyHandle {
  public:
   virtual ~ColumnFamilyHandle() {}
   virtual const std::string& GetName() const = 0;
-  virtual uint32_t GetID() const = 0;
 };
 extern const std::string kDefaultColumnFamilyName;
 
@@ -65,10 +64,6 @@ static const int kMinorVersion = __ROCKSDB_MINOR__;
 // A Snapshot is an immutable object and can therefore be safely
 // accessed from multiple threads without any external synchronization.
 class Snapshot {
- public:
-  // returns Snapshot's sequence number
-  virtual SequenceNumber GetSequenceNumber() const = 0;
-
  protected:
   virtual ~Snapshot();
 };
@@ -309,28 +304,6 @@ class DB {
   //     about the internal operation of the DB.
   //  "rocksdb.sstables" - returns a multi-line string that describes all
   //     of the sstables that make up the db contents.
-  //  "rocksdb.cfstats"
-  //  "rocksdb.dbstats"
-  //  "rocksdb.num-immutable-mem-table"
-  //  "rocksdb.mem-table-flush-pending"
-  //  "rocksdb.compaction-pending" - 1 if at least one compaction is pending
-  //  "rocksdb.background-errors" - accumulated number of background errors
-  //  "rocksdb.cur-size-active-mem-table"
-  //  "rocksdb.cur-size-all-mem-tables"
-  //  "rocksdb.num-entries-active-mem-table"
-  //  "rocksdb.num-entries-imm-mem-tables"
-  //  "rocksdb.num-deletes-active-mem-table"
-  //  "rocksdb.num-deletes-imm-mem-tables"
-  //  "rocksdb.estimate-num-keys" - estimated keys in the column family
-  //  "rocksdb.estimate-table-readers-mem" - estimated memory used for reding
-  //      SST tables, that is not counted as a part of block cache.
-  //  "rocksdb.is-file-deletions-enabled"
-  //  "rocksdb.num-snapshots"
-  //  "rocksdb.oldest-snapshot-time"
-  //  "rocksdb.num-live-versions" - `version` is an internal data structure.
-  //      See version_set.h for details. More live versions often mean more SST
-  //      files are held from being deleted, by iterators or unfinished
-  //      compactions.
   virtual bool GetProperty(ColumnFamilyHandle* column_family,
                            const Slice& property, std::string* value) = 0;
   virtual bool GetProperty(const Slice& property, std::string* value) {
@@ -338,24 +311,7 @@ class DB {
   }
 
   // Similar to GetProperty(), but only works for a subset of properties whose
-  // return value is an integer. Return the value by integer. Supported
-  // properties:
-  //  "rocksdb.num-immutable-mem-table"
-  //  "rocksdb.mem-table-flush-pending"
-  //  "rocksdb.compaction-pending"
-  //  "rocksdb.background-errors"
-  //  "rocksdb.cur-size-active-mem-table"
-  //  "rocksdb.cur-size-all-mem-tables"
-  //  "rocksdb.num-entries-active-mem-table"
-  //  "rocksdb.num-entries-imm-mem-tables"
-  //  "rocksdb.num-deletes-active-mem-table"
-  //  "rocksdb.num-deletes-imm-mem-tables"
-  //  "rocksdb.estimate-num-keys"
-  //  "rocksdb.estimate-table-readers-mem"
-  //  "rocksdb.is-file-deletions-enabled"
-  //  "rocksdb.num-snapshots"
-  //  "rocksdb.oldest-snapshot-time"
-  //  "rocksdb.num-live-versions"
+  // return value is an integer. Return the value by integer.
   virtual bool GetIntProperty(ColumnFamilyHandle* column_family,
                               const Slice& property, uint64_t* value) = 0;
   virtual bool GetIntProperty(const Slice& property, uint64_t* value) {
@@ -496,6 +452,8 @@ class DB {
 
   // GetLiveFiles followed by GetSortedWalFiles can generate a lossless backup
 
+  // THIS METHOD IS DEPRECATED. Use the GetLiveFilesMetaData to get more
+  // detailed information on the live files.
   // Retrieve the list of all files in the database. The files are
   // relative to the dbname and are not absolute paths. The valid size of the
   // manifest file is returned in manifest_file_size. The manifest file is an
@@ -589,6 +547,12 @@ Status DestroyDB(const std::string& name, const Options& options);
 // on a database that contains important information.
 Status RepairDB(const std::string& dbname, const Options& options);
 #endif
+
+#if ROCKSDB_USING_THREAD_STATUS
+// Obtain the status of all rocksdb-related threads.
+Status GetThreadList(std::vector<ThreadStatus>* thread_list);
+#endif
+
 
 }  // namespace rocksdb
 

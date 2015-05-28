@@ -1,5 +1,11 @@
 CXX = g++
-CXXFLAGS = -Wall -W -DDEBUG -g -O0 -D__XDEBUG__ -D__STDC_FORMAT_MACROS -fPIC -std=c++11
+
+ifeq ($(__PERF), 1)
+	CXXFLAGS = -O0 -g -pg -pipe -fPIC -D__XDEBUG__ -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -Wconversion -D_GNU_SOURCE
+else
+	# CXXFLAGS = -O2 -g -pipe -fPIC -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -Wconversion -D_GNU_SOURCE
+	CXXFLAGS = -Wall -W -DDEBUG -g -O0 -D__XDEBUG__ -D__STDC_FORMAT_MACROS -fPIC -std=c++11
+endif
 
 OBJECT = nemo
 SRC_DIR = ./src
@@ -27,11 +33,11 @@ BASE_OBJS += $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(patsubst %.cc,%.o,$(BASE_OBJS))
 
 all: $(LIBRARY)
-	make -C $(ROCKSDB_PATH) static_lib
 	@echo "Success, go, go, go..."
 
 
 $(LIBRARY): $(OBJS)
+	make -C $(ROCKSDB_PATH) static_lib
 	rm -rf $(OUTPUT)
 	mkdir $(OUTPUT)
 	mkdir $(OUTPUT)/include
@@ -41,6 +47,7 @@ $(LIBRARY): $(OBJS)
 	cp -r ./include $(OUTPUT)/
 	cp -r $(ROCKSDB_PATH)/include/* ./include/
 	mv ./libnemo.a $(OUTPUT)/lib/
+	make -C example
 
 $(OBJECT): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
@@ -52,6 +59,7 @@ $(TOBJS): %.o : %.cc
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDE_PATH) 
 
 clean: 
+	make -C $(ROCKSDB_PATH) clean
 	rm -rf $(SRC_DIR)/*.o
 	rm -rf $(OUTPUT)/*
 	rm -rf $(OUTPUT)

@@ -172,11 +172,7 @@ class BackupEngineReadOnly {
   virtual ~BackupEngineReadOnly() {}
 
   static BackupEngineReadOnly* NewReadOnlyBackupEngine(
-      Env* db_env, const BackupableDBOptions& options)
-      __attribute__((deprecated("Please use Open() instead")));
-
-  static Status Open(Env* db_env, const BackupableDBOptions& options,
-                     BackupEngineReadOnly** backup_engine_ptr);
+      Env* db_env, const BackupableDBOptions& options);
 
   // You can GetBackupInfo safely, even with other BackupEngine performing
   // backups on the same directory
