@@ -24,11 +24,11 @@ class StackableDB : public DB {
 
   virtual Status CreateColumnFamily(const ColumnFamilyOptions& options,
                                     const std::string& column_family_name,
-                                    ColumnFamilyHandle** handle) override {
+                                    ColumnFamilyHandle** handle) {
     return db_->CreateColumnFamily(options, column_family_name, handle);
   }
 
-  virtual Status DropColumnFamily(ColumnFamilyHandle* column_family) override {
+  virtual Status DropColumnFamily(ColumnFamilyHandle* column_family) {
     return db_->DropColumnFamily(column_family);
   }
 
@@ -92,7 +92,7 @@ class StackableDB : public DB {
   virtual Status NewIterators(
       const ReadOptions& options,
       const std::vector<ColumnFamilyHandle*>& column_families,
-      std::vector<Iterator*>* iterators) override {
+      std::vector<Iterator*>* iterators) {
     return db_->NewIterators(options, column_families, iterators);
   }
 
@@ -221,7 +221,7 @@ class StackableDB : public DB {
     return db_->DeleteFile(name);
   }
 
-  virtual Status GetDbIdentity(std::string& identity) override {
+  virtual Status GetDbIdentity(std::string& identity) {
     return db_->GetDbIdentity(identity);
   }
 
@@ -232,9 +232,8 @@ class StackableDB : public DB {
   }
 
   using DB::GetPropertiesOfAllTables;
-  virtual Status GetPropertiesOfAllTables(
-      ColumnFamilyHandle* column_family,
-      TablePropertiesCollection* props) override {
+  virtual Status GetPropertiesOfAllTables(ColumnFamilyHandle* column_family,
+                                          TablePropertiesCollection* props) {
     return db_->GetPropertiesOfAllTables(column_family, props);
   }
 

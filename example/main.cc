@@ -14,19 +14,25 @@ int main()
     opt.create_if_missing = true;
     Nemo *n = new Nemo("./tmp/db", opt); 
     rocksdb::Status s;
+
     std::string res;
     std::vector<Kv> kvs;
     std::vector<Kvs> kvss;
+
     std::vector<std::string> keys;
     keys.push_back("key1");
     keys.push_back("ky2");
     keys.push_back("key3");
+
     s = n->MultiGet(keys, kvss);
     std::vector<Kvs>::iterator iter;
     for(iter = kvss.begin(); iter != kvss.end(); iter++) {
         log_info("MultiGet key: %s, val: %s status: %s", iter->key.c_str(), iter->val.c_str(), iter->status.ToString().c_str());
     }
+
+
     s = n->MultiDel(keys);
+
     log_info("MultiDel return %s", s.ToString().c_str());
     kvs.push_back({"key7", "val7"});
     kvs.push_back({"key8", "val8"});
