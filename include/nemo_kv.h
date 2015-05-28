@@ -3,7 +3,7 @@
 
 #include "nemo.h"
 #include "nemo_const.h"
-#include "nemo_iterator.h"
+//#include "nemo_iterator.h"
 #include "utilities/decoder.h"
 //namespace rocksdb {
 //   class Slice;
