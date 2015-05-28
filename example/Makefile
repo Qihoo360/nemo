@@ -35,5 +35,4 @@ $(OBJS): %.o : %.cc
 
 clean: 
 	rm -rf $(OBJECT)
-	rm -rf $(OBJECT)
 
