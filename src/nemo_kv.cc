@@ -34,27 +34,27 @@ rocksdb::Status Nemo::Get(const std::string &key, std::string *val) {
 rocksdb::Status Nemo::Delete(const std::string &key) {
     rocksdb::Status s;
     std::string en_key = encode_kv_key(key);
-    LockKv();
+//    LockKv();
     s = db_->Delete(rocksdb::WriteOptions(), en_key);
-    UnlockKv();
+//    UnlockKv();
     log_info("Delete return %s", s.ToString().c_str());
     return s;
 }
 
-rocksdb::Status Nemo::MultiSet(const std::vector<Kv> kvs) {
+rocksdb::Status Nemo::MultiSet(const std::vector<Kv> &kvs) {
     rocksdb::Status s;
     std::vector<Kv>::const_iterator it;
+    LockKv();
     writer_kv_.writebatch.Clear();
     for(it = kvs.begin(); it != kvs.end(); it++) {
        writer_kv_.writebatch.Put(encode_kv_key(it->key), it->val); 
     }
-    LockKv();
     s = db_->Write(rocksdb::WriteOptions(), &(writer_kv_.writebatch));
     UnlockKv();
     return s;
 }
 
-rocksdb::Status Nemo::MultiDel(const std::vector<std::string> keys) {
+rocksdb::Status Nemo::MultiDel(const std::vector<std::string> &keys) {
     rocksdb::Status s;
     std::vector<std::string>::const_iterator it;
     writer_kv_.writebatch.Clear();
@@ -68,7 +68,7 @@ rocksdb::Status Nemo::MultiDel(const std::vector<std::string> keys) {
 
 }
 
-rocksdb::Status Nemo::MultiGet(const std::vector<std::string> keys, std::vector<Kvs> &kvss) {
+rocksdb::Status Nemo::MultiGet(const std::vector<std::string> &keys, std::vector<Kvs> &kvss) {
     rocksdb::Status s;
     std::vector<std::string>::const_iterator it_key;
     for(it_key = keys.begin(); it_key != keys.end(); it_key++) {
@@ -80,7 +80,7 @@ rocksdb::Status Nemo::MultiGet(const std::vector<std::string> keys, std::vector<
     return rocksdb::Status::OK();
 }
 
-rocksdb::Status Nemo::Incr(const std::string key, int64_t by, std::string &new_val) {
+rocksdb::Status Nemo::Incr(const std::string &key, int64_t by, std::string &new_val) {
     rocksdb::Status s;
     std::string en_key = encode_kv_key(key);
     std::string val;

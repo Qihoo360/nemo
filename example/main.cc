@@ -53,5 +53,10 @@ int main()
         num++;
     }
     log_info("num = %d", num);
+    
+    s = n->HSet("song", "zhao", "6");
+    log_info("HSet return: %s", s.ToString().c_str());
+    s = n->HGet("song", "zhao", &res);
+    log_info("HGet return: %s, val %s", s.ToString().c_str(), res.c_str());
     return 0;
 }
