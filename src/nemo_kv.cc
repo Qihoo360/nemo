@@ -5,20 +5,20 @@
 #include "xdebug.h"
 using namespace nemo;
 
-void Nemo::LockKv() {
-    pthread_mutex_lock(&(writer_kv_.writer_mutex));
-}
-
-void Nemo::UnlockKv() {
-    pthread_mutex_unlock(&(writer_kv_.writer_mutex));
-}
+//void Nemo::LockKv() {
+//    pthread_mutex_lock(&(writer_kv_.writer_mutex));
+//}
+//
+//void Nemo::UnlockKv() {
+//    pthread_mutex_unlock(&(writer_kv_.writer_mutex));
+//}
 
 rocksdb::Status Nemo::Set(const std::string &key, const std::string &val) {
     rocksdb::Status s;
     std::string buf = encode_kv_key(key);
-    LockKv();
+//    LockKv();
     s = db_->Put(rocksdb::WriteOptions(), buf, val);
-    UnlockKv();
+//    UnlockKv();
     log_info("Set return %s", s.ToString().c_str());
     return s;
 }
@@ -44,26 +44,32 @@ rocksdb::Status Nemo::Delete(const std::string &key) {
 rocksdb::Status Nemo::MultiSet(const std::vector<Kv> &kvs) {
     rocksdb::Status s;
     std::vector<Kv>::const_iterator it;
-    LockKv();
-    writer_kv_.writebatch.Clear();
+//    LockKv();
+//    writer_kv_.writebatch.Clear();
+    rocksdb::WriteBatch batch;
     for(it = kvs.begin(); it != kvs.end(); it++) {
-       writer_kv_.writebatch.Put(encode_kv_key(it->key), it->val); 
+//       writer_kv_.writebatch.Put(encode_kv_key(it->key), it->val); 
+        batch.Put(encode_kv_key(it->key), it->val); 
     }
-    s = db_->Write(rocksdb::WriteOptions(), &(writer_kv_.writebatch));
-    UnlockKv();
+//    s = db_->Write(rocksdb::WriteOptions(), &(writer_kv_.writebatch));
+    s = db_->Write(rocksdb::WriteOptions(), &(batch));
+//    UnlockKv();
     return s;
 }
 
 rocksdb::Status Nemo::MultiDel(const std::vector<std::string> &keys) {
     rocksdb::Status s;
     std::vector<std::string>::const_iterator it;
-    writer_kv_.writebatch.Clear();
+//    LockKv();
+//    writer_kv_.writebatch.Clear();
+    rocksdb::WriteBatch batch;
     for(it = keys.begin(); it != keys.end(); it++) {
-       writer_kv_.writebatch.Delete(encode_kv_key(*it)); 
+//       writer_kv_.writebatch.Delete(encode_kv_key(*it)); 
+       batch.Delete(encode_kv_key(*it)); 
     }
-    LockKv();
-    s = db_->Write(rocksdb::WriteOptions(), &(writer_kv_.writebatch));
-    UnlockKv();
+//    s = db_->Write(rocksdb::WriteOptions(), &(writer_kv_.writebatch));
+    s = db_->Write(rocksdb::WriteOptions(), &(batch));
+//    UnlockKv();
     return s;
 
 }
@@ -84,7 +90,7 @@ rocksdb::Status Nemo::Incr(const std::string &key, int64_t by, std::string &new_
     rocksdb::Status s;
     std::string en_key = encode_kv_key(key);
     std::string val;
-    LockKv();
+//    LockKv();
     s = db_->Get(rocksdb::ReadOptions(), en_key, &val);
     if(s.IsNotFound()) {
         new_val = int64_to_str(by);        
@@ -93,7 +99,7 @@ rocksdb::Status Nemo::Incr(const std::string &key, int64_t by, std::string &new_
         new_val = int64_to_str((str_to_int64(val) + by));
     }
     s = db_->Put(rocksdb::WriteOptions(), en_key, new_val);
-    UnlockKv();
+//    UnlockKv();
     return s;
 }
 
