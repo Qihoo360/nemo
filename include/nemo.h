@@ -38,11 +38,11 @@ class Nemo
 public:
     Nemo(const std::string &db_path, rocksdb::Options options);
     ~Nemo() {
-        pthread_mutex_destroy(&(writer_kv_.writer_mutex));
+//        pthread_mutex_destroy(&(writer_kv_.writer_mutex));
         pthread_mutex_destroy(&(writer_hash_.writer_mutex));
     };
-    void LockKv();
-    void UnlockKv();
+//    void LockKv();
+//    void UnlockKv();
     void LockHash();
     void UnlockHash();
 
@@ -61,16 +61,18 @@ public:
 
     rocksdb::Status HSet(const std::string &key, const std::string &field, const std::string &val);
     rocksdb::Status HGet(const std::string &key, const std::string &field, std::string *val);
+    rocksdb::Status HDel(const std::string &key, const std::string &field);
     int64_t HSize(const std::string &key);
 
 private:
 
     std::string db_path_;
     std::unique_ptr<rocksdb::DB> db_;
-    MutexWriter writer_kv_;
+//    MutexWriter writer_kv_;
     MutexWriter writer_hash_;
 
     int hset_one(const std::string &key, const std::string &field, const std::string &val);
+    int hdel_one(const std::string &key, const std::string &field);
     int incr_hsize(const std::string &key, int64_t incr);
 
     Nemo(const Nemo &rval);
