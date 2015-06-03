@@ -1,5 +1,7 @@
 #include "nemo_iterator.h"
 #include "nemo_kv.h"
+#include "nemo_hash.h"
+#include "xdebug.h"
 
 nemo::Iterator::Iterator(rocksdb::Iterator *it,
         const std::string &end,
@@ -71,7 +73,7 @@ bool nemo::Iterator::next(){
 }
 
 /***
-   * KV
+ * KV
 ***/
 nemo::KIterator::KIterator(Iterator *it){
     this->it = it;
@@ -104,4 +106,46 @@ bool nemo::KIterator::next(){
         return true;
     }
     return  false;
+}
+
+/***
+ * HASH
+***/
+
+nemo::HIterator::HIterator(Iterator *it, const rocksdb::Slice &key){
+    this->it = it;
+    this->key.assign(key.data(), key.size());
+    this->return_val_ = true;
+}
+
+nemo::HIterator::~HIterator(){
+    delete it;
+}
+
+void nemo::HIterator::return_val(bool onoff){
+    this->return_val_ = onoff;
+}
+
+bool nemo::HIterator::next(){
+    while(it->next()){
+        rocksdb::Slice ks = it->key();
+        rocksdb::Slice vs = it->val();
+        //dump(ks.data(), ks.size(), "z.next");
+        //dump(vs.data(), vs.size(), "z.next");
+        if(ks.data()[0] != DataType::HASH){
+            return false;
+        }
+        std::string k;
+        if(decode_hash_key(ks, &k, &this->field) == -1){
+            continue;
+        }
+        if(k != this->key){
+            return false;
+        }
+        if(return_val_){
+            this->val.assign(vs.data(), vs.size());
+        }
+        return true;
+    }
+    return false;
 }
