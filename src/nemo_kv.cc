@@ -79,7 +79,7 @@ rocksdb::Status Nemo::MultiGet(const std::vector<std::string> &keys, std::vector
     std::vector<std::string>::const_iterator it_key;
     for(it_key = keys.begin(); it_key != keys.end(); it_key++) {
         std::string en_key = encode_kv_key(*it_key);
-        std::string val;
+        std::string val("");
         s = db_->Get(rocksdb::ReadOptions(), en_key, &val);
         kvss.push_back((Kvs){*(it_key), val, s});
     }
@@ -117,9 +117,9 @@ KIterator* Nemo::scan(const std::string &start, const std::string &end, uint64_t
     rocksdb::ReadOptions iterate_options;
     iterate_options.fill_cache = false;
     it = db_->NewIterator(iterate_options);
-    it->Seek(start);
-    if(it->Valid() && it->key() == start){
+    it->Seek(key_start);
+    if(it->Valid() && it->key() == key_start){
         it->Next();
     }
-    return new KIterator(new Iterator(it, end, limit)); 
+    return new KIterator(new Iterator(it, key_end, limit)); 
 }

@@ -62,7 +62,14 @@ public:
     rocksdb::Status HSet(const std::string &key, const std::string &field, const std::string &val);
     rocksdb::Status HGet(const std::string &key, const std::string &field, std::string *val);
     rocksdb::Status HDel(const std::string &key, const std::string &field);
+    bool HExists(const std::string &key, const std::string &field);
+    rocksdb::Status HKeys(const std::string &key, std::vector<std::string> &keys);
     int64_t HSize(const std::string &key);
+    rocksdb::Status HGetall(const std::string &key, std::vector<Kv> &kvs);
+    int64_t HLen(const std::string &key);
+    rocksdb::Status HMSet(const std::string &key, const std::vector<Kv> &kvs);
+    rocksdb::Status HMGet(const std::string &key, const std::vector<std::string> &keys, std::vector<Kvs> &kvss);
+    HIterator* HScan(const std::string &key, const std::string &start, const std::string &end, uint64_t limit);
 
 private:
 

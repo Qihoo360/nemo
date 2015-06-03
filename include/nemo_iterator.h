@@ -46,5 +46,20 @@ private:
     Iterator *it;
     bool return_val_;
 };
+
+class HIterator{
+public:
+    std::string key;
+    std::string field;
+    std::string val;
+
+    HIterator(Iterator *it, const rocksdb::Slice &key);
+    ~HIterator();
+    void return_val(bool onoff);
+    bool next();
+private:
+    Iterator *it;
+    bool return_val_;
+};
 }
 #endif

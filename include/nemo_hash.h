@@ -1,5 +1,5 @@
-#ifndef NEMO_INCLUDE_NEMO_KV_H
-#define NEMO_INCLUDE_NEMO_KV_H
+#ifndef NEMO_INCLUDE_NEMO_HASH_H
+#define NEMO_INCLUDE_NEMO_HASH_H
 
 #include "nemo.h"
 #include "nemo_const.h"
@@ -11,7 +11,7 @@
 
 namespace nemo {
 
-inline static
+static inline
 std::string encode_hsize_key(const rocksdb::Slice &name){
     std::string buf;
     buf.append(1, DataType::HSIZE);
@@ -19,7 +19,7 @@ std::string encode_hsize_key(const rocksdb::Slice &name){
     return buf;
 }
 
-inline static
+static inline
 int decode_hsize_key(const rocksdb::Slice &slice, std::string *name){
     Decoder decoder(slice.data(), slice.size());
     if(decoder.skip(1) == -1){
@@ -31,7 +31,7 @@ int decode_hsize_key(const rocksdb::Slice &slice, std::string *name){
     return 0;
 }
 
-inline static
+static inline
 std::string encode_hash_key(const rocksdb::Slice &name, const rocksdb::Slice &key){
     std::string buf;
     buf.append(1, DataType::HASH);
@@ -42,7 +42,7 @@ std::string encode_hash_key(const rocksdb::Slice &name, const rocksdb::Slice &ke
     return buf;
 }
 
-inline static
+static inline
 int decode_hash_key(const rocksdb::Slice &slice, std::string *name, std::string *key){
     Decoder decoder(slice.data(), slice.size());
     if(decoder.skip(1) == -1){
