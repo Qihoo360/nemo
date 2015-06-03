@@ -150,7 +150,7 @@ rocksdb::Status Nemo::HGetall(const std::string &key, std::vector<Kv> &kvs) {
        }
        decode_hash_key(it->key(), &dbkey, &dbfield);
        if(dbkey == key) {
-           kvs.push_back(Kv{dbkey, dbfield});
+           kvs.push_back(Kv{dbfield, it->value().ToString()});
        }else {
            break;
        }
@@ -229,6 +229,91 @@ HIterator* Nemo::HScan(const std::string &key, const std::string &start, const s
         it->Next();
     }
     return new HIterator(new Iterator(it, key_end, limit), key); 
+}
+
+rocksdb::Status Nemo::HSetnx(const std::string &key, const std::string &field, const std::string &val) {
+    if(key.size() == 0 || field.size() == 0) {
+        log_info("empty key or field!");
+        return rocksdb::Status::InvalidArgument("Invalid Argument");
+    }
+    rocksdb::Status s;
+    std::string str_val;
+    LockHash();
+    s = HGet(key, field, &str_val);
+    if(s.IsNotFound()) {
+        writer_hash_.writebatch.Clear();
+        int ret = hset_one(key, field, val);
+        if(ret > 0){
+            if(incr_hsize(key, ret) == -1) {
+                UnlockHash();
+                return rocksdb::Status::Corruption("incr_hsize error");
+            }
+        }
+        s = db_->Write(rocksdb::WriteOptions(), &(writer_hash_.writebatch));
+        UnlockHash();
+        return s;
+    } else if(s.ok()) {
+        UnlockHash();
+        return rocksdb::Status::Corruption("Already Exist");
+    } else {
+        UnlockHash();
+        return rocksdb::Status::Corruption("HGet Error");
+    }
+}
+
+int64_t Nemo::HStrlen(const std::string &key, const std::string &field) {
+    rocksdb::Status s;
+    std::string val;
+    s = HGet(key, field, &val);
+    if(s.ok()) {
+        return val.length();
+    } else if(s.IsNotFound()) {
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
+rocksdb::Status Nemo::HVals(const std::string &key, std::vector<std::string> &vals) {
+    if(key.size() == 0) {
+        return rocksdb::Status::InvalidArgument("Invalid Argument");
+    }
+    std::string dbkey;
+    std::string dbfield;
+    std::string key_start = encode_hash_key(key, "");
+    rocksdb::Iterator *it;
+    rocksdb::ReadOptions iterate_options;
+    iterate_options.fill_cache = false;
+    it = db_->NewIterator(iterate_options);
+    it->Seek(key_start);
+    while(it->Valid()) {
+       if((it->key()).data()[0] != DataType::HASH){
+           break;
+       }
+       decode_hash_key(it->key(), &dbkey, &dbfield);
+       if(dbkey == key) {
+           vals.push_back(it->value().ToString());
+       }else {
+           break;
+       }
+       it->Next();
+    }
+    return rocksdb::Status::OK();
+}
+
+rocksdb::Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t by, std::string &new_val) {
+    rocksdb::Status s;
+    std::string val;
+    s = HGet(key, field, &val);
+    if(s.IsNotFound()) {
+        new_val = int64_to_str(by);
+    } else if(s.ok()) {
+        new_val = int64_to_str((str_to_int64(val) + by));
+    } else {
+        return rocksdb::Status::Corruption("HGet error");
+    }
+    s = HSet(key, field, new_val);
+    return s;
 }
 
 int Nemo::hset_one(const std::string &key, const std::string &field, const std::string &val) {

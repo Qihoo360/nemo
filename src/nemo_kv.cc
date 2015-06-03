@@ -5,13 +5,13 @@
 #include "xdebug.h"
 using namespace nemo;
 
-//void Nemo::LockKv() {
-//    pthread_mutex_lock(&(writer_kv_.writer_mutex));
-//}
-//
-//void Nemo::UnlockKv() {
-//    pthread_mutex_unlock(&(writer_kv_.writer_mutex));
-//}
+void Nemo::LockKv() {
+    pthread_mutex_lock(&(writer_kv_.writer_mutex));
+}
+
+void Nemo::UnlockKv() {
+    pthread_mutex_unlock(&(writer_kv_.writer_mutex));
+}
 
 rocksdb::Status Nemo::Set(const std::string &key, const std::string &val) {
     rocksdb::Status s;
@@ -31,7 +31,7 @@ rocksdb::Status Nemo::Get(const std::string &key, std::string *val) {
     return s;
 }
 
-rocksdb::Status Nemo::Delete(const std::string &key) {
+rocksdb::Status Nemo::Del(const std::string &key) {
     rocksdb::Status s;
     std::string en_key = encode_kv_key(key);
 //    LockKv();
@@ -41,7 +41,7 @@ rocksdb::Status Nemo::Delete(const std::string &key) {
     return s;
 }
 
-rocksdb::Status Nemo::MultiSet(const std::vector<Kv> &kvs) {
+rocksdb::Status Nemo::MSet(const std::vector<Kv> &kvs) {
     rocksdb::Status s;
     std::vector<Kv>::const_iterator it;
 //    LockKv();
@@ -57,7 +57,7 @@ rocksdb::Status Nemo::MultiSet(const std::vector<Kv> &kvs) {
     return s;
 }
 
-rocksdb::Status Nemo::MultiDel(const std::vector<std::string> &keys) {
+rocksdb::Status Nemo::MDel(const std::vector<std::string> &keys) {
     rocksdb::Status s;
     std::vector<std::string>::const_iterator it;
 //    LockKv();
@@ -74,7 +74,7 @@ rocksdb::Status Nemo::MultiDel(const std::vector<std::string> &keys) {
 
 }
 
-rocksdb::Status Nemo::MultiGet(const std::vector<std::string> &keys, std::vector<Kvs> &kvss) {
+rocksdb::Status Nemo::MGet(const std::vector<std::string> &keys, std::vector<Kvs> &kvss) {
     rocksdb::Status s;
     std::vector<std::string>::const_iterator it_key;
     for(it_key = keys.begin(); it_key != keys.end(); it_key++) {
@@ -86,7 +86,7 @@ rocksdb::Status Nemo::MultiGet(const std::vector<std::string> &keys, std::vector
     return rocksdb::Status::OK();
 }
 
-rocksdb::Status Nemo::Incr(const std::string &key, int64_t by, std::string &new_val) {
+rocksdb::Status Nemo::Incrby(const std::string &key, int64_t by, std::string &new_val) {
     rocksdb::Status s;
     std::string en_key = encode_kv_key(key);
     std::string val;
@@ -94,13 +94,31 @@ rocksdb::Status Nemo::Incr(const std::string &key, int64_t by, std::string &new_
     s = db_->Get(rocksdb::ReadOptions(), en_key, &val);
     if(s.IsNotFound()) {
         new_val = int64_to_str(by);        
-    }
-    else if(s.ok()) {
+    } else if(s.ok()) {
         new_val = int64_to_str((str_to_int64(val) + by));
+    } else {
+        return rocksdb::Status::Corruption("Get error");
     }
     s = db_->Put(rocksdb::WriteOptions(), en_key, new_val);
 //    UnlockKv();
     return s;
+}
+
+rocksdb::Status Nemo::GetSet(const std::string &key, const std::string &new_val, std::string *old_val) {
+    rocksdb::Status s;
+    std::string en_key = encode_kv_key(key);
+    std::string val;
+    *old_val = "";
+    LockKv();
+    s = db_->Get(rocksdb::ReadOptions(), en_key, old_val);
+    if(!s.ok() && !s.IsNotFound()) {
+        UnlockKv();
+        return rocksdb::Status::Corruption("Get error");
+    }else {
+        s = db_->Put(rocksdb::WriteOptions(), en_key, new_val);
+        UnlockKv();
+        return s;
+    }
 }
 
 KIterator* Nemo::scan(const std::string &start, const std::string &end, uint64_t limit) {

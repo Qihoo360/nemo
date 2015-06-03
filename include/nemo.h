@@ -38,11 +38,11 @@ class Nemo
 public:
     Nemo(const std::string &db_path, rocksdb::Options options);
     ~Nemo() {
-//        pthread_mutex_destroy(&(writer_kv_.writer_mutex));
+        pthread_mutex_destroy(&(writer_kv_.writer_mutex));
         pthread_mutex_destroy(&(writer_hash_.writer_mutex));
     };
-//    void LockKv();
-//    void UnlockKv();
+    void LockKv();
+    void UnlockKv();
     void LockHash();
     void UnlockHash();
 
@@ -50,11 +50,12 @@ public:
 
     rocksdb::Status Set(const std::string &key, const std::string &val);
     rocksdb::Status Get(const std::string &key, std::string *val);
-    rocksdb::Status Delete(const std::string &key);
-    rocksdb::Status MultiSet(const std::vector<Kv> &kvs);
-    rocksdb::Status MultiDel(const std::vector<std::string> &keys);
-    rocksdb::Status MultiGet(const std::vector<std::string> &keys, std::vector<Kvs> &kvss);
-    rocksdb::Status Incr(const std::string &key, int64_t by, std::string &new_val);
+    rocksdb::Status Del(const std::string &key);
+    rocksdb::Status MSet(const std::vector<Kv> &kvs);
+    rocksdb::Status MDel(const std::vector<std::string> &keys);
+    rocksdb::Status MGet(const std::vector<std::string> &keys, std::vector<Kvs> &kvss);
+    rocksdb::Status Incrby(const std::string &key, int64_t by, std::string &new_val);
+    rocksdb::Status GetSet(const std::string &key, const std::string &new_val, std::string *old_val);
     KIterator* scan(const std::string &start, const std::string &end, uint64_t limit);
 
 // ==============HASH=====================
@@ -69,13 +70,17 @@ public:
     int64_t HLen(const std::string &key);
     rocksdb::Status HMSet(const std::string &key, const std::vector<Kv> &kvs);
     rocksdb::Status HMGet(const std::string &key, const std::vector<std::string> &keys, std::vector<Kvs> &kvss);
+    rocksdb::Status HSetnx(const std::string &key, const std::string &field, const std::string &val);
+    int64_t HStrlen(const std::string &key, const std::string &field);
     HIterator* HScan(const std::string &key, const std::string &start, const std::string &end, uint64_t limit);
+    rocksdb::Status HVals(const std::string &key, std::vector<std::string> &vals);
+    rocksdb::Status HIncrby(const std::string &key, const std::string &field, int64_t by, std::string &new_val);
 
 private:
 
     std::string db_path_;
     std::unique_ptr<rocksdb::DB> db_;
-//    MutexWriter writer_kv_;
+    MutexWriter writer_kv_;
     MutexWriter writer_hash_;
 
     int hset_one(const std::string &key, const std::string &field, const std::string &val);
