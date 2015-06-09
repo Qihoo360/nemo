@@ -1,75 +1,44 @@
 #ifndef NEMO_INCLUDE_NEMO_H_
 #define NEMO_INCLUDE_NEMO_H_
 
-//#include <stdio.h>
-//#include <string>
-
-//#include "rocksdb/status.h"
-//#include "rocksdb/options.h"
-#include <pthread.h>
+#include "nemo_mutex.h"
 #include "rocksdb/db.h"
 #include "nemo_iterator.h"
 
 namespace nemo {
-//using namespace rocksdb;
-//typedef rocksdb::Options Options;
-//typedef rocksdb::ReadOptions WriteOptions;
-//typedef rocksdb::Status Status;
-//typedef rocksdb::Slice Slice;
-//typedef rocksdb::DB DB;
-#define NEMO_KEY_LEN_MAX 1024
-
-typedef struct Kv {
-    std::string key;
-    std::string val;
-}Kv;
-typedef struct Kvs {
-    std::string key;
-    std::string val;
-    rocksdb::Status status;
-}Kvs;
-typedef struct MutexWrite {
-    pthread_mutex_t writer_mutex;
-    rocksdb::WriteBatch writebatch;
-}MutexWriter;
 
 class Nemo
 {
 public:
     Nemo(const std::string &db_path, rocksdb::Options options);
     ~Nemo() {
-        pthread_mutex_destroy(&(writer_kv_.writer_mutex));
-        pthread_mutex_destroy(&(writer_hash_.writer_mutex));
+        pthread_mutex_destroy(&(mutex_kv_));
+        pthread_mutex_destroy(&(mutex_hash_));
     };
-    void LockKv();
-    void UnlockKv();
-    void LockHash();
-    void UnlockHash();
 
-// =================KV=====================
+    // =================KV=====================
 
     rocksdb::Status Set(const std::string &key, const std::string &val);
     rocksdb::Status Get(const std::string &key, std::string *val);
     rocksdb::Status Del(const std::string &key);
-    rocksdb::Status MSet(const std::vector<Kv> &kvs);
+    rocksdb::Status MSet(const std::vector<KV> &kvs);
     rocksdb::Status MDel(const std::vector<std::string> &keys);
-    rocksdb::Status MGet(const std::vector<std::string> &keys, std::vector<Kvs> &kvss);
+    rocksdb::Status MGet(const std::vector<std::string> &keys, std::vector<KVS> &kvss);
     rocksdb::Status Incrby(const std::string &key, int64_t by, std::string &new_val);
     rocksdb::Status GetSet(const std::string &key, const std::string &new_val, std::string *old_val);
     KIterator* scan(const std::string &start, const std::string &end, uint64_t limit);
 
-// ==============HASH=====================
+    // ==============HASH=====================
 
     rocksdb::Status HSet(const std::string &key, const std::string &field, const std::string &val);
     rocksdb::Status HGet(const std::string &key, const std::string &field, std::string *val);
     rocksdb::Status HDel(const std::string &key, const std::string &field);
     bool HExists(const std::string &key, const std::string &field);
     rocksdb::Status HKeys(const std::string &key, std::vector<std::string> &keys);
-    int64_t HSize(const std::string &key);
-    rocksdb::Status HGetall(const std::string &key, std::vector<Kv> &kvs);
+    rocksdb::Status HGetall(const std::string &key, std::vector<FV> &fvs);
     int64_t HLen(const std::string &key);
-    rocksdb::Status HMSet(const std::string &key, const std::vector<Kv> &kvs);
-    rocksdb::Status HMGet(const std::string &key, const std::vector<std::string> &keys, std::vector<Kvs> &kvss);
+    rocksdb::Status HMSet(const std::string &key, const std::vector<FV> &fvs);
+    rocksdb::Status HMGet(const std::string &key, const std::vector<std::string> &keys, std::vector<FVS> &fvss);
     rocksdb::Status HSetnx(const std::string &key, const std::string &field, const std::string &val);
     int64_t HStrlen(const std::string &key, const std::string &field);
     HIterator* HScan(const std::string &key, const std::string &start, const std::string &end, uint64_t limit);
@@ -80,12 +49,13 @@ private:
 
     std::string db_path_;
     std::unique_ptr<rocksdb::DB> db_;
-    MutexWriter writer_kv_;
-    MutexWriter writer_hash_;
 
-    int hset_one(const std::string &key, const std::string &field, const std::string &val);
-    int hdel_one(const std::string &key, const std::string &field);
-    int incr_hsize(const std::string &key, int64_t incr);
+    pthread_mutex_t mutex_kv_;
+    pthread_mutex_t mutex_hash_;
+
+    int DoHSet(const std::string &key, const std::string &field, const std::string &val, rocksdb::WriteBatch &writebatch);
+    int DoHDel(const std::string &key, const std::string &field, rocksdb::WriteBatch &writebatch);
+    int IncrHLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
 
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);

@@ -94,7 +94,7 @@ bool nemo::KIterator::next(){
         rocksdb::Slice vs = it->val();
         //dump(ks.data(), ks.size(), "z.next");
         //dump(vs.data(), vs.size(), "z.next");
-        if(ks.data()[0] != DataType::KV){
+        if(ks.data()[0] != DataType::kKv){
             return false;
         }
         if(decode_kv_key(ks, &this->key) == -1){
@@ -132,7 +132,7 @@ bool nemo::HIterator::next(){
         rocksdb::Slice vs = it->val();
         //dump(ks.data(), ks.size(), "z.next");
         //dump(vs.data(), vs.size(), "z.next");
-        if(ks.data()[0] != DataType::HASH){
+        if(ks.data()[0] != DataType::kHash){
             return false;
         }
         std::string k;
