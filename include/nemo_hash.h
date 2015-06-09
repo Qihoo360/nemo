@@ -3,18 +3,14 @@
 
 #include "nemo.h"
 #include "nemo_const.h"
-//#include "nemo_iterator.h"
 #include "utilities/decoder.h"
-//namespace rocksdb {
-//   class Slice;
-//}
 
 namespace nemo {
 
 static inline
 std::string encode_hsize_key(const rocksdb::Slice &name){
     std::string buf;
-    buf.append(1, DataType::HSIZE);
+    buf.append(1, DataType::kHSize);
     buf.append(name.data(), name.size());
     return buf;
 }
@@ -34,7 +30,7 @@ int decode_hsize_key(const rocksdb::Slice &slice, std::string *name){
 static inline
 std::string encode_hash_key(const rocksdb::Slice &name, const rocksdb::Slice &key){
     std::string buf;
-    buf.append(1, DataType::HASH);
+    buf.append(1, DataType::kHash);
     buf.append(1, (uint8_t)name.size());
     buf.append(name.data(), name.size());
     buf.append(1, '=');

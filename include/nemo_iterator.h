@@ -1,14 +1,7 @@
-#ifndef NEMO_INCLUDE_ITERATOR_H_
-#define NEMO_INCLUDE_ITERATOR_H_
+#ifndef NEMO_INCLUDE_NEMO_ITERATOR_H_
+#define NEMO_INCLUDE_NEMO_ITERATOR_H_
 #include "rocksdb/db.h"
 #include "nemo_const.h"
-//#include <string>
-//#include "rocksdb/slice.h"
-
-//namespace rocksdb {
-//    class Iterator;
-//    class Slice;
-//}
 
 namespace nemo {
 class Iterator{

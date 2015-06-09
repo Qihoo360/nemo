@@ -3,18 +3,14 @@
 
 #include "nemo.h"
 #include "nemo_const.h"
-//#include "nemo_iterator.h"
 #include "utilities/decoder.h"
-//namespace rocksdb {
-//   class Slice;
-//}
 
 namespace nemo {
 
 static inline
 std::string encode_kv_key(const rocksdb::Slice &key){
     std::string buf;
-    buf.append(1, DataType::KV);
+    buf.append(1, DataType::kKv);
     buf.append(key.data(), key.size());
     return buf;
 }
