@@ -23,8 +23,7 @@ struct FVS {
     rocksdb::Status status;
 };
 
-class DataType {
-public:
+namespace DataType {
     static const char kKv        = 'k';
     static const char kHash      = 'h'; // hashmap(sorted by key)
     static const char kHSize     = 'H';
@@ -33,6 +32,6 @@ public:
 //    static const char ZSIZE     = 'Z';
 //    static const char QUEUE     = 'q';
 //    static const char QSIZE     = 'Q';
-};
+}
 }
 #endif

@@ -3,71 +3,54 @@
 
 #include <string>
 
-class Decoder{
-private:
-    const char *p;
-    int size;
-    Decoder(){}
+class Decoder {
 public:
-    Decoder(const char *p, int size){
-        this->p = p;
-        this->size = size;
-    }
-    int skip(int n){
-        if(size < n){
+    Decoder(const char *p, int32_t size)
+        : ptr_(p),
+        size_(size) {}
+
+    int32_t Skip(int32_t n) {
+        if (size_ < n) {
             return -1;
         }
-        p += n;
-        size -= n;
+        ptr_ += n;
+        size_ -=n;
         return n;
     }
-    int read_int64(int64_t *ret){
-        if(size_t(size) < sizeof(int64_t)){
-            return -1;
+
+    int32_t ReadData(std::string *res) {
+        int32_t n = size_;
+        if (res) {
+            res->assign(ptr_, size_);
         }
-        if(ret){
-            *ret = *(int64_t *)p;
-        }
-        p += sizeof(int64_t);
-        size -= sizeof(int64_t);
-        return sizeof(int64_t);
-    }
-    int read_uint64(uint64_t *ret){
-        if(size_t(size) < sizeof(uint64_t)){
-            return -1;
-        }
-        if(ret){
-            *ret = *(uint64_t *)p;
-        }
-        p += sizeof(uint64_t);
-        size -= sizeof(uint64_t);
-        return sizeof(uint64_t);
-    }
-    int read_data(std::string *ret){
-        int n = size;
-        if(ret){
-            ret->assign(p, size);
-        }
-        p += size;
-        size = 0;
+        ptr_ += size_;
+        size_ = 0;
         return n;
     }
-    int read_8_data(std::string *ret=NULL){
-        if(size < 1){
+
+    int32_t ReadLenData(std::string *res = NULL) {
+        if (size_ < 1) {
             return -1;
         }
-        int len = (uint8_t)p[0];
-        p += 1;
-        size -= 1;
-        if(size < len){
+        int32_t len = (uint8_t)ptr_[0];
+        ptr_ += 1;
+        size_ -= 1;
+        if (size_ < len) {
             return -1;
         }
-        if(ret){
-            ret->assign(p, len);
+        if (res) {
+            res->assign(ptr_, len);
         }
-        p += len;
-        size -= len;
-        return 1 + len;
+        ptr_ += len;
+        size_ -= len;
+        return len + 1;
     }
+private:
+    const char *ptr_;
+    int32_t size_;
+    //No Copying allowed
+    Decoder(const Decoder&);
+    void operator=(const Decoder&);
 };
+
 #endif
