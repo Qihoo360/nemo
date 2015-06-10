@@ -7,28 +7,25 @@
 
 namespace nemo {
 
-static inline
-std::string encode_hsize_key(const rocksdb::Slice &name){
+inline std::string EncodeHsizeKey(const rocksdb::Slice &name) {
     std::string buf;
     buf.append(1, DataType::kHSize);
     buf.append(name.data(), name.size());
     return buf;
 }
 
-static inline
-int decode_hsize_key(const rocksdb::Slice &slice, std::string *name){
+inline int DecodeHsizeKey(const rocksdb::Slice &slice, std::string *name) {
     Decoder decoder(slice.data(), slice.size());
-    if(decoder.skip(1) == -1){
+    if (decoder.Skip(1) == -1) {
         return -1;
     }
-    if(decoder.read_data(name) == -1){
+    if (decoder.ReadData(name) == -1) {
         return -1;
     }
     return 0;
 }
 
-static inline
-std::string encode_hash_key(const rocksdb::Slice &name, const rocksdb::Slice &key){
+inline std::string EncodeHashKey(const rocksdb::Slice &name, const rocksdb::Slice &key) {
     std::string buf;
     buf.append(1, DataType::kHash);
     buf.append(1, (uint8_t)name.size());
@@ -38,19 +35,18 @@ std::string encode_hash_key(const rocksdb::Slice &name, const rocksdb::Slice &ke
     return buf;
 }
 
-static inline
-int decode_hash_key(const rocksdb::Slice &slice, std::string *name, std::string *key){
+inline int DecodeHashKey(const rocksdb::Slice &slice, std::string *name, std::string *key) {
     Decoder decoder(slice.data(), slice.size());
-    if(decoder.skip(1) == -1){
+    if (decoder.Skip(1) == -1) {
         return -1;
     }
-    if(decoder.read_8_data(name) == -1){
+    if (decoder.ReadLenData(name) == -1) {
         return -1;
     }
-    if(decoder.skip(1) == -1){
+    if (decoder.Skip(1) == -1) {
         return -1;
     }
-    if(decoder.read_data(key) == -1){
+    if (decoder.ReadData(key) == -1) {
         return -1;
     }
     return 0;

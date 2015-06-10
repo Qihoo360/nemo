@@ -21,8 +21,9 @@
 #include <string>
 #include <algorithm>
 
-inline static
-int is_empty_str(const char *str){
+namespace nemo {
+
+inline int IsEmptyStr(const char *str){
 	const char *p = str;
 	while(*p && isspace(*p)){
 		p++;
@@ -30,9 +31,7 @@ int is_empty_str(const char *str){
 	return *p == '\0';
 }
 
-/* 返回左边不包含空白字符的字符串的指针 */
-inline static
-char *ltrim(const char *str){
+inline char *Ltrim(const char *str){
 	const char *p = str;
 	while(*p && isspace(*p)){
 		p++;
@@ -40,9 +39,7 @@ char *ltrim(const char *str){
 	return (char *)p;
 }
 
-/* 返回指向字符串结尾的指针, 会修改字符串内容 */
-inline static
-char *rtrim(char *str){
+inline char *Rtrim(char *str){
 	char *p;
 	p = str + strlen(str) - 1;
 	while(p >= str && isspace(*p)){
@@ -52,134 +49,64 @@ char *rtrim(char *str){
 	return p;
 }
 
-/* 返回左边不包含空白字符的字符串的指针 */
-inline static
-char *trim(char *str){
+inline char *Trim(char *str){
 	char *p;
-	p = ltrim(str);
-	rtrim(p);
+	p = Ltrim(str);
+	Rtrim(p);
 	return p;
 }
 
-inline static
-void strtolower(std::string *str){
+inline void StrToLower(std::string *str){
 	std::transform(str->begin(), str->end(), str->begin(), ::tolower);
 }
 
-inline static
-void strtoupper(std::string *str){
+inline void StrToUpper(std::string *str){
 	std::transform(str->begin(), str->end(), str->begin(), ::toupper);
 }
 
-inline static
-std::string real_dirname(const char *filepath){
-	std::string dir;
-	if(filepath[0] != '/'){
-		char buf[1024];
-		char *p = getcwd(buf, sizeof(buf));
-		if(p != NULL){
-			dir.append(p);
-		}
-	}
-
-	const char *p = strrchr(filepath, '/');
-	if(p != NULL){
-		dir.append("/");
-		dir.append(filepath, p - filepath);
-	}
-	return dir;
-}
-
-inline static
-std::string hexmem(const void *p, int size){
-	std::string ret;
-	char buf[4];
-	for(int i=0; i<size; i++){
-		char c = ((char *)p)[i];
-		if(isalnum(c) || isprint(c)){
-			ret.append(1, c);
-		}else{
-			switch(c){
-				case '\r':
-					ret.append("\\r", 2);
-					break;
-				case '\n':
-					ret.append("\\n", 2);
-					break;
-				default:
-					sprintf(buf, "\\%02x", (unsigned char)c);
-					ret.append(buf, 3);
-			}
-		}
-	}
-	return ret;
-}
-
-// TODO: mem_printf("%5c%d%s", p, size);
-static inline
-void dump(const void *p, int size, const char *msg = NULL){
-	if(msg == NULL){
-		printf("dump <");
-	}else{
-		printf("%s <", msg);
-	}
-	std::string s = hexmem(p, size);
-	printf("%s>\n", s.c_str());
-}
-
-static inline
-int str_to_int(const char *p, int size){
+inline int StrToInt(const char *p, int size){
 	return atoi(std::string(p, size).c_str());
 }
 
-static inline
-int str_to_int(const std::string &str){
+inline int StrToInt(const std::string &str){
 	return atoi(str.c_str());
 }
 
-static inline
-std::string int_to_str(int v){
+inline std::string IntToStr(int v){
 	char buf[21] = {0};
 	snprintf(buf, sizeof(buf), "%d", v);
 	return std::string(buf);
 }
 
-static inline
-int64_t str_to_int64(const std::string &str){
+inline int64_t StrToInt64(const std::string &str){
 	return (int64_t)atoll(str.c_str());
 }
 
-static inline
-int64_t str_to_int64(const char *p, int size){
+inline int64_t StrToInt64(const char *p, int size){
 	return (int64_t)atoll(std::string(p, size).c_str());
 }
 
-static inline
-std::string int64_to_str(int64_t v){
+inline std::string Int64ToStr(int64_t v){
 	char buf[21] = {0};
 	snprintf(buf, sizeof(buf), "%" PRId64 "", v);
 	return std::string(buf);
 }
 
-static inline
-uint64_t str_to_uint64(const char *p, int size){
+inline uint64_t StrToUint64(const char *p, int size){
 	return (uint64_t)strtoull(std::string(p, size).c_str(), (char **)NULL, 10);
 }
 
-static inline
-std::string uint64_to_str(uint64_t v){
+inline std::string Uint64ToStr(uint64_t v){
 	char buf[21] = {0};
 	snprintf(buf, sizeof(buf), "%" PRIu64 "", v);
 	return std::string(buf);
 }
 
-static inline
-double str_to_double(const char *p, int size){
+inline double StrToDouble(const char *p, int size){
 	return atof(std::string(p, size).c_str());
 }
 
-static inline
-std::string double_to_str(double v){
+inline std::string DoubleToStr(double v){
 	char buf[21] = {0};
 	if(v - floor(v) == 0){
 		snprintf(buf, sizeof(buf), "%.0f", v);
@@ -189,28 +116,7 @@ std::string double_to_str(double v){
 	return std::string(buf);
 }
 
-
-// is big endia. TODO: auto detect
-#if 0
-	#define big_endian(v) (v)
-#else
-	static inline
-	uint16_t big_endian(uint16_t v){
-		return (v>>8) | (v<<8);
-	}
-
-	static inline
-	uint32_t big_endian(uint32_t v){
-		return (v >> 24) | ((v >> 8) & 0xff00) | ((v << 8) & 0xff0000) | (v << 24);
-	}
-
-	static inline
-	uint64_t big_endian(uint64_t v){
-		uint32_t h = v >> 32;
-		uint32_t l = v & 0xffffffffull;
-		return big_endian(h) | ((uint64_t)big_endian(l) << 32);
-	}
-#endif
+}
 
 
 #endif

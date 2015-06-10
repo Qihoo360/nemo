@@ -4,55 +4,63 @@
 #include "nemo_const.h"
 
 namespace nemo {
-class Iterator{
+
+enum Direction {
+    kForward = 0,
+    kBackward = 1
+};
+
+class Iterator {
 public:
-    enum Direction{
-        FORWARD, BACKWARD
-    };
-    Iterator(rocksdb::Iterator *it,
-            const std::string &end,
-            uint64_t limit,
-            Direction direction=Iterator::FORWARD);
+    Iterator(rocksdb::Iterator *it, const std::string &end, uint64_t limit, Direction direction = kForward);
     ~Iterator();
-    bool skip(uint64_t offset);
-    bool next();
-    rocksdb::Slice key();
-    rocksdb::Slice val();
+    bool Skip(uint64_t offset);
+    bool Next();
+    rocksdb::Slice Key();
+    rocksdb::Slice Val();
 private:
-    rocksdb::Iterator *it;
-    std::string end;
-    uint64_t limit;
-    bool is_first;
-    int direction;
+    rocksdb::Iterator *it_;
+    std::string end_;
+    uint64_t limit_;
+    bool is_first_;
+    int direction_;
+    //No Copying Allowed
+    Iterator(Iterator&);
+    void operator=(Iterator&);
 };
 
 class KIterator{
 public:
-    std::string key;
-    std::string val;
-
     KIterator(Iterator *it);
     ~KIterator();
-    void return_val(bool onoff);
-    bool next();
+    bool Next();
+    std::string Key() { return key_; };
+    std::string Val() { return val_; };
 private:
-    Iterator *it;
-    bool return_val_;
+    Iterator *it_;
+    std::string key_;
+    std::string val_;
+    //No Copying Allowed
+    KIterator(KIterator&);
+    void operator=(KIterator&);
 };
 
 class HIterator{
 public:
-    std::string key;
-    std::string field;
-    std::string val;
-
     HIterator(Iterator *it, const rocksdb::Slice &key);
     ~HIterator();
-    void return_val(bool onoff);
-    bool next();
+    bool Next();
+    std::string Key() { return key_; };
+    std::string Field() { return field_; };
+    std::string Val() { return val_; };
 private:
-    Iterator *it;
-    bool return_val_;
+    Iterator *it_;
+    std::string key_;
+    std::string field_;
+    std::string val_;
+    //No Copying Allowed
+    HIterator(HIterator&);
+    void operator=(HIterator&);
 };
 }
 #endif

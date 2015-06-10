@@ -72,7 +72,7 @@ int main()
 
     s = n->MGet(keys, kvss);
     std::vector<KVS>::iterator kvs_iter;
-    for(kvs_iter = kvss.begin(); kvs_iter != kvss.end(); kvs_iter++) {
+    for (kvs_iter = kvss.begin(); kvs_iter != kvss.end(); kvs_iter++) {
         log_info("Test MGet OK return %s, key: %s, val: %s status: %s", s.ToString().c_str(), kvs_iter->key.c_str(), kvs_iter->val.c_str(), kvs_iter->status.ToString().c_str());
     }
     log_info("");
@@ -87,7 +87,7 @@ int main()
     //After MDel, all should return NotFound
     kvss.clear();
     s = n->MGet(keys, kvss);
-    for(kvs_iter = kvss.begin(); kvs_iter != kvss.end(); kvs_iter++) {
+    for (kvs_iter = kvss.begin(); kvs_iter != kvss.end(); kvs_iter++) {
         log_info("After MDel, Test MGet OK return %s, key: %s, val: %s status: %s", s.ToString().c_str(), kvs_iter->key.c_str(), kvs_iter->val.c_str(), kvs_iter->status.ToString().c_str());
     }
     log_info("");
@@ -109,7 +109,7 @@ int main()
     keys.push_back("tMSetKey3");
     kvss.clear();
     s = n->MGet(keys, kvss);
-    for(kvs_iter = kvss.begin(); kvs_iter != kvss.end(); kvs_iter++) {
+    for (kvs_iter = kvss.begin(); kvs_iter != kvss.end(); kvs_iter++) {
         log_info("After MSet, Test MGet OK return %s, key: %s, val: %s status: %s", s.ToString().c_str(), kvs_iter->key.c_str(), kvs_iter->val.c_str(), kvs_iter->status.ToString().c_str());
     }
 
@@ -179,11 +179,11 @@ int main()
 
     s = n->MSet(kvs);
     KIterator *scan_iter = n->scan("", "", -1);
-    if(scan_iter == NULL){
+    if (scan_iter == NULL) {
         log_info("Scan error!");
     }
-    while(scan_iter->next()){
-        log_info("Test Scan key: %s, value: %s", scan_iter->key.c_str(), scan_iter->val.c_str());
+    while (scan_iter->Next()) {
+        log_info("Test Scan key: %s, value: %s", scan_iter->Key().c_str(), scan_iter->Val().c_str());
     }
 
     //just delete all key-value set before
@@ -315,7 +315,7 @@ int main()
 
     s = n->HMGet("tHMGetKey", fields, fvss);
     std::vector<FVS>::iterator fvs_iter;
-    for(fvs_iter = fvss.begin(); fvs_iter != fvss.end(); fvs_iter++) {
+    for (fvs_iter = fvss.begin(); fvs_iter != fvss.end(); fvs_iter++) {
         log_info("Test HMGet OK return %s, field: %s, val: %s status: %s", s.ToString().c_str(), fvs_iter->field.c_str(), fvs_iter->val.c_str(), fvs_iter->status.ToString().c_str());
     }
     log_info("");
@@ -328,7 +328,7 @@ int main()
     s = n->HKeys("tHMGetKey", fields);
     log_info("Test Hkey OK return %s", s.ToString().c_str());
     std::vector<std::string>::iterator field_iter;
-    for(field_iter = fields.begin(); field_iter != fields.end(); field_iter++) {
+    for (field_iter = fields.begin(); field_iter != fields.end(); field_iter++) {
         log_info("Test HKeys field: %s", (*field_iter).c_str());
     }
     log_info("");
@@ -341,7 +341,7 @@ int main()
     s = n->HGetall("tHMGetKey", fvs);
     log_info("Test HGetall OK return %s", s.ToString().c_str());
     std::vector<FV>::iterator fv_iter;
-    for(fv_iter = fvs.begin(); fv_iter != fvs.end(); fv_iter++) {
+    for (fv_iter = fvs.begin(); fv_iter != fvs.end(); fv_iter++) {
         log_info("Test HGetall, field: %s, val: %s", fv_iter->field.c_str(), fv_iter->val.c_str());
     }
     log_info("");
@@ -354,7 +354,7 @@ int main()
     s = n->HVals("tHMGetKey", values);
     log_info("Test HVals OK return %s", s.ToString().c_str());
     std::vector<std::string>::iterator value_iter;
-    for(value_iter = values.begin(); value_iter != values.end(); value_iter++) {
+    for (value_iter = values.begin(); value_iter != values.end(); value_iter++) {
         log_info("Test HVals field: %s", (*value_iter).c_str());
     }
     log_info("");
@@ -373,123 +373,18 @@ int main()
     log_info("======Test HScan======");
 
     HIterator *hit = n->HScan("tHMGetKey", "", "", -1);
-    if(hit == NULL){
+    if (hit == NULL) {
         log_info("HScan error!");
     }
-    while(hit->next()){
-        log_info("HScan key: %s, field: %s, value: %s", hit->key.c_str(), hit->field.c_str(), hit->val.c_str());
+    while (hit->Next()) {
+        log_info("HScan key: %s, field: %s, value: %s", hit->Key().c_str(), hit->Field().c_str(), hit->Val().c_str());
     }
     log_info("");
     //just delete all key-value set before
     s = n->HDel("tHMGetKey1", "tHMGetVal1");
     s = n->HDel("tHMGetKey2", "tHMGetVal2");
     s = n->HDel("tHMGetKey3", "tHMGetVal3");
-    
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-    s = n->MSet(kvs);
-    s = n->HMSet("zhao", kvs);
-    log_info("HMSet return %s", s.ToString().c_str());
-    s = n->Del("eyfield1");
-    s = n->Del("noexist");
-    s = n->Set("songzhao", "lucky");
-    s = n->Set("songzhao1", "lucky1");
-    s = n->Set("songzhao2", "lucky2");
-    s = n->Get("songzhao", &res);
-    s = n->GetSet("notexist", "uu", &res);
-    log_info("GetSet return %s, old_val: %s", s.ToString().c_str(), res.c_str());
-    KIterator *it = n->scan("", "", -1);
-    if(it == NULL){
-        log_info("Scan error!");
-    }
-    int num = 0;
-    while(it->next()){
-        log_info("key: %s, value: %s", it->key.c_str(), it->val.c_str());
-        num++;
-    }
-    log_info("num = %d", num);
-    
-    s = n->HSet("song", "cong", "8");
-    log_info("HSet return: %s", s.ToString().c_str());
-    s = n->HSet("song", "zhao", "6");
-    log_info("HSet return: %s", s.ToString().c_str());
-    log_info("HSize return %ld", n->HSize("song"));
-    s = n->HGet("song", "zhao", &res);
-    log_info("HGet return: %s, val %s", s.ToString().c_str(), res.c_str());
-    s = n->HDel("song", "zhao");
-    log_info("HDel return: %s", s.ToString().c_str());
-    s = n->HGet("song", "zhao", &res);
-    log_info("HGet return: %s, val %s", s.ToString().c_str(), res.c_str());
-    log_info("HExists return: %d", n->HExists("song", "zhao"));
-    log_info("HExists return: %d", n->HExists("song", "cong"));
-    
-    s = n->HSet("song", "yuan", "16");
-    std::vector<std::string> vec_keys;
-    s = n->HKeys("song", vec_keys);
-    std::vector<std::string>::iterator it1;
-    for(it1 = vec_keys.begin(); it1 != vec_keys.end(); it1++) {
-        log_info("HKeys : %s", (*it1).c_str());
-    }
-    kvs.clear();
-    s = n->HGetall("song", kvs);
-    std::vector<Kv>::iterator it2;
-    for(it2 = kvs.begin(); it2 != kvs.end(); it2++) {
-        log_info("HGetall : %s %s", (*it2).key.c_str(), (*it2).val.c_str());
-    }
-
-    log_info("HLen return: %ld", n->HLen("song"));
-    log_info("HLen return: %ld", n->HLen("zhao"));
-    keys.push_back("key7");
-    keys.push_back("key8");
-    keys.push_back("key9");
-    kvss.clear();
-    s = n->HMGet("zhao", keys, kvss);
-    for(iter = kvss.begin(); iter != kvss.end(); iter++) {
-        log_info("HMGet : %s, %s, %s", iter->key.c_str(), iter->val.c_str(), iter->status.ToString().c_str());
-    }
-    HIterator *hit = n->HScan("zhao", "", "key8", -1);
-    if(hit == NULL){
-        log_info("Scan error!");
-    }
-    num = 0;
-    while(hit->next()){
-        log_info("key: %s, field: %s, value: %s", hit->key.c_str(), hit->field.c_str(), hit->val.c_str());
-        num++;
-    }
-    log_info("num = %d", num);
-    n->HDel("song", "shirley");
-    s = n->HSetnx("song", "shirley", "688");
-    log_info("HSetnx return %s", s.ToString().c_str());
-    s = n->HSetnx("song", "shirley", "688");
-    log_info("HSetnx return %s", s.ToString().c_str());
-
-    log_info("HStrlen return %ld", n->HStrlen("zhao", "key7"));
-    log_info("HStrlen return %ld", n->HStrlen("song", "fuk"));
-
-    std::vector<std::string> values;
-    s = n->HVals("zhao", values);
-    std::vector<std::string>::iterator vit;
-    for(vit = values.begin(); vit != values.end(); vit++) {
-        log_info("HVals %s", (*vit).c_str());
-    }
-
-    s = n->HIncrby("song", "shirley", -2, res);
-    log_info("Incrby return %s, new_val = %s", s.ToString().c_str(), res.c_str());
-    s = n->HIncrby("song", "shir", 6, res);
-    log_info("Incrby return %s, new_val = %s", s.ToString().c_str(), res.c_str());
-*/
     return 0;
 }

@@ -3,148 +3,126 @@
 #include "nemo_hash.h"
 #include "xdebug.h"
 
-nemo::Iterator::Iterator(rocksdb::Iterator *it,
-        const std::string &end,
-        uint64_t limit,
-        Direction direction)
-{
-    this->it = it;
-    this->end = end;
-    this->limit = limit;
-    this->is_first = true;
-    this->direction = direction;
+nemo::Iterator::Iterator(rocksdb::Iterator *it, const std::string &end, uint64_t limit, Direction direction)
+    : it_(it),
+    end_(end),
+    limit_(limit),
+    is_first_(true),
+    direction_(direction) {
 }
 
-nemo::Iterator::~Iterator(){
-    delete it;
+nemo::Iterator::~Iterator() {
+    delete it_;
 }
 
-rocksdb::Slice nemo::Iterator::key(){
-    rocksdb::Slice s = it->key();
+rocksdb::Slice nemo::Iterator::Key() {
+    rocksdb::Slice s = it_->key();
     return rocksdb::Slice(s.data(), s.size());
 }
 
-rocksdb::Slice nemo::Iterator::val(){
-    rocksdb::Slice s = it->value();
+rocksdb::Slice nemo::Iterator::Val() {
+    rocksdb::Slice s = it_->value();
     return rocksdb::Slice(s.data(), s.size());
 }
 
-bool nemo::Iterator::skip(uint64_t offset){
-    while(offset-- > 0){
-        if(this->next() == false){
+bool nemo::Iterator::Skip(uint64_t offset) {
+    while (offset-- > 0) {
+        if (this->Next() == false) {
             return false;
         }
     }
     return true;
 }
 
-bool nemo::Iterator::next(){
-    if(limit == 0){
+bool nemo::Iterator::Next() {
+    if (limit_ == 0) {
         return false;
     }
-    if(is_first){
-        is_first = false;
-    }else{
-        if(direction == FORWARD){
-            it->Next();
+    if (is_first_) {
+        is_first_ = false;
+    } else {
+        if(direction_ == kForward){
+            it_->Next();
         }else{
-            it->Prev();
+            it_->Prev();
         }
     }
 
-    if(!it->Valid()){
+    if (!it_->Valid()) {
         // make next() safe to be called after previous return false.
-        limit = 0;
+        limit_ = 0;
         return false;
     }
-    if(direction == FORWARD){
-        if(!end.empty() && it->key().compare(end) > 0){
-            limit = 0;
+    if (direction_ == kForward) {
+        if (!end_.empty() && it_->key().compare(end_) > 0) {
+            limit_ = 0;
             return false;
         }
     }else{
-        if(!end.empty() && it->key().compare(end) < 0){
-            limit = 0;
+        if(!end_.empty() && it_->key().compare(end_) < 0) {
+            limit_ = 0;
             return false;
         }
     }
-    limit --;
+    limit_ --;
     return true;
 }
 
 /***
  * KV
 ***/
-nemo::KIterator::KIterator(Iterator *it){
-    this->it = it;
-    this->return_val_ = true;
+nemo::KIterator::KIterator(Iterator *it) : it_(it) {
 }
 
-nemo::KIterator::~KIterator(){
-    delete it;
+nemo::KIterator::~KIterator() {
+    delete it_;
 }
 
-void nemo::KIterator::return_val(bool onoff){
-    this->return_val_ = onoff;
-}
 
-bool nemo::KIterator::next(){
-    while(it->next()){
-        rocksdb::Slice ks = it->key();
-        rocksdb::Slice vs = it->val();
-        //dump(ks.data(), ks.size(), "z.next");
-        //dump(vs.data(), vs.size(), "z.next");
+bool nemo::KIterator::Next() {
+    while (it_->Next()) {
+        rocksdb::Slice ks = it_->Key();
+        rocksdb::Slice vs = it_->Val();
         if(ks.data()[0] != DataType::kKv){
             return false;
         }
-        if(decode_kv_key(ks, &this->key) == -1){
+        if(DecodeKvKey(ks, &this->key_) == -1){
             continue;
         }
-        if(return_val_){
-            this->val.assign(vs.data(), vs.size());
-        }
+        this->val_.assign(vs.data(), vs.size());
         return true;
     }
-    return  false;
+    return false;
 }
 
 /***
  * HASH
 ***/
 
-nemo::HIterator::HIterator(Iterator *it, const rocksdb::Slice &key){
-    this->it = it;
-    this->key.assign(key.data(), key.size());
-    this->return_val_ = true;
+nemo::HIterator::HIterator(Iterator *it, const rocksdb::Slice &key) 
+    : it_(it) {
+    this->key_.assign(key.data(), key.size());
 }
 
-nemo::HIterator::~HIterator(){
-    delete it;
+nemo::HIterator::~HIterator() {
+    delete it_;
 }
 
-void nemo::HIterator::return_val(bool onoff){
-    this->return_val_ = onoff;
-}
-
-bool nemo::HIterator::next(){
-    while(it->next()){
-        rocksdb::Slice ks = it->key();
-        rocksdb::Slice vs = it->val();
-        //dump(ks.data(), ks.size(), "z.next");
-        //dump(vs.data(), vs.size(), "z.next");
-        if(ks.data()[0] != DataType::kHash){
+bool nemo::HIterator::Next() {
+    while (it_->Next()) {
+        rocksdb::Slice ks = it_->Key();
+        rocksdb::Slice vs = it_->Val();
+        if (ks.data()[0] != DataType::kHash) {
             return false;
         }
         std::string k;
-        if(decode_hash_key(ks, &k, &this->field) == -1){
+        if (DecodeHashKey(ks, &k, &this->field_) == -1) {
             continue;
         }
-        if(k != this->key){
+        if (k != this->key_) {
             return false;
         }
-        if(return_val_){
-            this->val.assign(vs.data(), vs.size());
-        }
+        this->val_.assign(vs.data(), vs.size());
         return true;
     }
     return false;
