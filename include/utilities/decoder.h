@@ -32,7 +32,7 @@ public:
         if (size_ < 1) {
             return -1;
         }
-        int32_t len = (uint8_t)ptr_[0];
+        int32_t len = (uint16_t)ptr_[0];
         ptr_ += 1;
         size_ -= 1;
         if (size_ < len) {

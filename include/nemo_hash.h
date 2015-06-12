@@ -43,7 +43,7 @@ inline int DecodeHashKey(const rocksdb::Slice &slice, std::string *name, std::st
     if (decoder.ReadLenData(name) == -1) {
         return -1;
     }
-    if (decoder.Skip(1) == -1) {
+    if (decoder.Skip(2) == -1) {
         return -1;
     }
     if (decoder.ReadData(key) == -1) {

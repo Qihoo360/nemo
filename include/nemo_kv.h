@@ -16,7 +16,7 @@ inline std::string EncodeKvKey(const rocksdb::Slice &key) {
 
 inline int DecodeKvKey(const rocksdb::Slice &slice, std::string *key) {
     Decoder decoder(slice.data(), slice.size());
-    if (decoder.Skip(1) == -1) {
+    if (decoder.Skip(2) == -1) {
         return -1;
     }
     if (decoder.ReadData(key) == -1) {
