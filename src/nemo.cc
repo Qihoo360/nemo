@@ -10,6 +10,7 @@ Nemo::Nemo(const std::string &db_path, rocksdb::Options options) :
 {
     pthread_mutex_init(&(mutex_kv_), NULL);
     pthread_mutex_init(&(mutex_hash_), NULL);
+    pthread_mutex_init(&(mutex_list_), NULL);
     rocksdb::DB* db;
     rocksdb::Status s = rocksdb::DB::Open(options, db_path_, &db);
     if (!s.ok()) {

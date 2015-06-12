@@ -14,6 +14,7 @@ public:
     ~Nemo() {
         pthread_mutex_destroy(&(mutex_kv_));
         pthread_mutex_destroy(&(mutex_hash_));
+        pthread_mutex_destroy(&(mutex_list_));
     };
 
     // =================KV=====================
@@ -44,6 +45,11 @@ public:
     HIterator* HScan(const std::string &key, const std::string &start, const std::string &end, uint64_t limit);
     rocksdb::Status HVals(const std::string &key, std::vector<std::string> &vals);
     rocksdb::Status HIncrby(const std::string &key, const std::string &field, int64_t by, std::string &new_val);
+    
+    // ==============List=====================
+    uint64_t LLen(const std::string &key);
+    rocksdb::Status LPush(const std::string &key, const std::string &val);
+    rocksdb::Status LPop(const std::string &key, std::string *val);
 
 private:
 
@@ -52,6 +58,7 @@ private:
 
     pthread_mutex_t mutex_kv_;
     pthread_mutex_t mutex_hash_;
+    pthread_mutex_t mutex_list_;
 
     int DoHSet(const std::string &key, const std::string &field, const std::string &val, rocksdb::WriteBatch &writebatch);
     int DoHDel(const std::string &key, const std::string &field, rocksdb::WriteBatch &writebatch);

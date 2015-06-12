@@ -385,6 +385,32 @@ int main()
     s = n->HDel("tHMGetKey2", "tHMGetVal2");
     s = n->HDel("tHMGetKey3", "tHMGetVal3");
 
+    /*
+     *  Test LPush
+     */
+    log_info("======Test LPush======");
+    s = n->LPush("tLPushKey", "tLPushVal1");
+    s = n->LPush("tLPushKey", "tLPushVal2");
+    s = n->LPush("tLPushKey", "tLPushVal3");
+    log_info("Test LPush OK return %s", s.ToString().c_str());
+    log_info("");
+
+    /*
+     *  Test LLen
+     */
+    log_info("======Test LLen======");
+    log_info("Test LLen return %ld", n->LLen("tLPushKey"));
+    log_info("");
+
+    /*
+     *  Test LPop
+     */
+    log_info("======Test LPop======");
+    res = "";
+    s = n->LPop("tLPushKey", &res);
+    log_info("Test LPop OK return %s, res = %s", s.ToString().c_str(), res.c_str());
+    log_info("After LPop, Test LLen return %ld", n->LLen("tLPushKey"));
+    log_info("");
 
     return 0;
 }
