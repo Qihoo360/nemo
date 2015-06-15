@@ -97,7 +97,7 @@ rocksdb::Status Nemo::LPop(const std::string &key, std::string *val) {
         if (ParseMeta(meta, &len, &left, &right) == 0) {
             if (len == 0 || left + 1 == INT_MAX) {
                 s = db_->Delete(rocksdb::WriteOptions(), meta_key);
-                return rocksdb::Status::NotFound("not found key");
+                return rocksdb::Status::NotFound("not found the key");
             }
             if (--len == 0) {
                 batch.Delete(meta_key);
@@ -119,5 +119,76 @@ rocksdb::Status Nemo::LPop(const std::string &key, std::string *val) {
         return rocksdb::Status::NotFound("not found key");
     } else {
         return rocksdb::Status::Corruption("get listmeta error");
+    }
+}
+
+rocksdb::Status Nemo::LPushx(const std::string &key, const std::string &val) {
+    rocksdb::Status s;
+    uint64_t len;
+    uint64_t left;
+    uint64_t right;
+    std::string meta;
+    std::string meta_key = EncodeLMetaKey(key);
+    s = db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
+    if (s.ok()) {
+        if (ParseMeta(meta, &len, &left, &right) == 0) {
+            if (len == 0) {
+                return rocksdb::Status::NotFound("not found the key");
+            } else if (len > 0) {
+                s = LPush(key, val);
+                return s;
+            } else {
+                return rocksdb::Status::Corruption("get invalid listlen");
+            }
+        } else {
+            return rocksdb::Status::Corruption("parse listmeta error");
+        }
+    } else if (s.IsNotFound()) {
+        return rocksdb::Status::NotFound("not found the key");
+    } else {
+        return rocksdb::Status::Corruption("get listmeta error");
+    }
+}
+
+rocksdb::Status Nemo::LRange(const std::string &key, int32_t begin, int32_t end, std::vector<IV> &ivs) {
+    rocksdb::Status s;
+    uint64_t len;
+    uint64_t left;
+    uint64_t right;
+    std::string meta;
+    std::string res;
+    std::string meta_key = EncodeLMetaKey(key);
+    std::string db_key;
+    MutexLock l(&mutex_list_);
+    s = db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
+    if (s.ok()) {
+        if (ParseMeta(meta, &len, &left, &right) == 0) {
+            if (len == 0) {
+                return rocksdb::Status::NotFound("not found the key");
+            } else if (len > 0) {
+                uint64_t index_b = begin >= 0 ? left + begin + 1 : right + begin - 1;
+                uint64_t index_e = end >= 0 ? left + end + 1 : right + end - 1;
+                if (index_b > index_e || index_b > left + len || index_e < right - len) {
+                    return rocksdb::Status::OK();
+                }
+                if (index_b <= left) {
+                    index_b = left + 1;
+                }
+                if (index_e >= right) {
+                    index_e = right - 1;
+                }
+                for (uint64_t i = index_b; i <= index_e; i++) {
+                    res = "";
+                    db_key = EncodeListKey(key, Uint64ToStr(i));
+                    s = db_->Get(rocksdb::ReadOptions(), db_key, &res);
+                    ivs.push_back(IV{i-left-1, res});
+                }
+                return rocksdb::Status::OK();
+            } else {
+                return rocksdb::Status::Corruption("get invalid listlen");
+            }
+        } else {
+            return rocksdb::Status::Corruption("parse listmeta error");
+        }
     }
 }

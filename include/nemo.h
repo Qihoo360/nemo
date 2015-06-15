@@ -50,6 +50,8 @@ public:
     uint64_t LLen(const std::string &key);
     rocksdb::Status LPush(const std::string &key, const std::string &val);
     rocksdb::Status LPop(const std::string &key, std::string *val);
+    rocksdb::Status LPushx(const std::string &key, const std::string &val);
+    rocksdb::Status LRange(const std::string &key, const int32_t begin, const int32_t end, std::vector<IV> &ivs);
 
 private:
 
