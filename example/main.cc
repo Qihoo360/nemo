@@ -386,14 +386,22 @@ int main()
     s = n->HDel("tHMGetKey3", "tHMGetVal3");
 
     /*
+     *************************************************List**************************************************
+     */
+    std::vector<IV> ivs;
+
+    /*
      *  Test LPush
      */
-    log_info("======Test LPush======");
-    s = n->LPush("tLPushKey", "tLPushVal1");
-    s = n->LPush("tLPushKey", "tLPushVal2");
-    s = n->LPush("tLPushKey", "tLPushVal3");
-    log_info("Test LPush OK return %s", s.ToString().c_str());
-    log_info("");
+//    log_info("======Test LPush======");
+//    s = n->LPush("tLPushKey", "tLPushVal1");
+//    s = n->LPush("tLPushKey", "tLPushVal2");
+//    s = n->LPush("tLPushKey", "tLPushVal3");
+//    s = n->LPush("tLPushKey", "tLPushVal4");
+//    s = n->LPush("tLPushKey", "tLPushVal5");
+//    s = n->LPush("tLPushKey", "tLPushVal6");
+//    log_info("Test LPush OK return %s", s.ToString().c_str());
+//    log_info("");
 
     /*
      *  Test LLen
@@ -405,12 +413,38 @@ int main()
     /*
      *  Test LPop
      */
-    log_info("======Test LPop======");
-    res = "";
-    s = n->LPop("tLPushKey", &res);
-    log_info("Test LPop OK return %s, res = %s", s.ToString().c_str(), res.c_str());
-    log_info("After LPop, Test LLen return %ld", n->LLen("tLPushKey"));
-    log_info("");
+//    log_info("======Test LPop======");
+//    res = "";
+//    s = n->LPop("tLPushKey", &res);
+//    log_info("Test LPop OK return %s, res = %s", s.ToString().c_str(), res.c_str());
+//    log_info("After LPop, Test LLen return %ld", n->LLen("tLPushKey"));
+//    log_info("");
+
+    /*
+     *  Test LPushx
+     */
+//    log_info("======Test LPushx======");
+//    s = n->LPushx("tLPushKey", "tLpushval4");
+//    log_info("Test LPushx OK return %s", s.ToString().c_str());
+//    log_info("After Lpushx push an existed key, LLen return %ld", n->LLen("tLPushKey"));
+//
+//    s = n->LPushx("not-exist-key", "tLpushval4");
+//    log_info("Test LPushx push an non-exist key , LPushx OK return %s", s.ToString().c_str());
+//    log_info("After Lpushx push an non-exist key, LLen return %ld", n->LLen("tLPushKey"));
+//
+//    log_info("");
+
+    /*
+     *  Test LPushx
+     */
+    log_info("======Test LRange======");
+    ivs.clear();
+    s = n->LRange("tLPushKey", -100, 100, ivs);
+    log_info("Test LRange OK return %s", s.ToString().c_str());
+    std::vector<IV>::iterator iter_iv;
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+        log_info("Test LRange index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
 
     return 0;
 }

@@ -23,6 +23,11 @@ struct FVS {
     rocksdb::Status status;
 };
 
+struct IV {
+    uint64_t index;
+    std::string val;
+};
+
 namespace DataType {
     static const char kKv        = 'k';
     static const char kHash      = 'h'; // hashmap(sorted by key)
