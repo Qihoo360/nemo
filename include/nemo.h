@@ -52,6 +52,11 @@ public:
     rocksdb::Status LPop(const std::string &key, std::string *val);
     rocksdb::Status LPushx(const std::string &key, const std::string &val);
     rocksdb::Status LRange(const std::string &key, const int32_t begin, const int32_t end, std::vector<IV> &ivs);
+    rocksdb::Status LSet(const std::string &key, const int32_t index, const std::string &val);
+    rocksdb::Status LTrim(const std::string &key, const int32_t begin, const int32_t end);
+    rocksdb::Status RPush(const std::string &key, const std::string &val);
+    rocksdb::Status RPop(const std::string &key, std::string *val);
+    rocksdb::Status RPushx(const std::string &key, const std::string &val);
 
 private:
 

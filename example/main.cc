@@ -393,15 +393,15 @@ int main()
     /*
      *  Test LPush
      */
-//    log_info("======Test LPush======");
-//    s = n->LPush("tLPushKey", "tLPushVal1");
-//    s = n->LPush("tLPushKey", "tLPushVal2");
-//    s = n->LPush("tLPushKey", "tLPushVal3");
-//    s = n->LPush("tLPushKey", "tLPushVal4");
-//    s = n->LPush("tLPushKey", "tLPushVal5");
-//    s = n->LPush("tLPushKey", "tLPushVal6");
-//    log_info("Test LPush OK return %s", s.ToString().c_str());
-//    log_info("");
+    log_info("======Test LPush======");
+    s = n->LPush("tLPushKey", "tLPushVal1");
+    s = n->LPush("tLPushKey", "tLPushVal2");
+    s = n->LPush("tLPushKey", "tLPushVal3");
+    s = n->LPush("tLPushKey", "tLPushVal4");
+    s = n->LPush("tLPushKey", "tLPushVal5");
+    s = n->LPush("tLPushKey", "tLPushVal6");
+    log_info("Test LPush OK return %s", s.ToString().c_str());
+    log_info("");
 
     /*
      *  Test LLen
@@ -413,29 +413,29 @@ int main()
     /*
      *  Test LPop
      */
-//    log_info("======Test LPop======");
-//    res = "";
-//    s = n->LPop("tLPushKey", &res);
-//    log_info("Test LPop OK return %s, res = %s", s.ToString().c_str(), res.c_str());
-//    log_info("After LPop, Test LLen return %ld", n->LLen("tLPushKey"));
-//    log_info("");
+    log_info("======Test LPop======");
+    res = "";
+    s = n->LPop("tLPushKey", &res);
+    log_info("Test LPop OK return %s, res = %s", s.ToString().c_str(), res.c_str());
+    log_info("After LPop, Test LLen return %ld", n->LLen("tLPushKey"));
+    log_info("");
+
+  /*
+   *  Test LPushx
+   */
+    log_info("======Test LPushx======");
+    s = n->LPushx("tLPushKey", "tLpushval4");
+    log_info("Test LPushx OK return %s", s.ToString().c_str());
+    log_info("After LPushx push an existed key, LLen return %ld", n->LLen("tLPushKey"));
+
+    s = n->LPushx("not-exist-key", "tLpushval4");
+    log_info("Test LPushx push an non-exist key , LPushx OK return %s", s.ToString().c_str());
+    log_info("After LPushx push an non-exist key, LLen return %ld", n->LLen("tLPushKey"));
+
+    log_info("");
 
     /*
-     *  Test LPushx
-     */
-//    log_info("======Test LPushx======");
-//    s = n->LPushx("tLPushKey", "tLpushval4");
-//    log_info("Test LPushx OK return %s", s.ToString().c_str());
-//    log_info("After Lpushx push an existed key, LLen return %ld", n->LLen("tLPushKey"));
-//
-//    s = n->LPushx("not-exist-key", "tLpushval4");
-//    log_info("Test LPushx push an non-exist key , LPushx OK return %s", s.ToString().c_str());
-//    log_info("After Lpushx push an non-exist key, LLen return %ld", n->LLen("tLPushKey"));
-//
-//    log_info("");
-
-    /*
-     *  Test LPushx
+     *  Test LRange
      */
     log_info("======Test LRange======");
     ivs.clear();
@@ -445,6 +445,86 @@ int main()
     for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
         log_info("Test LRange index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
     }
+    log_info("");
+
+    /*
+     *  Test LSet
+     */
+    log_info("======Test LSet======");
+    s = n->LSet("tLPushKey", -2, "tLSetVal1");
+    log_info("Test LSet OK return %s", s.ToString().c_str());
+    ivs.clear();
+    s = n->LRange("tLPushKey", 0, -1, ivs);
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+        log_info("After LSet, LRange index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
+    log_info("");
+
+    /*
+     *  Test LTrim
+     */
+    log_info("======Test LTrim======");
+    s = n->LTrim("tLPushKey", -5, -5);
+    log_info("Test LTrim OK return %s", s.ToString().c_str());
+    ivs.clear();
+    s = n->LRange("tLPushKey", 0, -1, ivs);
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+        log_info("After LTrim, LRange index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
+    log_info("");
+    //just clear the list
+    s = n->LTrim("tLPushKey", 1, 0);
+
+    /*
+     *  Test RPush
+     */
+    log_info("======Test RPush======");
+    s = n->LPush("tLPushKey", "tLPushVal1");
+    s = n->LPush("tLPushKey", "tLPushVal2");
+    s = n->LPush("tLPushKey", "tLPushVal3");
+    s = n->LPush("tLPushKey", "tLPushVal4");
+    s = n->LPush("tLPushKey", "tLPushVal5");
+    s = n->LPush("tLPushKey", "tLPushVal6");
+    log_info("Test RPush OK return %s", s.ToString().c_str());
+    log_info("After RPush LLen return %ld", n->LLen("tLPushKey"));
+    log_info("");
+    
+    /*
+     *  Test RPop
+     */
+    log_info("======Test RPop======");
+    res = "";
+    s = n->LPop("tLPushKey", &res);
+    log_info("Test RPop OK return %s, res = %s", s.ToString().c_str(), res.c_str());
+    log_info("After RPop, Test LLen return %ld", n->LLen("tLPushKey"));
+    ivs.clear();
+    s = n->LRange("tLPushKey", 0, -1, ivs);
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+        log_info("After RPop, LRange index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
+    log_info("");
+
+
+    /*
+     *  Test RPushx
+     */
+    log_info("======Test RPushx======");
+    s = n->RPushx("tLPushKey", "tLpushval4");
+    log_info("Test RPushx OK return %s", s.ToString().c_str());
+    log_info("After RPushx push an existed key, LLen return %ld", n->LLen("tLPushKey"));
+    ivs.clear();
+    s = n->LRange("tLPushKey", 0, -1, ivs);
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+        log_info("After RPushx push an existed key, LRange index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
+
+    s = n->LPushx("not-exist-key", "tLpushval4");
+    log_info("Test RPushx push an non-exist key , LPushx OK return %s", s.ToString().c_str());
+    log_info("After RPushx push an non-exist key, LLen return %ld", n->LLen("tLPushKey"));
+
+    //just clear the list
+    s = n->LTrim("tLPushKey", 1, 0);
+    log_info("");
 
     return 0;
 }
