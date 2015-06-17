@@ -5,46 +5,46 @@
 #include "xdebug.h"
 using namespace nemo;
 
-rocksdb::Status Nemo::HSet(const std::string &key, const std::string &field, const std::string &val) {
-    rocksdb::Status s;
+Status Nemo::HSet(const std::string &key, const std::string &field, const std::string &val) {
+    Status s;
     MutexLock l(&mutex_hash_);
     rocksdb::WriteBatch writebatch;
     int ret = DoHSet(key, field, val, writebatch);
     if (ret > 0) {
         if (IncrHLen(key, ret, writebatch) == -1) {
-            return rocksdb::Status::Corruption("incrhlen error");
+            return Status::Corruption("incrhlen error");
         }
     }
     s = db_->Write(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 
-rocksdb::Status Nemo::HGet(const std::string &key, const std::string &field, std::string *val) {
+Status Nemo::HGet(const std::string &key, const std::string &field, std::string *val) {
     std::string dbkey = EncodeHashKey(key, field);
-    rocksdb::Status s = db_->Get(rocksdb::ReadOptions(), dbkey, val);
+    Status s = db_->Get(rocksdb::ReadOptions(), dbkey, val);
     return s;
 }
 
-rocksdb::Status Nemo::HDel(const std::string &key, const std::string &field) {
-    rocksdb::Status s;
+Status Nemo::HDel(const std::string &key, const std::string &field) {
+    Status s;
     MutexLock l(&mutex_hash_);
     rocksdb::WriteBatch writebatch;
     int ret = DoHDel(key, field, writebatch);
     if (ret > 0) {
         if (IncrHLen(key, -ret, writebatch) == -1) {
-            return rocksdb::Status::Corruption("incrlen error");
+            return Status::Corruption("incrlen error");
         } 
         s = db_->Write(rocksdb::WriteOptions(), &(writebatch));
         return s;
     } else if (ret == 0) {
-        return rocksdb::Status::OK(); 
+        return Status::OK(); 
     } else {
-        return rocksdb::Status::Corruption("DoHDel error");
+        return Status::Corruption("DoHDel error");
     }
 }
 
 bool Nemo::HExists(const std::string &key, const std::string &field) {
-    rocksdb::Status s;
+    Status s;
     std::string dbkey = EncodeHashKey(key, field);
     std::string val;
     s = db_->Get(rocksdb::ReadOptions(), dbkey, &val);
@@ -55,7 +55,7 @@ bool Nemo::HExists(const std::string &key, const std::string &field) {
     }
 }
 
-rocksdb::Status Nemo::HKeys(const std::string &key, std::vector<std::string> &fields) {
+Status Nemo::HKeys(const std::string &key, std::vector<std::string> &fields) {
     std::string dbkey;
     std::string dbfield;
     std::string key_start = EncodeHashKey(key, "");
@@ -76,14 +76,14 @@ rocksdb::Status Nemo::HKeys(const std::string &key, std::vector<std::string> &fi
        }
        it->Next();
     }
-    return rocksdb::Status::OK();
+    return Status::OK();
 
 }
 
 int64_t Nemo::HLen(const std::string &key) {
     std::string size_key = EncodeHsizeKey(key);
     std::string val;
-    rocksdb::Status s;
+    Status s;
 
     s = db_->Get(rocksdb::ReadOptions(), size_key, &val);
     if (s.IsNotFound()) {
@@ -99,7 +99,7 @@ int64_t Nemo::HLen(const std::string &key) {
     }
 }
 
-rocksdb::Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
+Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
     std::string dbkey;
     std::string dbfield;
     std::string key_start = EncodeHashKey(key, "");
@@ -120,7 +120,7 @@ rocksdb::Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
        }
        it->Next();
     }
-    return rocksdb::Status::OK();
+    return Status::OK();
 }
 
 //int64_t Nemo::HLen(const std::string &key) {
@@ -148,11 +148,11 @@ rocksdb::Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
 //    return len;
 //}
 
-rocksdb::Status Nemo::HMSet(const std::string &key, const std::vector<FV> &fvs) {
+Status Nemo::HMSet(const std::string &key, const std::vector<FV> &fvs) {
     if (key.size() == 0) {
-        return rocksdb::Status::InvalidArgument("Invalid Argument");
+        return Status::InvalidArgument("Invalid Argument");
     }
-    rocksdb::Status s;
+    Status s;
     std::vector<FV>::const_iterator it;
     for (it = fvs.begin(); it != fvs.end(); it++) {
         HSet(key, it->field, it->val);
@@ -160,8 +160,8 @@ rocksdb::Status Nemo::HMSet(const std::string &key, const std::vector<FV> &fvs) 
     return s;
 }
 
-rocksdb::Status Nemo::HMGet(const std::string &key, const std::vector<std::string> &fields, std::vector<FVS> &fvss) {
-    rocksdb::Status s;
+Status Nemo::HMGet(const std::string &key, const std::vector<std::string> &fields, std::vector<FVS> &fvss) {
+    Status s;
     std::vector<std::string>::const_iterator it_key;
     for (it_key = fields.begin(); it_key != fields.end(); it_key++) {
         std::string en_key = EncodeHashKey(key, *(it_key));
@@ -169,7 +169,7 @@ rocksdb::Status Nemo::HMGet(const std::string &key, const std::vector<std::strin
         s = db_->Get(rocksdb::ReadOptions(), en_key, &val);
         fvss.push_back((FVS){*(it_key), val, s});
     }
-    return rocksdb::Status::OK();
+    return Status::OK();
 }
 
 HIterator* Nemo::HScan(const std::string &key, const std::string &start, const std::string &end, uint64_t limit) {
@@ -191,8 +191,8 @@ HIterator* Nemo::HScan(const std::string &key, const std::string &start, const s
     return new HIterator(new Iterator(it, key_end, limit), key); 
 }
 
-rocksdb::Status Nemo::HSetnx(const std::string &key, const std::string &field, const std::string &val) {
-    rocksdb::Status s;
+Status Nemo::HSetnx(const std::string &key, const std::string &field, const std::string &val) {
+    Status s;
     std::string str_val;
     MutexLock l(&mutex_hash_);
     s = HGet(key, field, &str_val);
@@ -201,20 +201,20 @@ rocksdb::Status Nemo::HSetnx(const std::string &key, const std::string &field, c
         int ret = DoHSet(key, field, val, writebatch);
         if (ret > 0) {
             if (IncrHLen(key, ret, writebatch) == -1) {
-                return rocksdb::Status::Corruption("incrhlen error");
+                return Status::Corruption("incrhlen error");
             }
         }
         s = db_->Write(rocksdb::WriteOptions(), &(writebatch));
         return s;
     } else if(s.ok()) {
-        return rocksdb::Status::Corruption("Already Exist");
+        return Status::Corruption("Already Exist");
     } else {
-        return rocksdb::Status::Corruption("HGet Error");
+        return Status::Corruption("HGet Error");
     }
 }
 
 int64_t Nemo::HStrlen(const std::string &key, const std::string &field) {
-    rocksdb::Status s;
+    Status s;
     std::string val;
     s = HGet(key, field, &val);
     if (s.ok()) {
@@ -226,7 +226,7 @@ int64_t Nemo::HStrlen(const std::string &key, const std::string &field) {
     }
 }
 
-rocksdb::Status Nemo::HVals(const std::string &key, std::vector<std::string> &vals) {
+Status Nemo::HVals(const std::string &key, std::vector<std::string> &vals) {
     std::string dbkey;
     std::string dbfield;
     std::string key_start = EncodeHashKey(key, "");
@@ -247,11 +247,11 @@ rocksdb::Status Nemo::HVals(const std::string &key, std::vector<std::string> &va
        }
        it->Next();
     }
-    return rocksdb::Status::OK();
+    return Status::OK();
 }
 
-rocksdb::Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t by, std::string &new_val) {
-    rocksdb::Status s;
+Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t by, std::string &new_val) {
+    Status s;
     std::string val;
     s = HGet(key, field, &val);
     if (s.IsNotFound()) {
@@ -259,7 +259,7 @@ rocksdb::Status Nemo::HIncrby(const std::string &key, const std::string &field, 
     } else if (s.ok()) {
         new_val = Int64ToStr((StrToInt64(val) + by));
     } else {
-        return rocksdb::Status::Corruption("HGet error");
+        return Status::Corruption("HGet error");
     }
     s = HSet(key, field, new_val);
     return s;
@@ -268,7 +268,7 @@ rocksdb::Status Nemo::HIncrby(const std::string &key, const std::string &field, 
 int Nemo::DoHSet(const std::string &key, const std::string &field, const std::string &val, rocksdb::WriteBatch &writebatch) {
     int ret = 0;
     std::string dbval;
-    rocksdb::Status s = HGet(key, field, &dbval);
+    Status s = HGet(key, field, &dbval);
     if (s.IsNotFound()) { // not found
         std::string hkey = EncodeHashKey(key, field);
         writebatch.Put(hkey, val);
@@ -286,7 +286,7 @@ int Nemo::DoHSet(const std::string &key, const std::string &field, const std::st
 int Nemo::DoHDel(const std::string &key, const std::string &field, rocksdb::WriteBatch &writebatch) {
     int ret = 0;
     std::string dbval;
-    rocksdb::Status s = HGet(key, field, &dbval);
+    Status s = HGet(key, field, &dbval);
     if (s.ok()) { 
         std::string hkey = EncodeHashKey(key, field);
         writebatch.Delete(hkey);
