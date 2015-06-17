@@ -8,10 +8,8 @@ using namespace nemo;
 
 int main()
 {
-    rocksdb::Options opt;
-    opt.create_if_missing = true;
-    Nemo *n = new Nemo("./tmp/db", opt); 
-    rocksdb::Status s;
+    Nemo *n = new Nemo("./tmp/db"); 
+    Status s;
 
     std::string res;
 
@@ -521,6 +519,18 @@ int main()
     s = n->LPushx("not-exist-key", "tLpushval4");
     log_info("Test RPushx push an non-exist key , LPushx OK return %s", s.ToString().c_str());
     log_info("After RPushx push an non-exist key, LLen return %ld", n->LLen("tLPushKey"));
+
+    /*
+     *  Test RPopLPush
+     */
+    log_info("======Test RPopLPush======");
+    s = n->RPopLPush("tLPushKey", "tLPushKey");
+    log_info("Test RPopLPush OK return %s", s.ToString().c_str());
+    ivs.clear();
+    s = n->LRange("tLPushKey", 0, -1, ivs);
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+        log_info("After RPushx push an existed key, LRange index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
 
     //just clear the list
     s = n->LTrim("tLPushKey", 1, 0);
