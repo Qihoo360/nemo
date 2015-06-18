@@ -18,6 +18,19 @@ public:
         return n;
     }
 
+    int32_t ReadInt64(int64_t *res) {
+        int32_t n = sizeof(int64_t);
+        if (size_ < n) {
+            return -1;
+        }
+        if (res) {
+            *res = *(int64_t *)ptr_;
+        }
+        ptr_ += sizeof(int64_t);
+        size_ -= sizeof(int64_t);
+        return sizeof(int64_t);
+    }
+
     int32_t ReadData(std::string *res) {
         int32_t n = size_;
         if (res) {
@@ -32,9 +45,9 @@ public:
         if (size_ < 1) {
             return -1;
         }
-        int32_t len = (uint16_t)ptr_[0];
-        ptr_ += 1;
-        size_ -= 1;
+        int32_t len = *((uint16_t *)ptr_);
+        ptr_ += 2;
+        size_ -= 2;
         if (size_ < len) {
             return -1;
         }

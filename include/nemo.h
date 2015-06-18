@@ -17,6 +17,7 @@ public:
         pthread_mutex_destroy(&(mutex_kv_));
         pthread_mutex_destroy(&(mutex_hash_));
         pthread_mutex_destroy(&(mutex_list_));
+        pthread_mutex_destroy(&(mutex_zset_));
     };
 
     // =================KV=====================
@@ -61,6 +62,10 @@ public:
     Status RPushx(const std::string &key, const std::string &val);
     Status RPopLPush(const std::string &src, const std::string &dest);
 
+    // ==============ZSet=====================
+    Status ZAdd(const std::string &key, const int64_t score, const std::string &member);
+    int64_t ZCard(const std::string &key);
+
 private:
 
     std::string db_path_;
@@ -69,10 +74,14 @@ private:
     pthread_mutex_t mutex_kv_;
     pthread_mutex_t mutex_hash_;
     pthread_mutex_t mutex_list_;
+    pthread_mutex_t mutex_zset_;
 
     int DoHSet(const std::string &key, const std::string &field, const std::string &val, rocksdb::WriteBatch &writebatch);
     int DoHDel(const std::string &key, const std::string &field, rocksdb::WriteBatch &writebatch);
     int IncrHLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
+
+    int DoZSet(const std::string &key, const int64_t score, const std::string &member, rocksdb::WriteBatch &writebatch);
+    int IncrZLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
 
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);
