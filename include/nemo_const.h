@@ -32,8 +32,11 @@ namespace DataType {
     static const char kKv        = 'k';
     static const char kHash      = 'h'; // hashmap(sorted by key)
     static const char kHSize     = 'H';
-    static const char kList     = 'l';
+    static const char kList      = 'l';
     static const char kLMeta     = 'L';
+    static const char kZSet      = 'z';
+    static const char kZSize     = 'Z';
+    static const char kZScore    = 'Z';
 //    static const char ZSET      = 's'; // key => score
 //    static const char ZSCORE    = 'z'; // key|score => ""
 //    static const char ZSIZE     = 'Z';

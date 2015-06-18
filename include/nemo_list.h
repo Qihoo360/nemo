@@ -5,8 +5,7 @@
 #include "nemo_const.h"
 #include "utilities/decoder.h"
 
-namespace nemo
-{
+namespace nemo {
 
 inline std::string EncodeLMetaKey(const rocksdb::Slice &name) {
     std::string buf;
@@ -29,7 +28,7 @@ inline int DecodeLMetaKey(const rocksdb::Slice &slice, std::string *name) {
 inline std::string EncodeListKey(const rocksdb::Slice &name, const rocksdb::Slice &key) {
     std::string buf;
     buf.append(1, DataType::kList);
-    buf.append(1, (uint8_t)name.size());
+    buf.append(2, (uint16_t)name.size());
     buf.append(name.data(), name.size());
     buf.append(1, '=');
     buf.append(key.data(), key.size());
@@ -44,7 +43,7 @@ inline int DecodeListKey(const rocksdb::Slice &slice, std::string *name, std::st
     if (decoder.ReadLenData(name) == -1) {
         return -1;
     }
-    if (decoder.Skip(2) == -1) {
+    if (decoder.Skip(1) == -1) {
         return -1;
     }
     if (decoder.ReadData(key) == -1) {

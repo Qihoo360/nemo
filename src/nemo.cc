@@ -11,6 +11,7 @@ Nemo::Nemo(const std::string &db_path) :
     pthread_mutex_init(&(mutex_kv_), NULL);
     pthread_mutex_init(&(mutex_hash_), NULL);
     pthread_mutex_init(&(mutex_list_), NULL);
+    pthread_mutex_init(&(mutex_zset_), NULL);
     rocksdb::DB* db;
     rocksdb::Options options;
     options.create_if_missing = true;

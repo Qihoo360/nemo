@@ -536,5 +536,26 @@ int main()
     s = n->LTrim("tLPushKey", 1, 0);
     log_info("");
 
+    /*
+     *************************************************ZSet**************************************************
+     */
+
+    /*
+     *  Test ZAdd
+     */
+    log_info("======Test ZAdd======");
+    s = n->ZAdd("tZAddKey", 1, "tZAddMem");
+    s = n->ZAdd("tZAddKey", 1, "tZAddMem1");
+    log_info("Test ZAdd OK return %s", s.ToString().c_str());
+    log_info("");
+
+    /*
+     *  Test ZAdd
+     */
+    log_info("======Test ZCard======");
+    log_info("Test ZCard, return %ld", n->ZCard("tZAddKey"));
+    log_info("");
+    
+
     return 0;
 }
