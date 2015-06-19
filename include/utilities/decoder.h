@@ -26,6 +26,7 @@ public:
         if (res) {
             *res = *(int64_t *)ptr_;
         }
+        *res = be64toh(*res);
         ptr_ += sizeof(int64_t);
         size_ -= sizeof(int64_t);
         return sizeof(int64_t);
@@ -45,9 +46,9 @@ public:
         if (size_ < 1) {
             return -1;
         }
-        int32_t len = *((uint16_t *)ptr_);
-        ptr_ += 2;
-        size_ -= 2;
+        int32_t len = *((uint8_t *)ptr_);
+        ptr_ += 1;
+        size_ -= 1;
         if (size_ < len) {
             return -1;
         }

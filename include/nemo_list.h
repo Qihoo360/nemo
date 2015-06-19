@@ -28,7 +28,7 @@ inline int DecodeLMetaKey(const rocksdb::Slice &slice, std::string *name) {
 inline std::string EncodeListKey(const rocksdb::Slice &name, const rocksdb::Slice &key) {
     std::string buf;
     buf.append(1, DataType::kList);
-    buf.append(2, (uint16_t)name.size());
+    buf.append(1, (uint8_t)name.size());
     buf.append(name.data(), name.size());
     buf.append(1, '=');
     buf.append(key.data(), key.size());

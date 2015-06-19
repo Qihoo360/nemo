@@ -544,16 +544,37 @@ int main()
      *  Test ZAdd
      */
     log_info("======Test ZAdd======");
-    s = n->ZAdd("tZAddKey", 1, "tZAddMem");
+    s = n->ZAdd("tZAddKey", 0, "tZAddMem0");
     s = n->ZAdd("tZAddKey", 1, "tZAddMem1");
+    s = n->ZAdd("tZAddKey", 2, "tZAddMem2");
+    s = n->ZAdd("tZAddKey", 3, "tZAddMem3");
     log_info("Test ZAdd OK return %s", s.ToString().c_str());
     log_info("");
 
     /*
-     *  Test ZAdd
+     *  Test ZCard
      */
     log_info("======Test ZCard======");
     log_info("Test ZCard, return %ld", n->ZCard("tZAddKey"));
+    log_info("");
+    
+    /*
+     *  Test ZScan
+     */
+    log_info("======Test Zscan======");
+    ZIterator *it_zset = n->ZScan("tZAddKey", "", 0, 10, -1);
+    if (it_zset == NULL) {
+        log_info("ZScan error!");
+    }
+    while (it_zset->Next()) {
+        log_info("Test Scan key: %s, value: %s", it_zset->Key().c_str(), it_zset->Member().c_str());
+    }
+
+    /*
+     *  Test ZCount
+     */
+    log_info("======Test ZCount======");
+    log_info("Test ZCount, return %ld", n->ZCount("tZAddKey", -1, 3)); 
     log_info("");
     
 

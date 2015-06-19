@@ -12,9 +12,9 @@ namespace nemo {
 inline std::string EncodeZSetKey(const rocksdb::Slice &key, const rocksdb::Slice &member) {
     std::string buf;
     buf.append(1, DataType::kZSet);
-    buf.append(2, (uint16_t)key.size());
+    buf.append(1, (uint8_t)key.size());
     buf.append(key.data(), key.size());
-    buf.append(2, (uint16_t)member.size());
+    buf.append(1, '=');
     buf.append(member.data(), member.size());
     return buf;
 }
@@ -27,7 +27,10 @@ inline int DecodeZSetKey(const rocksdb::Slice &slice, std::string *key, std::str
     if (decoder.ReadLenData(key) == -1) {
         return -1;
     }
-    if (decoder.ReadLenData(member) == -1) {
+    if (decoder.Skip(1) == -1) {
+        return -1;
+    }
+    if (decoder.ReadData(member) == -1) {
         return -1;
     }
     return 0;
@@ -54,7 +57,8 @@ inline int DecodeZSizeKey(const rocksdb::Slice &slice, std::string *size) {
 inline std::string EncodeZScoreKey(const rocksdb::Slice &key, const rocksdb::Slice &member, int64_t score) {
     std::string buf;
     buf.append(1, DataType::kZScore);
-    buf.append(2, (uint16_t)key.size());
+    uint8_t t = (uint8_t)key.size();
+    buf.append(1, (uint8_t)key.size());
     buf.append(key.data(), key.size());
     if (score >= 0) {
         buf.append(1, '=');
