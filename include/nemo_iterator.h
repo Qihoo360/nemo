@@ -29,7 +29,7 @@ private:
     void operator=(Iterator&);
 };
 
-class KIterator{
+class KIterator {
 public:
     KIterator(Iterator *it);
     ~KIterator();
@@ -45,7 +45,7 @@ private:
     void operator=(KIterator&);
 };
 
-class HIterator{
+class HIterator {
 public:
     HIterator(Iterator *it, const rocksdb::Slice &key);
     ~HIterator();
@@ -61,6 +61,25 @@ private:
     //No Copying Allowed
     HIterator(HIterator&);
     void operator=(HIterator&);
+};
+
+class ZIterator {
+public:
+    ZIterator(Iterator *it, const rocksdb::Slice &key);
+    ~ZIterator();
+    bool Next();
+    std::string Key() { return key_; };
+    int64_t Score() { return score_; };
+    std::string Member() { return member_; };
+private:
+    Iterator *it_;
+    std::string key_;
+    int64_t score_;
+    std::string member_;
+    //No Copying Allowed
+    ZIterator(ZIterator&);
+    void operator=(ZIterator&);
+    
 };
 }
 #endif

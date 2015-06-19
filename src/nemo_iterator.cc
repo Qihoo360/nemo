@@ -1,6 +1,7 @@
 #include "nemo_iterator.h"
 #include "nemo_kv.h"
 #include "nemo_hash.h"
+#include "nemo_zset.h"
 #include "xdebug.h"
 
 nemo::Iterator::Iterator(rocksdb::Iterator *it, const std::string &end, uint64_t limit, Direction direction)
@@ -123,6 +124,38 @@ bool nemo::HIterator::Next() {
             return false;
         }
         this->val_.assign(vs.data(), vs.size());
+        return true;
+    }
+    return false;
+}
+
+/***
+ * ZSET
+***/
+
+nemo::ZIterator::ZIterator(Iterator *it, const rocksdb::Slice &key)
+    : it_(it) {
+    this->key_.assign(key.data(), key.size());
+}
+
+nemo::ZIterator::~ZIterator() {
+    delete it_;
+}
+
+bool nemo::ZIterator::Next() {
+    while (it_->Next()) {
+        rocksdb::Slice ks = it_->Key();
+//        rocksdb::Slice vs = it_->Val();
+        if (ks.data()[0] != DataType::kZScore) {
+            return false;
+        }
+        std::string k;
+        if (DecodeZScoreKey(ks, &k, &this->member_, &this->score_) == -1) {
+            continue;
+        }
+        if (k != this->key_) {
+            return false;
+        }
         return true;
     }
     return false;
