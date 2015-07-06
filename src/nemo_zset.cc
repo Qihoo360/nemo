@@ -44,10 +44,10 @@ int64_t Nemo::ZCard(const std::string &key) {
     }
 }
 
-ZIterator* Nemo::ZScan(const std::string &key, const std::string &member, int64_t begin, int64_t end, uint64_t limit) {
+ZIterator* Nemo::ZScan(const std::string &key, int64_t begin, int64_t end, uint64_t limit) {
     std::string key_start, key_end;
-    key_start = EncodeZScoreKey(key, member, begin);
-    key_end = EncodeZScoreKey(key, member, end);
+    key_start = EncodeZScoreKey(key, "", begin);
+    key_end = EncodeZScoreKey(key, "", end);
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
     iterate_options.fill_cache = false;
@@ -60,7 +60,7 @@ ZIterator* Nemo::ZScan(const std::string &key, const std::string &member, int64_
 }
 
 int64_t Nemo::ZCount(const std::string &key, int64_t begin, int64_t end) {
-    ZIterator* it = ZScan(key, "", begin, end + 1, -1);
+    ZIterator* it = ZScan(key, begin, end + 1, -1);
     int64_t s;
     int64_t n = 0;
     while (it->Next()) {
@@ -103,6 +103,16 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const in
     s = db_->Write(rocksdb::WriteOptions(), &writebatch);
     return s;
 
+}
+
+Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms) {
+    int64_t t_start = start < 0 ? INT_MAX-1 : start;
+    int64_t t_stop = stop < 0 ? INT_MAX : stop+1;
+    ZIterator *iter = ZScan(key, t_start, t_stop, -1);
+    while(iter->Next()) {
+        sms.push_back({iter->Score(), iter->Member()});
+    }
+    return Status::OK();
 }
 
 int Nemo::DoZSet(const std::string &key, const int64_t score, const std::string &member, rocksdb::WriteBatch &writebatch) {

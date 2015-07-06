@@ -28,6 +28,11 @@ struct IV {
     std::string val;
 };
 
+struct SM {
+    int64_t score;
+    std::string member;
+};
+
 namespace DataType {
     static const char kKv        = 'k';
     static const char kHash      = 'h'; // hashmap(sorted by key)
