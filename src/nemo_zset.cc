@@ -74,6 +74,37 @@ int64_t Nemo::ZCount(const std::string &key, int64_t begin, int64_t end) {
     return n;
 }
 
+Status Nemo::ZIncrby(const std::string &key, const std::string &member, const int64_t by) {
+    Status s;
+    std::string old_score;
+    std::string score_key;
+    std::string db_key = EncodeZSetKey(key, member);
+    rocksdb::WriteBatch writebatch;
+    MutexLock l(&mutex_zset_);
+    s = db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
+    if (s.ok()) {
+        int64_t old_score_int;
+        old_score_int = StrToInt64(old_score);
+        score_key = EncodeZScoreKey(key, member, old_score_int);
+        writebatch.Delete(score_key);
+        score_key = EncodeZScoreKey(key, member, old_score_int + by);
+        writebatch.Put(score_key, "");
+        writebatch.Put(db_key, Int64ToStr(old_score_int + by));
+    } else if (s.IsNotFound()) {
+        score_key = EncodeZScoreKey(key, member, by);
+        writebatch.Put(score_key, "");
+        writebatch.Put(db_key, Int64ToStr(by));
+        if (IncrZLen(key, 1, writebatch) != 0) {
+            return Status::Corruption("incr zsize error");
+        }
+    } else {
+        return Status::Corruption("get the key error");
+    }
+    s = db_->Write(rocksdb::WriteOptions(), &writebatch);
+    return s;
+
+}
+
 int Nemo::DoZSet(const std::string &key, const int64_t score, const std::string &member, rocksdb::WriteBatch &writebatch) {
     Status s;
     std::string old_score;

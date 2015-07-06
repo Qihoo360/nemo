@@ -567,7 +567,7 @@ int main()
         log_info("ZScan error!");
     }
     while (it_zset->Next()) {
-        log_info("Test Scan key: %s, value: %s", it_zset->Key().c_str(), it_zset->Member().c_str());
+        log_info("Test Scan key: %s, score: %ld, value: %s", it_zset->Key().c_str(), it_zset->Score(), it_zset->Member().c_str());
     }
 
     /*
@@ -575,6 +575,25 @@ int main()
      */
     log_info("======Test ZCount======");
     log_info("Test ZCount, return %ld", n->ZCount("tZAddKey", -1, 3)); 
+    log_info("");
+
+    /*
+     *  Test ZIncrby
+     */
+
+    log_info("======Test ZIncrby======");
+    s = n->ZIncrby("tZAddKey", "tZAddMem1", 5);
+    log_info("Test ZIncrby with exist key OK return %s", s.ToString().c_str());
+    s = n->ZIncrby("tZAddKey", "tZAddMem_ne", 7);
+    log_info("Test ZIncrby with non-exist key OK return %s", s.ToString().c_str());
+    it_zset = n->ZScan("tZAddKey", "", 0, 100, -1);
+    if (it_zset == NULL) {
+        log_info("ZScan error!");
+    }
+    while (it_zset->Next()) {
+        log_info("After ZIncrby, Scan key: %s, score: %ld, value: %s", it_zset->Key().c_str(), it_zset->Score(), it_zset->Member().c_str());
+    }
+    log_info("After ZIncrby, ZCard return %ld", n->ZCard("tZAddKey")); 
     log_info("");
     
 
