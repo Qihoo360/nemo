@@ -66,8 +66,9 @@ public:
     Status ZAdd(const std::string &key, const int64_t score, const std::string &member);
     int64_t ZCard(const std::string &key);
     int64_t ZCount(const std::string &key, const int64_t begin, const int64_t end);
-    ZIterator* ZScan(const std::string &key, const std::string &member, int64_t begin, int64_t end, uint64_t limit);
+    ZIterator* ZScan(const std::string &key, int64_t begin, int64_t end, uint64_t limit);
     Status ZIncrby(const std::string &key, const std::string &member, const int64_t by);
+    Status ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
 
 private:
 

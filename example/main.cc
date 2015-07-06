@@ -20,6 +20,7 @@ int main()
     std::vector<std::string> keys;
     std::vector<KV> kvs;
     std::vector<KVS> kvss;
+    std::vector<SM> sms;
 
     /*
      *  Test Set
@@ -546,8 +547,11 @@ int main()
     log_info("======Test ZAdd======");
     s = n->ZAdd("tZAddKey", 0, "tZAddMem0");
     s = n->ZAdd("tZAddKey", 1, "tZAddMem1");
+    s = n->ZAdd("tZAddKey", 1, "tZAddMem1_2");
     s = n->ZAdd("tZAddKey", 2, "tZAddMem2");
+    s = n->ZAdd("tZAddKey", 2, "tZAddMem2_2");
     s = n->ZAdd("tZAddKey", 3, "tZAddMem3");
+    s = n->ZAdd("tZAddKey", 7, "tZAddMem7");
     log_info("Test ZAdd OK return %s", s.ToString().c_str());
     log_info("");
 
@@ -562,12 +566,12 @@ int main()
      *  Test ZScan
      */
     log_info("======Test Zscan======");
-    ZIterator *it_zset = n->ZScan("tZAddKey", "", 0, 10, -1);
+    ZIterator *it_zset = n->ZScan("tZAddKey", 0, 10, -1);
     if (it_zset == NULL) {
         log_info("ZScan error!");
     }
     while (it_zset->Next()) {
-        log_info("Test Scan key: %s, score: %ld, value: %s", it_zset->Key().c_str(), it_zset->Score(), it_zset->Member().c_str());
+        log_info("Test ZScan key: %s, score: %ld, member: %s", it_zset->Key().c_str(), it_zset->Score(), it_zset->Member().c_str());
     }
 
     /*
@@ -580,13 +584,12 @@ int main()
     /*
      *  Test ZIncrby
      */
-
     log_info("======Test ZIncrby======");
     s = n->ZIncrby("tZAddKey", "tZAddMem1", 5);
     log_info("Test ZIncrby with exist key OK return %s", s.ToString().c_str());
     s = n->ZIncrby("tZAddKey", "tZAddMem_ne", 7);
     log_info("Test ZIncrby with non-exist key OK return %s", s.ToString().c_str());
-    it_zset = n->ZScan("tZAddKey", "", 0, 100, -1);
+    it_zset = n->ZScan("tZAddKey", 0, 100, -1);
     if (it_zset == NULL) {
         log_info("ZScan error!");
     }
@@ -595,7 +598,17 @@ int main()
     }
     log_info("After ZIncrby, ZCard return %ld", n->ZCard("tZAddKey")); 
     log_info("");
-    
+
+    /*
+     *  Test ZRange
+     */
+    log_info("======Test ZRange======");
+    sms.clear();
+    s = n->ZRange("tZAddKey", 2, 6, sms);
+    std::vector<SM>::iterator it_sm;
+    for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
+        log_info("Test ZRange score: %ld, member: %s", it_sm->score, it_sm->member.c_str());
+    }
 
     return 0;
 }

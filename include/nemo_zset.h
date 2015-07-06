@@ -57,7 +57,6 @@ inline int DecodeZSizeKey(const rocksdb::Slice &slice, std::string *size) {
 inline std::string EncodeZScoreKey(const rocksdb::Slice &key, const rocksdb::Slice &member, int64_t score) {
     std::string buf;
     buf.append(1, DataType::kZScore);
-    uint8_t t = (uint8_t)key.size();
     buf.append(1, (uint8_t)key.size());
     buf.append(key.data(), key.size());
     if (score >= 0) {
