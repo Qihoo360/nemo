@@ -24,6 +24,7 @@
 #include <vector>
 #include <stdint.h>
 #include "rocksdb/status.h"
+#include "rocksdb/thread_status.h"
 
 namespace rocksdb {
 
@@ -37,6 +38,7 @@ class RandomRWFile;
 class Directory;
 struct DBOptions;
 class RateLimiter;
+class ThreadStatusUpdater;
 
 using std::unique_ptr;
 using std::shared_ptr;
@@ -83,7 +85,8 @@ struct EnvOptions {
 
 class Env {
  public:
-  Env() { }
+  Env() : thread_status_updater_(nullptr) {}
+
   virtual ~Env();
 
   // Return a default environment suitable for the current operating
@@ -222,10 +225,12 @@ class Env {
   // added to the same Env may run concurrently in different threads.
   // I.e., the caller may not assume that background work items are
   // serialized.
-  virtual void Schedule(
-      void (*function)(void* arg),
-      void* arg,
-      Priority pri = LOW) = 0;
+  virtual void Schedule(void (*function)(void* arg), void* arg,
+                        Priority pri = LOW, void* tag = nullptr) = 0;
+
+  // Arrange to remove jobs for given arg from the queue_ if they are not
+  // already scheduled. Caller is expected to have exclusive lock on arg.
+  virtual int UnSchedule(void* arg, Priority pri) { return 0; }
 
   // Start a new thread, invoking "function(arg)" within the new thread.
   // When "function(arg)" returns, the thread will be destroyed.
@@ -295,18 +300,41 @@ class Env {
   // OptimizeForLogWrite will create a new EnvOptions object that is a copy of
   // the EnvOptions in the parameters, but is optimized for writing log files.
   // Default implementation returns the copy of the same object.
-  virtual EnvOptions OptimizeForLogWrite(const EnvOptions& env_options) const;
+  virtual EnvOptions OptimizeForLogWrite(const EnvOptions& env_options,
+                                         const DBOptions& db_options) const;
   // OptimizeForManifestWrite will create a new EnvOptions object that is a copy
   // of the EnvOptions in the parameters, but is optimized for writing manifest
   // files. Default implementation returns the copy of the same object.
   virtual EnvOptions OptimizeForManifestWrite(const EnvOptions& env_options)
       const;
 
+  // Returns the status of all threads that belong to the current Env.
+  virtual Status GetThreadList(std::vector<ThreadStatus>* thread_list) {
+    return Status::NotSupported("Not supported.");
+  }
+
+  // Returns the pointer to ThreadStatusUpdater.  This function will be
+  // used in RocksDB internally to update thread status and supports
+  // GetThreadList().
+  virtual ThreadStatusUpdater* GetThreadStatusUpdater() const {
+    return thread_status_updater_;
+  }
+
+ protected:
+  // The pointer to an internal structure that will update the
+  // status of each thread.
+  ThreadStatusUpdater* thread_status_updater_;
+
  private:
   // No copying allowed
   Env(const Env&);
   void operator=(const Env&);
 };
+
+// The factory function to construct a ThreadStatusUpdater.  Any Env
+// that supports GetThreadList() feature should call this function in its
+// constructor to initialize thread_status_updater_.
+ThreadStatusUpdater* CreateThreadStatusUpdater();
 
 // A file abstraction for reading sequentially through a file
 class SequentialFile {
@@ -505,6 +533,8 @@ class WritableFile {
     return Status::OK();
   }
 
+  size_t preallocation_block_size() { return preallocation_block_size_; }
+
  private:
   size_t last_preallocated_block_;
   size_t preallocation_block_size_;
@@ -592,6 +622,15 @@ class Logger {
       : log_level_(log_level) {}
   virtual ~Logger();
 
+  // Write a header to the log file with the specified format
+  // It is recommended that you log all header information at the start of the
+  // application. But it is not enforced.
+  virtual void LogHeader(const char* format, va_list ap) {
+    // Default implementation does a simple INFO level log write.
+    // Please override as per the logger class requirement.
+    Logv(format, ap);
+  }
+
   // Write an entry to the log file with the specified format.
   virtual void Logv(const char* format, va_list ap) = 0;
 
@@ -599,7 +638,7 @@ class Logger {
   // and format.  Any log with level under the internal log level
   // of *this (see @SetInfoLogLevel and @GetInfoLogLevel) will not be
   // printed.
-  void Logv(const InfoLogLevel log_level, const char* format, va_list ap) {
+  virtual void Logv(const InfoLogLevel log_level, const char* format, va_list ap) {
     static const char* kInfoLogLevelNames[5] = {"DEBUG", "INFO", "WARN",
                                                 "ERROR", "FATAL"};
     if (log_level < log_level_) {
@@ -653,6 +692,7 @@ extern void Log(const InfoLogLevel log_level,
                 const shared_ptr<Logger>& info_log, const char* format, ...);
 
 // a set of log functions with different log levels.
+extern void Header(const shared_ptr<Logger>& info_log, const char* format, ...);
 extern void Debug(const shared_ptr<Logger>& info_log, const char* format, ...);
 extern void Info(const shared_ptr<Logger>& info_log, const char* format, ...);
 extern void Warn(const shared_ptr<Logger>& info_log, const char* format, ...);
@@ -680,6 +720,7 @@ extern void Log(Logger* info_log, const char* format, ...)
     ;
 
 // a set of log functions with different log levels.
+extern void Header(Logger* info_log, const char* format, ...);
 extern void Debug(Logger* info_log, const char* format, ...);
 extern void Info(Logger* info_log, const char* format, ...);
 extern void Warn(Logger* info_log, const char* format, ...);
@@ -708,105 +749,129 @@ class EnvWrapper : public Env {
   Env* target() const { return target_; }
 
   // The following text is boilerplate that forwards all methods to target()
-  Status NewSequentialFile(const std::string& f,
-                           unique_ptr<SequentialFile>* r,
-                           const EnvOptions& options) {
+  Status NewSequentialFile(const std::string& f, unique_ptr<SequentialFile>* r,
+                           const EnvOptions& options) override {
     return target_->NewSequentialFile(f, r, options);
   }
   Status NewRandomAccessFile(const std::string& f,
                              unique_ptr<RandomAccessFile>* r,
-                             const EnvOptions& options) {
+                             const EnvOptions& options) override {
     return target_->NewRandomAccessFile(f, r, options);
   }
   Status NewWritableFile(const std::string& f, unique_ptr<WritableFile>* r,
-                         const EnvOptions& options) {
+                         const EnvOptions& options) override {
     return target_->NewWritableFile(f, r, options);
   }
   Status NewRandomRWFile(const std::string& f, unique_ptr<RandomRWFile>* r,
-                         const EnvOptions& options) {
+                         const EnvOptions& options) override {
     return target_->NewRandomRWFile(f, r, options);
   }
   virtual Status NewDirectory(const std::string& name,
-                              unique_ptr<Directory>* result) {
+                              unique_ptr<Directory>* result) override {
     return target_->NewDirectory(name, result);
   }
-  bool FileExists(const std::string& f) { return target_->FileExists(f); }
-  Status GetChildren(const std::string& dir, std::vector<std::string>* r) {
+  bool FileExists(const std::string& f) override {
+    return target_->FileExists(f);
+  }
+  Status GetChildren(const std::string& dir,
+                     std::vector<std::string>* r) override {
     return target_->GetChildren(dir, r);
   }
-  Status DeleteFile(const std::string& f) { return target_->DeleteFile(f); }
-  Status CreateDir(const std::string& d) { return target_->CreateDir(d); }
-  Status CreateDirIfMissing(const std::string& d) {
+  Status DeleteFile(const std::string& f) override {
+    return target_->DeleteFile(f);
+  }
+  Status CreateDir(const std::string& d) override {
+    return target_->CreateDir(d);
+  }
+  Status CreateDirIfMissing(const std::string& d) override {
     return target_->CreateDirIfMissing(d);
   }
-  Status DeleteDir(const std::string& d) { return target_->DeleteDir(d); }
-  Status GetFileSize(const std::string& f, uint64_t* s) {
+  Status DeleteDir(const std::string& d) override {
+    return target_->DeleteDir(d);
+  }
+  Status GetFileSize(const std::string& f, uint64_t* s) override {
     return target_->GetFileSize(f, s);
   }
 
   Status GetFileModificationTime(const std::string& fname,
-                                 uint64_t* file_mtime) {
+                                 uint64_t* file_mtime) override {
     return target_->GetFileModificationTime(fname, file_mtime);
   }
 
-  Status RenameFile(const std::string& s, const std::string& t) {
+  Status RenameFile(const std::string& s, const std::string& t) override {
     return target_->RenameFile(s, t);
   }
 
-  Status LinkFile(const std::string& s, const std::string& t) {
+  Status LinkFile(const std::string& s, const std::string& t) override {
     return target_->LinkFile(s, t);
   }
 
-  Status LockFile(const std::string& f, FileLock** l) {
+  Status LockFile(const std::string& f, FileLock** l) override {
     return target_->LockFile(f, l);
   }
-  Status UnlockFile(FileLock* l) { return target_->UnlockFile(l); }
-  void Schedule(void (*f)(void*), void* a, Priority pri) {
-    return target_->Schedule(f, a, pri);
+
+  Status UnlockFile(FileLock* l) override { return target_->UnlockFile(l); }
+
+  void Schedule(void (*f)(void* arg), void* a, Priority pri,
+                void* tag = nullptr) override {
+    return target_->Schedule(f, a, pri, tag);
   }
-  void StartThread(void (*f)(void*), void* a) {
+
+  int UnSchedule(void* tag, Priority pri) override {
+    return target_->UnSchedule(tag, pri);
+  }
+
+  void StartThread(void (*f)(void*), void* a) override {
     return target_->StartThread(f, a);
   }
-  void WaitForJoin() { return target_->WaitForJoin(); }
-  virtual unsigned int GetThreadPoolQueueLen(Priority pri = LOW) const {
+  void WaitForJoin() override { return target_->WaitForJoin(); }
+  virtual unsigned int GetThreadPoolQueueLen(
+      Priority pri = LOW) const override {
     return target_->GetThreadPoolQueueLen(pri);
   }
-  virtual Status GetTestDirectory(std::string* path) {
+  virtual Status GetTestDirectory(std::string* path) override {
     return target_->GetTestDirectory(path);
   }
   virtual Status NewLogger(const std::string& fname,
-                           shared_ptr<Logger>* result) {
+                           shared_ptr<Logger>* result) override {
     return target_->NewLogger(fname, result);
   }
-  uint64_t NowMicros() {
-    return target_->NowMicros();
-  }
-  void SleepForMicroseconds(int micros) {
+  uint64_t NowMicros() override { return target_->NowMicros(); }
+  void SleepForMicroseconds(int micros) override {
     target_->SleepForMicroseconds(micros);
   }
-  Status GetHostName(char* name, uint64_t len) {
+  Status GetHostName(char* name, uint64_t len) override {
     return target_->GetHostName(name, len);
   }
-  Status GetCurrentTime(int64_t* unix_time) {
+  Status GetCurrentTime(int64_t* unix_time) override {
     return target_->GetCurrentTime(unix_time);
   }
   Status GetAbsolutePath(const std::string& db_path,
-      std::string* output_path) {
+                         std::string* output_path) override {
     return target_->GetAbsolutePath(db_path, output_path);
   }
-  void SetBackgroundThreads(int num, Priority pri) {
+  void SetBackgroundThreads(int num, Priority pri) override {
     return target_->SetBackgroundThreads(num, pri);
   }
 
-  void IncBackgroundThreadsIfNeeded(int num, Priority pri) {
+  void IncBackgroundThreadsIfNeeded(int num, Priority pri) override {
     return target_->IncBackgroundThreadsIfNeeded(num, pri);
   }
 
   void LowerThreadPoolIOPriority(Priority pool = LOW) override {
     target_->LowerThreadPoolIOPriority(pool);
   }
-  std::string TimeToString(uint64_t time) {
+
+  std::string TimeToString(uint64_t time) override {
     return target_->TimeToString(time);
+  }
+
+  Status GetThreadList(std::vector<ThreadStatus>* thread_list) override {
+    return target_->GetThreadList(thread_list);
+  }
+
+  ThreadStatusUpdater* GetThreadStatusUpdater() const override {
+    return target_->GetThreadStatusUpdater();
   }
 
  private:

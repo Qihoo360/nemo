@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -Wall -DDEBUG -g -O2 -std=c++11 -D__XDEBUG__
+CXXFLAGS = -Wall -DDEBUG -g -O0 -std=c++11 -D__XDEBUG__
 
 OBJECT = main
 
