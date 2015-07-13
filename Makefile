@@ -44,9 +44,10 @@ $(LIBRARY): $(OBJS)
 	mkdir $(OUTPUT)/lib
 	rm -rf $@
 	ar -rcs $@ $(OBJS)
-	cp -r ./include $(OUTPUT)/
-	cp -r $(ROCKSDB_PATH)/include/* ./include/
+	cp -rf $(ROCKSDB_PATH)/include/* ./include/
+	cp -rf ./include $(OUTPUT)/
 	mv ./libnemo.a $(OUTPUT)/lib/
+	cp $(ROCKSDB_PATH)/librocksdb.a $(OUTPUT)/lib
 	make -C example
 
 $(OBJECT): $(OBJS)

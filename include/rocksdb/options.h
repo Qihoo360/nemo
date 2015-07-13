@@ -55,6 +55,12 @@ enum CompressionType : char {
   kBZip2Compression = 0x3, kLZ4Compression = 0x4, kLZ4HCCompression = 0x5
 };
 
+// returns true if RocksDB was correctly linked with compression library and
+// supports the compression type
+extern bool CompressionTypeSupported(CompressionType compression_type);
+// Returns a human-readable name of the compression type
+extern const char* CompressionTypeToString(CompressionType compression_type);
+
 enum CompactionStyle : char {
   // level based compaction style
   kCompactionStyleLevel = 0x0,
@@ -255,6 +261,20 @@ struct ColumnFamilyOptions {
   // be slower. This array, if non-empty, should have an entry for
   // each level of the database; these override the value specified in
   // the previous field 'compression'.
+  //
+  // NOTICE if level_compaction_dynamic_level_bytes=true,
+  // compression_per_level[0] still determines L0, but other elements
+  // of the array are based on base level (the level L0 files are merged
+  // to), and may not match the level users see from info log for metadata.
+  // If L0 files are merged to level-n, then, for i>0, compression_per_level[i]
+  // determines compaction type for level n+i-1.
+  // For example, if we have three 5 levels, and we determine to merge L0
+  // data to L4 (which means L1..L3 will be empty), then the new files go to
+  // L4 uses compression type compression_per_level[1].
+  // If now L0 is merged to L2. Data goes to L2 will be compressed
+  // according to compression_per_level[1], L3 using compression_per_level[2]
+  // and L4 using compression_per_level[3]. Compaction for each level can
+  // change when data grows.
   std::vector<CompressionType> compression_per_level;
 
   // different options for compression algorithms
@@ -342,6 +362,65 @@ struct ColumnFamilyOptions {
   //
   // Dynamically changeable through SetOptions() API
   uint64_t max_bytes_for_level_base;
+
+  // If true, RocksDB will pick target size of each level dynamically.
+  // We will pick a base level b >= 1. L0 will be directly merged into level b,
+  // instead of always into level 1. Level 1 to b-1 need to be empty.
+  // We try to pick b and its target size so that
+  // 1. target size is in the range of
+  //   (max_bytes_for_level_base / max_bytes_for_level_multiplier,
+  //    max_bytes_for_level_base]
+  // 2. target size of the last level (level num_levels-1) equals to extra size
+  //    of the level.
+  // At the same time max_bytes_for_level_multiplier and
+  // max_bytes_for_level_multiplier_additional are still satisfied.
+  //
+  // With this option on, from an empty DB, we make last level the base level,
+  // which means merging L0 data into the last level, until it exceeds
+  // max_bytes_for_level_base. And then we make the second last level to be
+  // base level, to start to merge L0 data to second last level, with its
+  // target size to be 1/max_bytes_for_level_multiplier of the last level's
+  // extra size. After the data accumulates more so that we need to move the
+  // base level to the third last one, and so on.
+  //
+  // For example, assume max_bytes_for_level_multiplier=10, num_levels=6,
+  // and max_bytes_for_level_base=10MB.
+  // Target sizes of level 1 to 5 starts with:
+  // [- - - - 10MB]
+  // with base level is level. Target sizes of level 1 to 4 are not applicable
+  // because they will not be used.
+  // Until the size of Level 5 grows to more than 10MB, say 11MB, we make
+  // base target to level 4 and now the targets looks like:
+  // [- - - 1.1MB 11MB]
+  // While data are accumulated, size targets are tuned based on actual data
+  // of level 5. When level 5 has 50MB of data, the target is like:
+  // [- - - 5MB 50MB]
+  // Until level 5's actual size is more than 100MB, say 101MB. Now if we keep
+  // level 4 to be the base level, its target size needs to be 10.1MB, which
+  // doesn't satisfy the target size range. So now we make level 3 the target
+  // size and the target sizes of the levels look like:
+  // [- - 1.01MB 10.1MB 101MB]
+  // In the same way, while level 5 further grows, all levels' targets grow,
+  // like
+  // [- - 5MB 50MB 500MB]
+  // Until level 5 exceeds 1000MB and becomes 1001MB, we make level 2 the
+  // base level and make levels' target sizes like this:
+  // [- 1.001MB 10.01MB 100.1MB 1001MB]
+  // and go on...
+  //
+  // By doing it, we give max_bytes_for_level_multiplier a priority against
+  // max_bytes_for_level_base, for a more predictable LSM tree shape. It is
+  // useful to limit worse case space amplification.
+  //
+  // max_bytes_for_level_multiplier_additional is ignored with this flag on.
+  //
+  // Turning this feature on or off for an existing DB can cause unexpected
+  // LSM tree structure so it's not recommended.
+  //
+  // NOTE: this option is experimental
+  //
+  // Default: false
+  bool level_compaction_dynamic_level_bytes;
 
   // Default: 10.
   //
@@ -501,7 +580,8 @@ struct ColumnFamilyOptions {
 
   // Allows thread-safe inplace updates. If this is true, there is no way to
   // achieve point-in-time consistency using snapshot or iterator (assuming
-  // concurrent updates).
+  // concurrent updates). Hence iterator and multi-get will return results
+  // which are not consistent as of any point-in-time.
   // If inplace_callback function is not set,
   //   Put(key, new_value) will update inplace the existing_value iff
   //   * key exists in current memtable
@@ -608,6 +688,26 @@ struct ColumnFamilyOptions {
   //
   // Default: 2
   uint32_t min_partial_merge_operands;
+
+  // This flag specifies that the implementation should optimize the filters
+  // mainly for cases where keys are found rather than also optimize for keys
+  // missed. This would be used in cases where the application knows that
+  // there are very few misses or the performance in the case of misses is not
+  // important.
+  //
+  // For now, this flag allows us to not store filters for the last level i.e
+  // the largest level which contains data of the LSM store. For keys which
+  // are hits, the filters in this level are not useful because we will search
+  // for the data anyway. NOTE: the filters in other levels are still useful
+  // even for key hit because they tell us whether to look in that level or go
+  // to the higher level.
+  //
+  // Default: false
+  bool optimize_filters_for_hits;
+
+  // After writing every SST file, reopen it and read all the keys.
+  // Default: false
+  bool paranoid_file_checks;
 
 #ifndef ROCKSDB_LITE
   // A vector of EventListeners which call-back functions will be called
@@ -807,14 +907,8 @@ struct DBOptions {
   // Number of shards used for table cache.
   int table_cache_numshardbits;
 
-  // During data eviction of table's LRU cache, it would be inefficient
-  // to strictly follow LRU because this piece of memory will not really
-  // be released unless its refcount falls to zero. Instead, make two
-  // passes: the first pass will release items with refcount = 1,
-  // and if not enough space releases after scanning the number of
-  // elements specified by this parameter, we will remove items in LRU
-  // order.
-  int table_cache_remove_scan_count_limit;
+  // DEPRECATED
+  // int table_cache_remove_scan_count_limit;
 
   // The following two fields affect how archived logs will be deleted.
   // 1. If both set to 0, logs will be deleted asap and will not get into
@@ -850,9 +944,7 @@ struct DBOptions {
   // Disable child process inherit open files. Default: true
   bool is_fd_close_on_exec;
 
-  // Skip log corruption error on recovery (If client is ok with
-  // losing most recent changes)
-  // Default: false
+  // DEPRECATED -- this options is no longer used
   bool skip_log_error_on_recovery;
 
   // if not zero, dump rocksdb.stats to LOG every stats_dump_period_sec
@@ -909,7 +1001,13 @@ struct DBOptions {
   // You may consider using rate_limiter to regulate write rate to device.
   // When rate limiter is enabled, it automatically enables bytes_per_sync
   // to 1MB.
+  //
+  // This option applies to table files
   uint64_t bytes_per_sync;
+
+  // Same as bytes_per_sync, but applies to WAL files
+  // Default: 0, turned off
+  uint64_t wal_bytes_per_sync;
 
   // If true, then the status of the threads involved in this DB will
   // be tracked and available via GetThreadList() API.
@@ -1022,27 +1120,20 @@ struct ReadOptions {
   // Not supported in ROCKSDB_LITE mode!
   bool tailing;
 
+  // Specify to create a managed iterator -- a special iterator that
+  // uses less resources by having the ability to free its underlying
+  // resources on request.
+  // Default: false
+  // Not supported in ROCKSDB_LITE mode!
+  bool managed;
+
   // Enable a total order seek regardless of index format (e.g. hash index)
   // used in the table. Some table format (e.g. plain table) may not support
   // this option.
   bool total_order_seek;
 
-  ReadOptions()
-      : verify_checksums(true),
-        fill_cache(true),
-        snapshot(nullptr),
-        iterate_upper_bound(nullptr),
-        read_tier(kReadAllTier),
-        tailing(false),
-        total_order_seek(false) {}
-  ReadOptions(bool cksum, bool cache)
-      : verify_checksums(cksum),
-        fill_cache(cache),
-        snapshot(nullptr),
-        iterate_upper_bound(nullptr),
-        read_tier(kReadAllTier),
-        tailing(false),
-        total_order_seek(false) {}
+  ReadOptions();
+  ReadOptions(bool cksum, bool cache);
 };
 
 // Options that control write operations

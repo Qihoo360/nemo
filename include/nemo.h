@@ -4,6 +4,7 @@
 #include "nemo_mutex.h"
 #include "rocksdb/db.h"
 #include "nemo_iterator.h"
+#include "nemo_option.h"
 
 namespace nemo {
 typedef rocksdb::Status Status;

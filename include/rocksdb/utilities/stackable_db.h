@@ -24,11 +24,11 @@ class StackableDB : public DB {
 
   virtual Status CreateColumnFamily(const ColumnFamilyOptions& options,
                                     const std::string& column_family_name,
-                                    ColumnFamilyHandle** handle) {
+                                    ColumnFamilyHandle** handle) override {
     return db_->CreateColumnFamily(options, column_family_name, handle);
   }
 
-  virtual Status DropColumnFamily(ColumnFamilyHandle* column_family) {
+  virtual Status DropColumnFamily(ColumnFamilyHandle* column_family) override {
     return db_->DropColumnFamily(column_family);
   }
 
@@ -92,7 +92,7 @@ class StackableDB : public DB {
   virtual Status NewIterators(
       const ReadOptions& options,
       const std::vector<ColumnFamilyHandle*>& column_families,
-      std::vector<Iterator*>* iterators) {
+      std::vector<Iterator*>* iterators) override {
     return db_->NewIterators(options, column_families, iterators);
   }
 
@@ -175,6 +175,11 @@ class StackableDB : public DB {
     return db_->GetOptions(column_family);
   }
 
+  using DB::GetDBOptions;
+  virtual const DBOptions& GetDBOptions() const override {
+    return db_->GetDBOptions();
+  }
+
   using DB::Flush;
   virtual Status Flush(const FlushOptions& fopts,
                        ColumnFamilyHandle* column_family) override {
@@ -221,7 +226,7 @@ class StackableDB : public DB {
     return db_->DeleteFile(name);
   }
 
-  virtual Status GetDbIdentity(std::string& identity) {
+  virtual Status GetDbIdentity(std::string& identity) override {
     return db_->GetDbIdentity(identity);
   }
 
@@ -232,8 +237,9 @@ class StackableDB : public DB {
   }
 
   using DB::GetPropertiesOfAllTables;
-  virtual Status GetPropertiesOfAllTables(ColumnFamilyHandle* column_family,
-                                          TablePropertiesCollection* props) {
+  virtual Status GetPropertiesOfAllTables(
+      ColumnFamilyHandle* column_family,
+      TablePropertiesCollection* props) override {
     return db_->GetPropertiesOfAllTables(column_family, props);
   }
 
