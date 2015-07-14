@@ -37,7 +37,7 @@ Status Nemo::HDel(const std::string &key, const std::string &field) {
         s = db_->Write(rocksdb::WriteOptions(), &(writebatch));
         return s;
     } else if (ret == 0) {
-        return Status::OK(); 
+        return Status::NotFound(); 
     } else {
         return Status::Corruption("DoHDel error");
     }
