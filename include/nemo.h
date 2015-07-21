@@ -31,7 +31,7 @@ public:
     Status MGet(const std::vector<std::string> &keys, std::vector<KVS> &kvss);
     Status Incrby(const std::string &key, int64_t by, std::string &new_val);
     Status GetSet(const std::string &key, const std::string &new_val, std::string *old_val);
-    KIterator* scan(const std::string &start, const std::string &end, uint64_t limit);
+    KIterator* Scan(const std::string &start, const std::string &end, uint64_t limit);
 
     // ==============HASH=====================
 

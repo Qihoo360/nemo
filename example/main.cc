@@ -177,7 +177,7 @@ int main()
     keys.push_back("tScanKey2");
 
     s = n->MSet(kvs);
-    KIterator *scan_iter = n->scan("", "", -1);
+    KIterator *scan_iter = n->Scan("", "", -1);
     if (scan_iter == NULL) {
         log_info("Scan error!");
     }

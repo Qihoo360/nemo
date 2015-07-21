@@ -92,7 +92,7 @@ Status Nemo::GetSet(const std::string &key, const std::string &new_val, std::str
     }
 }
 
-KIterator* Nemo::scan(const std::string &start, const std::string &end, uint64_t limit) {
+KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t limit) {
     std::string key_start, key_end;
     key_start = EncodeKvKey(start);
     if (end.empty()) {

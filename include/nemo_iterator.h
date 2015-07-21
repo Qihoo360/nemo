@@ -16,6 +16,7 @@ public:
     ~Iterator();
     bool Skip(uint64_t offset);
     bool Next();
+    bool Valid() { return it_->Valid(); };
     rocksdb::Slice Key();
     rocksdb::Slice Val();
 private:
@@ -34,6 +35,8 @@ public:
     KIterator(Iterator *it);
     ~KIterator();
     bool Next();
+    bool Valid() { return it_->Valid(); };
+    bool Skip(uint64_t offset) { return it_->Skip(offset); };
     std::string Key() { return key_; };
     std::string Val() { return val_; };
 private:
