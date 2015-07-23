@@ -53,6 +53,8 @@ public:
     HIterator(Iterator *it, const rocksdb::Slice &key);
     ~HIterator();
     bool Next();
+    bool Valid() { return it_->Valid(); };
+    bool Skip(uint64_t offset) { return it_->Skip(offset); };
     std::string Key() { return key_; };
     std::string Field() { return field_; };
     std::string Val() { return val_; };
