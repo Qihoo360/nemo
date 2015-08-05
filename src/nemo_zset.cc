@@ -105,7 +105,18 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const in
 
 }
 
+//TODO Range not rangebyscore
 Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms) {
+    int64_t t_start = start < 0 ? INT_MAX-1 : start;
+    int64_t t_stop = stop < 0 ? INT_MAX : stop+1;
+    ZIterator *iter = ZScan(key, t_start, t_stop, -1);
+    while(iter->Next()) {
+        sms.push_back({iter->Score(), iter->Member()});
+    }
+    return Status::OK();
+}
+
+Status Nemo::ZRangebyscore(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms) {
     int64_t t_start = start < 0 ? INT_MAX-1 : start;
     int64_t t_stop = stop < 0 ? INT_MAX : stop+1;
     ZIterator *iter = ZScan(key, t_start, t_stop, -1);

@@ -30,6 +30,7 @@ public:
     Status MDel(const std::vector<std::string> &keys);
     Status MGet(const std::vector<std::string> &keys, std::vector<KVS> &kvss);
     Status Incrby(const std::string &key, int64_t by, std::string &new_val);
+    Status Decrby(const std::string &key, int64_t by, std::string &new_val);
     Status GetSet(const std::string &key, const std::string &new_val, std::string *old_val);
     KIterator* Scan(const std::string &start, const std::string &end, uint64_t limit);
 
@@ -69,7 +70,10 @@ public:
     int64_t ZCount(const std::string &key, const int64_t begin, const int64_t end);
     ZIterator* ZScan(const std::string &key, int64_t begin, int64_t end, uint64_t limit);
     Status ZIncrby(const std::string &key, const std::string &member, const int64_t by);
+
+    //TODO modify range
     Status ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
+    Status ZRangebyscore(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
 
 private:
 

@@ -600,14 +600,14 @@ int main()
     log_info("");
 
     /*
-     *  Test ZRange
+     *  Test ZRangebyscore
      */
-    log_info("======Test ZRange======");
+    log_info("======Test ZRangebyscore======");
     sms.clear();
-    s = n->ZRange("tZAddKey", 2, 6, sms);
+    s = n->ZRangebyscore("tZAddKey", 2, 6, sms);
     std::vector<SM>::iterator it_sm;
     for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
-        log_info("Test ZRange score: %ld, member: %s", it_sm->score, it_sm->member.c_str());
+        log_info("Test ZRangebyscore score: %ld, member: %s", it_sm->score, it_sm->member.c_str());
     }
 
     return 0;
