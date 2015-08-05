@@ -77,6 +77,22 @@ Status Nemo::Incrby(const std::string &key, int64_t by, std::string &new_val) {
     return s;
 }
 
+Status Nemo::Decrby(const std::string &key, int64_t by, std::string &new_val) {
+    Status s;
+    std::string en_key = EncodeKvKey(key);
+    std::string val;
+    s = db_->Get(rocksdb::ReadOptions(), en_key, &val);
+    if (s.IsNotFound()) {
+        new_val = Int64ToStr(by);        
+    } else if (s.ok()) {
+        new_val = Int64ToStr((StrToInt64(val) - by));
+    } else {
+        return Status::Corruption("Get error");
+    }
+    s = db_->Put(rocksdb::WriteOptions(), en_key, new_val);
+    return s;
+}
+
 Status Nemo::GetSet(const std::string &key, const std::string &new_val, std::string *old_val) {
     Status s;
     std::string en_key = EncodeKvKey(key);

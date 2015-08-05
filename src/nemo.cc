@@ -20,7 +20,7 @@ Nemo::Nemo(const std::string &db_path) :
     if (!s.ok()) {
         log_err("open db %s error %s", db_path_.c_str(), s.ToString().c_str());
     } else {
-        log_info("open db success");
+        //log_info("open db success");
     }
     
     db_ = std::unique_ptr<rocksdb::DB>(db);
