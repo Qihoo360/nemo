@@ -393,12 +393,13 @@ int main()
      *  Test LPush
      */
     log_info("======Test LPush======");
-    s = n->LPush("tLPushKey", "tLPushVal1");
-    s = n->LPush("tLPushKey", "tLPushVal2");
-    s = n->LPush("tLPushKey", "tLPushVal3");
-    s = n->LPush("tLPushKey", "tLPushVal4");
-    s = n->LPush("tLPushKey", "tLPushVal5");
-    s = n->LPush("tLPushKey", "tLPushVal6");
+    uint64_t llen = 0;
+    s = n->LPush("tLPushKey", "tLPushVal1", &llen);
+    s = n->LPush("tLPushKey", "tLPushVal2", &llen);
+    s = n->LPush("tLPushKey", "tLPushVal3", &llen);
+    s = n->LPush("tLPushKey", "tLPushVal4", &llen);
+    s = n->LPush("tLPushKey", "tLPushVal5", &llen);
+    s = n->LPush("tLPushKey", "tLPushVal6", &llen);
     log_info("Test LPush OK return %s", s.ToString().c_str());
     log_info("");
 
@@ -478,12 +479,12 @@ int main()
      *  Test RPush
      */
     log_info("======Test RPush======");
-    s = n->LPush("tLPushKey", "tLPushVal1");
-    s = n->LPush("tLPushKey", "tLPushVal2");
-    s = n->LPush("tLPushKey", "tLPushVal3");
-    s = n->LPush("tLPushKey", "tLPushVal4");
-    s = n->LPush("tLPushKey", "tLPushVal5");
-    s = n->LPush("tLPushKey", "tLPushVal6");
+    s = n->RPush("tLPushKey", "tLPushVal1");
+    s = n->RPush("tLPushKey", "tLPushVal2");
+    s = n->RPush("tLPushKey", "tLPushVal3");
+    s = n->RPush("tLPushKey", "tLPushVal4");
+    s = n->RPush("tLPushKey", "tLPushVal5");
+    s = n->RPush("tLPushKey", "tLPushVal6");
     log_info("Test RPush OK return %s", s.ToString().c_str());
     log_info("After RPush LLen return %ld", n->LLen("tLPushKey"));
     log_info("");
