@@ -53,7 +53,7 @@ public:
     
     // ==============List=====================
     uint64_t LLen(const std::string &key);
-    Status LPush(const std::string &key, const std::string &val);
+    Status LPush(const std::string &key, const std::string &val, uint64_t *llen);
     Status LPop(const std::string &key, std::string *val);
     Status LPushx(const std::string &key, const std::string &val);
     Status LRange(const std::string &key, const int32_t begin, const int32_t end, std::vector<IV> &ivs);
