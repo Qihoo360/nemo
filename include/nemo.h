@@ -52,17 +52,17 @@ public:
     Status HIncrby(const std::string &key, const std::string &field, int64_t by, std::string &new_val);
     
     // ==============List=====================
-    uint64_t LLen(const std::string &key);
+    Status LLen(const std::string &key, uint64_t *llen);
     Status LPush(const std::string &key, const std::string &val, uint64_t *llen);
     Status LPop(const std::string &key, std::string *val);
-    Status LPushx(const std::string &key, const std::string &val);
+    Status LPushx(const std::string &key, const std::string &val, uint64_t *llen);
     Status LRange(const std::string &key, const int32_t begin, const int32_t end, std::vector<IV> &ivs);
     Status LSet(const std::string &key, const int32_t index, const std::string &val);
     Status LTrim(const std::string &key, const int32_t begin, const int32_t end);
-    Status RPush(const std::string &key, const std::string &val);
+    Status RPush(const std::string &key, const std::string &val, uint64_t *llen);
     Status RPop(const std::string &key, std::string *val);
-    Status RPushx(const std::string &key, const std::string &val);
-    Status RPopLPush(const std::string &src, const std::string &dest);
+    Status RPushx(const std::string &key, const std::string &val, uint64_t *llen);
+    Status RPopLPush(const std::string &src, const std::string &dest, std::string &val);
 
     // ==============ZSet=====================
     Status ZAdd(const std::string &key, const int64_t score, const std::string &member);
