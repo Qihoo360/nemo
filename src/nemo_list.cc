@@ -16,23 +16,20 @@ static int32_t ParseMeta(std::string &meta, uint64_t &len, uint64_t &left, uint6
     return 0;
 }
 
-uint64_t Nemo::LLen(const std::string &key) {
+Status Nemo::LLen(const std::string &key, uint64_t *llen) {
     Status s;
     std::string meta_key = EncodeLMetaKey(key);
     std::string meta;
-    uint64_t ret;
     s = db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
     if (s.ok()) {
         if(meta.size() != sizeof(uint64_t) * 3) {
-            return -2;
+            return Status::Corruption("list meta error");
         }
-        ret = *((uint64_t *)(meta.data()));
-        return ret;
-    } else if (s.IsNotFound()) {
-        return 0;
+        *llen = *((uint64_t *)(meta.data()));
     } else {
-        return -1;
+        *llen = 0;
     }
+    return s;
 }
 
 Status Nemo::LPush(const std::string &key, const std::string &val, uint64_t *llen) {
@@ -122,21 +119,21 @@ Status Nemo::LPop(const std::string &key, std::string *val) {
     }
 }
 
-Status Nemo::LPushx(const std::string &key, const std::string &val) {
+Status Nemo::LPushx(const std::string &key, const std::string &val, uint64_t *llen) {
     Status s;
     uint64_t len;
     uint64_t left;
     uint64_t right;
-    uint64_t llen;
     std::string meta;
     std::string meta_key = EncodeLMetaKey(key);
     s = db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
     if (s.ok()) {
         if (ParseMeta(meta, len, left, right) == 0) {
             if (len == 0) {
+                *llen = 0;
                 return Status::NotFound("not found the key");
             } else if (len > 0) {
-                s = LPush(key, val, &llen);
+                s = LPush(key, val, llen);
                 return s;
             } else {
                 return Status::Corruption("get invalid listlen");
@@ -145,6 +142,7 @@ Status Nemo::LPushx(const std::string &key, const std::string &val) {
             return Status::Corruption("parse listmeta error");
         }
     } else if (s.IsNotFound()) {
+        *llen = 0;
         return Status::NotFound("not found the key");
     } else {
         return Status::Corruption("get listmeta error");
@@ -215,7 +213,7 @@ Status Nemo::LSet(const std::string &key, const int32_t index, const std::string
             } else if (len > 0) {
                 uint64_t index_pos = index >= 0 ? left + index + 1 : right + index;
                 if (index_pos <= left || index_pos >= right) {
-                    return Status::Corruption("out of range");
+                    return Status::Corruption("index out of range");
                 }
                 db_key = EncodeListKey(key, Uint64ToStr(index_pos));
                 s = db_->Put(rocksdb::WriteOptions(), db_key, val);
@@ -295,7 +293,7 @@ Status Nemo::LTrim(const std::string &key, const int32_t begin, const int32_t en
     }
 }
 
-Status Nemo::RPush(const std::string &key, const std::string &val) {
+Status Nemo::RPush(const std::string &key, const std::string &val, uint64_t *llen) {
     Status s;
     rocksdb::WriteBatch batch;
     std::string meta;
@@ -321,6 +319,7 @@ Status Nemo::RPush(const std::string &key, const std::string &val) {
             *((uint64_t *)(meta.data() + sizeof(uint64_t) * 2)) = right;
             batch.Put(meta_key, meta);
             s = db_->Write(rocksdb::WriteOptions(), &batch);
+            *llen = len;
             return s;
         } else {
             return Status::Corruption("parse listmeta error");
@@ -337,6 +336,7 @@ Status Nemo::RPush(const std::string &key, const std::string &val) {
         batch.Put(meta_key, meta_str);
         batch.Put(EncodeListKey(key, Uint64ToStr(right)), val);
         s = db_->Write(rocksdb::WriteOptions(), &batch);
+        *llen = len;
         return s;
     } else {
         return Status::Corruption("get listmeta error");
@@ -380,7 +380,7 @@ Status Nemo::RPop(const std::string &key, std::string *val) {
     }
 }
 
-Status Nemo::RPushx(const std::string &key, const std::string &val) {
+Status Nemo::RPushx(const std::string &key, const std::string &val, uint64_t *llen) {
     Status s;
     uint64_t len;
     uint64_t left;
@@ -391,9 +391,10 @@ Status Nemo::RPushx(const std::string &key, const std::string &val) {
     if (s.ok()) {
         if (ParseMeta(meta, len, left, right) == 0) {
             if (len == 0) {
+                *llen = 0;
                 return Status::NotFound("not found the key");
             } else if (len > 0) {
-                s = RPush(key, val);
+                s = RPush(key, val, llen);
                 return s;
             } else {
                 return Status::Corruption("get invalid listlen");
@@ -402,19 +403,19 @@ Status Nemo::RPushx(const std::string &key, const std::string &val) {
             return Status::Corruption("parse listmeta error");
         }
     } else if (s.IsNotFound()) {
+        *llen = 0;
         return Status::NotFound("not found the key");
     } else {
         return Status::Corruption("get listmeta error");
     }
 }
 
-Status Nemo::RPopLPush(const std::string &src, const std::string &dest) {
+Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::string &val) {
     Status s;
     rocksdb::WriteBatch batch;
     uint64_t len;
     uint64_t left;
     uint64_t right;
-    std::string val;
     std::string meta_r;
     std::string meta_l;
     std::string db_key_r;
