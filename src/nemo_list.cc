@@ -16,6 +16,34 @@ static int32_t ParseMeta(std::string &meta, uint64_t &len, uint64_t &left, uint6
     return 0;
 }
 
+Status Nemo::LIndex(const std::string &key, const int64_t index, std::string *val) {
+    Status s;
+    rocksdb::WriteBatch batch;
+    std::string meta;
+    uint64_t len;
+    uint64_t left;
+    uint64_t right;
+    std::string meta_key = EncodeLMetaKey(key);
+    s = db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
+    if (s.ok()) {
+        if (ParseMeta(meta, len, left, right) == 0) {
+            uint64_t index_abs = index >= 0 ? left + index + 1 : right + index;
+            if (index_abs >= right || index_abs < right - len) {
+                return Status::Corruption("index out of range");
+            }
+            std::string db_key = EncodeListKey(key, Uint64ToStr(index_abs));
+            s = db_->Get(rocksdb::ReadOptions(), db_key, val);
+            return s;
+        } else {
+            return Status::Corruption("parse listmeta error");
+        }
+    } else if (s.IsNotFound()) {
+        return s;
+    } else {
+        return Status::Corruption("get listmeta error");
+    }
+}
+
 Status Nemo::LLen(const std::string &key, uint64_t *llen) {
     Status s;
     std::string meta_key = EncodeLMetaKey(key);

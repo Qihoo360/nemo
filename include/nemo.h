@@ -52,6 +52,7 @@ public:
     Status HIncrby(const std::string &key, const std::string &field, int64_t by, std::string &new_val);
     
     // ==============List=====================
+    Status LIndex(const std::string &key, const int64_t index, std::string *val);
     Status LLen(const std::string &key, uint64_t *llen);
     Status LPush(const std::string &key, const std::string &val, uint64_t *llen);
     Status LPop(const std::string &key, std::string *val);
