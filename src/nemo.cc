@@ -16,13 +16,20 @@ Nemo::Nemo(const std::string &db_path) :
     rocksdb::Options options;
     options.create_if_missing = true;
     options.write_buffer_size = 1500000000;
-    rocksdb::Status s = rocksdb::DB::Open(options, db_path_, &db);
+    rocksdb::Status s = rocksdb::DB::Open(options, db_path_.append("kv"), &db);
     if (!s.ok()) {
-        log_err("open db %s error %s", db_path_.c_str(), s.ToString().c_str());
+        log_err("open kv db %s error %s", db_path_.c_str(), s.ToString().c_str());
     } else {
         //log_info("open db success");
     }
-    
+    kv_db_ = std::unique_ptr<rocksdb::DB>(db);
+
+    s = rocksdb::DB::Open(options, db_path_.append("szlh"), &db);
+    if (!s.ok()) {
+        log_err("open szlh db %s error %s", db_path_.c_str(), s.ToString().c_str());
+    } else {
+        //log_info("open db success");
+    }
     db_ = std::unique_ptr<rocksdb::DB>(db);
 }
 };

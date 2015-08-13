@@ -79,6 +79,7 @@ public:
 private:
 
     std::string db_path_;
+    std::unique_ptr<rocksdb::DB> kv_db_;
     std::unique_ptr<rocksdb::DB> db_;
 
     pthread_mutex_t mutex_kv_;
