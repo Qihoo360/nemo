@@ -15,13 +15,13 @@ Status Nemo::HSet(const std::string &key, const std::string &field, const std::s
             return Status::Corruption("incrhlen error");
         }
     }
-    s = db_->Write(rocksdb::WriteOptions(), &(writebatch));
+    s = hash_db_->Write(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 
 Status Nemo::HGet(const std::string &key, const std::string &field, std::string *val) {
     std::string dbkey = EncodeHashKey(key, field);
-    Status s = db_->Get(rocksdb::ReadOptions(), dbkey, val);
+    Status s = hash_db_->Get(rocksdb::ReadOptions(), dbkey, val);
     return s;
 }
 
@@ -34,7 +34,7 @@ Status Nemo::HDel(const std::string &key, const std::string &field) {
         if (IncrHLen(key, -ret, writebatch) == -1) {
             return Status::Corruption("incrlen error");
         } 
-        s = db_->Write(rocksdb::WriteOptions(), &(writebatch));
+        s = hash_db_->Write(rocksdb::WriteOptions(), &(writebatch));
         return s;
     } else if (ret == 0) {
         return Status::NotFound(); 
@@ -47,7 +47,7 @@ bool Nemo::HExists(const std::string &key, const std::string &field) {
     Status s;
     std::string dbkey = EncodeHashKey(key, field);
     std::string val;
-    s = db_->Get(rocksdb::ReadOptions(), dbkey, &val);
+    s = hash_db_->Get(rocksdb::ReadOptions(), dbkey, &val);
     if (s.ok()) {
         return true;
     } else {
@@ -62,7 +62,7 @@ Status Nemo::HKeys(const std::string &key, std::vector<std::string> &fields) {
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
     iterate_options.fill_cache = false;
-    it = db_->NewIterator(iterate_options);
+    it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
     while (it->Valid()) {
        if ((it->key()).data()[0] != DataType::kHash) {
@@ -85,7 +85,7 @@ int64_t Nemo::HLen(const std::string &key) {
     std::string val;
     Status s;
 
-    s = db_->Get(rocksdb::ReadOptions(), size_key, &val);
+    s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
     if (s.IsNotFound()) {
         return 0;
     } else if(!s.ok()) {
@@ -106,7 +106,7 @@ Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
     iterate_options.fill_cache = false;
-    it = db_->NewIterator(iterate_options);
+    it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
     while (it->Valid()) {
        if ((it->key()).data()[0] != DataType::kHash) {
@@ -131,7 +131,7 @@ Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
 //    rocksdb::Iterator *it;
 //    rocksdb::ReadOptions iterate_options;
 //    iterate_options.fill_cache = false;
-//    it = db_->NewIterator(iterate_options);
+//    it = hash_db_->NewIterator(iterate_options);
 //    it->Seek(key_start);
 //    while (it->Valid()) {
 //       if((it->key()).data()[0] != DataType::kHash) { 
@@ -166,7 +166,7 @@ Status Nemo::HMGet(const std::string &key, const std::vector<std::string> &field
     for (it_key = fields.begin(); it_key != fields.end(); it_key++) {
         std::string en_key = EncodeHashKey(key, *(it_key));
         std::string val("");
-        s = db_->Get(rocksdb::ReadOptions(), en_key, &val);
+        s = hash_db_->Get(rocksdb::ReadOptions(), en_key, &val);
         fvss.push_back((FVS){*(it_key), val, s});
     }
     return Status::OK();
@@ -183,7 +183,7 @@ HIterator* Nemo::HScan(const std::string &key, const std::string &start, const s
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
     iterate_options.fill_cache = false;
-    it = db_->NewIterator(iterate_options);
+    it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
     if (it->Valid() && it->key() == key_start) {
         it->Next();
@@ -204,7 +204,7 @@ Status Nemo::HSetnx(const std::string &key, const std::string &field, const std:
                 return Status::Corruption("incrhlen error");
             }
         }
-        s = db_->Write(rocksdb::WriteOptions(), &(writebatch));
+        s = hash_db_->Write(rocksdb::WriteOptions(), &(writebatch));
         return s;
     } else if(s.ok()) {
         return Status::Corruption("Already Exist");
@@ -233,7 +233,7 @@ Status Nemo::HVals(const std::string &key, std::vector<std::string> &vals) {
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
     iterate_options.fill_cache = false;
-    it = db_->NewIterator(iterate_options);
+    it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
     while (it->Valid()) {
        if ((it->key()).data()[0] != DataType::kHash) {

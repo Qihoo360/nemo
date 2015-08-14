@@ -80,7 +80,9 @@ private:
 
     std::string db_path_;
     std::unique_ptr<rocksdb::DB> kv_db_;
-    std::unique_ptr<rocksdb::DB> db_;
+    std::unique_ptr<rocksdb::DB> hash_db_;
+    std::unique_ptr<rocksdb::DB> list_db_;
+    std::unique_ptr<rocksdb::DB> zset_db_;
 
     pthread_mutex_t mutex_kv_;
     pthread_mutex_t mutex_hash_;

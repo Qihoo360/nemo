@@ -8,7 +8,7 @@ using namespace nemo;
 
 int main()
 {
-    Nemo *n = new Nemo("./tmp/db"); 
+    Nemo *n = new Nemo("./tmp/"); 
     Status s;
 
     std::string res;

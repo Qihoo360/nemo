@@ -15,13 +15,13 @@ Status Nemo::ZAdd(const std::string &key, const int64_t score, const std::string
     int ret = DoZSet(key, score, member, batch);
     if (ret == 2) {
         if (IncrZLen(key, 1, batch) == 0) {
-            s = db_->Write(rocksdb::WriteOptions(), &batch);
+            s = zset_db_->Write(rocksdb::WriteOptions(), &batch);
             return s;
         } else {
             return Status::Corruption("incr zsize error");
         }
     } else if (ret == 1) {
-        s = db_->Write(rocksdb::WriteOptions(), &batch);
+        s = zset_db_->Write(rocksdb::WriteOptions(), &batch);
         return s;
     } else if (ret == 0) {
         return Status::OK();
@@ -34,7 +34,7 @@ int64_t Nemo::ZCard(const std::string &key) {
     Status s;
     std::string size;
     std::string size_key = EncodeZSizeKey(key);
-    s = db_->Get(rocksdb::ReadOptions(), size_key, &size);
+    s = zset_db_->Get(rocksdb::ReadOptions(), size_key, &size);
     if (s.ok()) {
         return StrToInt64(size);
     } else if (s.IsNotFound()) {
@@ -51,7 +51,7 @@ ZIterator* Nemo::ZScan(const std::string &key, int64_t begin, int64_t end, uint6
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
     iterate_options.fill_cache = false;
-    it = db_->NewIterator(iterate_options);
+    it = zset_db_->NewIterator(iterate_options);
     it->Seek(key_start);
     if (it->Valid() && it->key() == key_start) {
         it->Next();
@@ -81,7 +81,7 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const in
     std::string db_key = EncodeZSetKey(key, member);
     rocksdb::WriteBatch writebatch;
     MutexLock l(&mutex_zset_);
-    s = db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
+    s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
     if (s.ok()) {
         int64_t old_score_int;
         old_score_int = StrToInt64(old_score);
@@ -100,7 +100,7 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const in
     } else {
         return Status::Corruption("get the key error");
     }
-    s = db_->Write(rocksdb::WriteOptions(), &writebatch);
+    s = zset_db_->Write(rocksdb::WriteOptions(), &writebatch);
     return s;
 
 }
@@ -131,7 +131,7 @@ int Nemo::DoZSet(const std::string &key, const int64_t score, const std::string 
     std::string old_score;
     std::string score_key;
     std::string db_key = EncodeZSetKey(key, member);
-    s = db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
+    s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
     if (s.ok() && score != StrToInt64(old_score)) {
         score_key = EncodeZScoreKey(key, member, StrToInt64(old_score));
         writebatch.Delete(score_key);
