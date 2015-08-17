@@ -1,6 +1,6 @@
 #include "nemo.h"
 #include "nemo_list.h"
-#include "utilities/strings.h"
+#include "utilities/util.h"
 #include "xdebug.h"
 using namespace nemo;
 
@@ -31,7 +31,7 @@ Status Nemo::LIndex(const std::string &key, const int64_t index, std::string *va
             if (index_abs >= right || index_abs < right - len) {
                 return Status::Corruption("index out of range");
             }
-            std::string db_key = EncodeListKey(key, Uint64ToStr(index_abs));
+            std::string db_key = EncodeListKey(key, std::to_string(index_abs));
             s = db_->Get(rocksdb::ReadOptions(), db_key, val);
             return s;
         } else {
@@ -78,7 +78,7 @@ Status Nemo::LPush(const std::string &key, const std::string &val, uint64_t *lle
             if (left == 0) {
                 return Status::Corruption("list left out of range");
             }
-            std::string db_key = EncodeListKey(key, Uint64ToStr(left));
+            std::string db_key = EncodeListKey(key, std::to_string(left));
             batch.Put(db_key, val);
             len++;
             left--;
@@ -101,7 +101,7 @@ Status Nemo::LPush(const std::string &key, const std::string &val, uint64_t *lle
         meta[2] = right;
         std::string meta_str((char *)meta, 3 * sizeof(uint64_t));
         batch.Put(meta_key, meta_str);
-        batch.Put(EncodeListKey(key, Uint64ToStr(left)), val);
+        batch.Put(EncodeListKey(key, std::to_string(left)), val);
         s = db_->Write(rocksdb::WriteOptions(), &batch);
         *llen = len;
         return s;
@@ -134,7 +134,7 @@ Status Nemo::LPop(const std::string &key, std::string *val) {
                 *((uint64_t *)(meta.data() + sizeof(uint64_t))) = left;
                 batch.Put(meta_key, meta);
             }
-            std::string db_key = EncodeListKey(key, Uint64ToStr(left));
+            std::string db_key = EncodeListKey(key, std::to_string(left));
             s = db_->Get(rocksdb::ReadOptions(), db_key, val);
             batch.Delete(db_key);
             s = db_->Write(rocksdb::WriteOptions(), &batch);
@@ -206,7 +206,7 @@ Status Nemo::LRange(const std::string &key, const int32_t begin, const int32_t e
                 }
                 for (uint64_t i = index_b; i <= index_e; i++) {
                     res = "";
-                    db_key = EncodeListKey(key, Uint64ToStr(i));
+                    db_key = EncodeListKey(key, std::to_string(i));
                     s = db_->Get(rocksdb::ReadOptions(), db_key, &res);
                     ivs.push_back(IV{i-left-1, res});
                 }
@@ -243,7 +243,7 @@ Status Nemo::LSet(const std::string &key, const int32_t index, const std::string
                 if (index_pos <= left || index_pos >= right) {
                     return Status::Corruption("index out of range");
                 }
-                db_key = EncodeListKey(key, Uint64ToStr(index_pos));
+                db_key = EncodeListKey(key, std::to_string(index_pos));
                 s = db_->Put(rocksdb::WriteOptions(), db_key, val);
                 return s;
             } else {
@@ -289,12 +289,12 @@ Status Nemo::LTrim(const std::string &key, const int32_t begin, const int32_t en
                 }
                 uint64_t trim_num = 0;
                 for (uint64_t i = left + 1; i < index_b; i++) {
-                    db_key = EncodeListKey(key, Uint64ToStr(i));
+                    db_key = EncodeListKey(key, std::to_string(i));
                     batch.Delete(db_key);
                     trim_num++;
                 }
                 for (uint64_t i = right - 1; i > index_e; i--) {
-                    db_key = EncodeListKey(key, Uint64ToStr(i));
+                    db_key = EncodeListKey(key, std::to_string(i));
                     batch.Delete(db_key);
                     trim_num++;
                 }
@@ -339,7 +339,7 @@ Status Nemo::RPush(const std::string &key, const std::string &val, uint64_t *lle
             if (right == INT_MAX) {
                 return Status::Corruption("list right out of range");
             }
-            std::string db_key = EncodeListKey(key, Uint64ToStr(right));
+            std::string db_key = EncodeListKey(key, std::to_string(right));
             batch.Put(db_key, val);
             len++;
             right++;
@@ -362,7 +362,7 @@ Status Nemo::RPush(const std::string &key, const std::string &val, uint64_t *lle
         meta[2] = right + 1;
         std::string meta_str((char *)meta, 3 * sizeof(uint64_t));
         batch.Put(meta_key, meta_str);
-        batch.Put(EncodeListKey(key, Uint64ToStr(right)), val);
+        batch.Put(EncodeListKey(key, std::to_string(right)), val);
         s = db_->Write(rocksdb::WriteOptions(), &batch);
         *llen = len;
         return s;
@@ -395,7 +395,7 @@ Status Nemo::RPop(const std::string &key, std::string *val) {
                 *((uint64_t *)(meta.data() + sizeof(uint64_t) * 2)) = right;
                 batch.Put(meta_key, meta);
             }
-            std::string db_key = EncodeListKey(key, Uint64ToStr(right));
+            std::string db_key = EncodeListKey(key, std::to_string(right));
             s = db_->Get(rocksdb::ReadOptions(), db_key, val);
             batch.Delete(db_key);
             s = db_->Write(rocksdb::WriteOptions(), &batch);
@@ -466,7 +466,7 @@ Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::str
                 *((uint64_t *)(meta_r.data() + sizeof(uint64_t) * 2)) = right;
                 batch.Put(meta_key_r, meta_r);
             }
-            db_key_r = EncodeListKey(src, Uint64ToStr(right));
+            db_key_r = EncodeListKey(src, std::to_string(right));
             s = db_->Get(rocksdb::ReadOptions(), db_key_r, &val);
             batch.Delete(db_key_r);
             s = db_->Write(rocksdb::WriteOptions(), &batch);
@@ -486,7 +486,7 @@ Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::str
             if (left == 0) {
                 return Status::Corruption("list left out of range");
             }
-            db_key_l = EncodeListKey(dest, Uint64ToStr(left));
+            db_key_l = EncodeListKey(dest, std::to_string(left));
             batch.Put(db_key_l, val);
             len++;
             left--;
@@ -508,7 +508,7 @@ Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::str
         meta[2] = right;
         std::string meta_str((char *)meta, 3 * sizeof(uint64_t));
         batch.Put(meta_key_l, meta_str);
-        batch.Put(EncodeListKey(dest, Uint64ToStr(left)), val);
+        batch.Put(EncodeListKey(dest, std::to_string(left)), val);
         s = db_->Write(rocksdb::WriteOptions(), &batch);
         return s;
     } else {
