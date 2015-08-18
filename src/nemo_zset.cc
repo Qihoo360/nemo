@@ -136,7 +136,7 @@ int Nemo::DoZSet(const std::string &key, const int64_t score, const std::string 
     int64_t ival;
 
     StrToInt64(old_score.data(), old_score.size(), &ival);
-    s = db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
+    s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
     if (s.ok() && score != ival) {
         score_key = EncodeZScoreKey(key, member, ival);
         writebatch.Delete(score_key);
