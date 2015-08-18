@@ -3,6 +3,13 @@
 
 namespace nemo {
 
+const int ZSET_SCORE_INTEGER_DIGITS = 13;
+const int ZSET_SCORE_DECIMAL_DIGITS = 5;
+const int64_t ZSET_SCORE_SHIFT = 1000000000000LL;
+const int64_t ZSET_SCORE_MAX = ZSET_SCORE_SHIFT;
+const int64_t ZSET_SCORE_MIN = -ZSET_SCORE_SHIFT;
+const double eps = 1e-5;
+
 struct KV {
     std::string key;
     std::string val;
@@ -48,5 +55,7 @@ namespace DataType {
 //    static const char QUEUE     = 'q';
 //    static const char QSIZE     = 'Q';
 }
+
+
 }
 #endif

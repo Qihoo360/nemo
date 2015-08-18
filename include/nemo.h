@@ -67,11 +67,12 @@ public:
     Status RPopLPush(const std::string &src, const std::string &dest, std::string &val);
 
     // ==============ZSet=====================
-    Status ZAdd(const std::string &key, const int64_t score, const std::string &member);
+    //Status ZAdd(const std::string &key, const int64_t score, const std::string &member);
+    Status ZAdd(const std::string &key, const double score, const std::string &member);
     int64_t ZCard(const std::string &key);
-    int64_t ZCount(const std::string &key, const int64_t begin, const int64_t end);
-    ZIterator* ZScan(const std::string &key, int64_t begin, int64_t end, uint64_t limit);
-    Status ZIncrby(const std::string &key, const std::string &member, const int64_t by);
+    int64_t ZCount(const std::string &key, const double begin, const double end);
+    ZIterator* ZScan(const std::string &key, const double begin, const double end, uint64_t limit);
+    Status ZIncrby(const std::string &key, const std::string &member, const double by);
 
     //TODO modify range
     Status ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
@@ -94,7 +95,7 @@ private:
     int DoHDel(const std::string &key, const std::string &field, rocksdb::WriteBatch &writebatch);
     int IncrHLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
 
-    int DoZSet(const std::string &key, const int64_t score, const std::string &member, rocksdb::WriteBatch &writebatch);
+    int DoZSet(const std::string &key, const double score, const std::string &member, rocksdb::WriteBatch &writebatch);
     int IncrZLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
 
     Nemo(const Nemo &rval);

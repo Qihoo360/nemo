@@ -5,6 +5,7 @@
 #include <string>
 
 #include "utilities/util.h"
+#include "nemo_zset.h"
 
 using namespace nemo;
 
@@ -25,6 +26,17 @@ int main()
         printf ("StrToDouble failed (%s).\n", a.c_str());
     }
 
+    printf ("EncodeScore(1000.123456) %lld\n", EncodeScore(1000.123456));
+    printf ("DecodeScore(1000100012346) %f\n", DecodeScore(1000100012346));
+
+    std::string ret = EncodeZScoreKey("key", "member", 1000.123456);
+    printf ("EncodeZscoreKey() -> size=%d (%s)\n", ret.size(), ret.c_str());
+    std::string key;
+    std::string member;
+    double score;
+    DecodeZScoreKey(ret, &key, &member, &score);
+    printf ("DecodeZscoreKey(%s) key=(%s) member=(%s) score=(%f)\n", ret.c_str(), key.c_str(), member.c_str(), score);
+
     Nemo *n = new Nemo("./tmp/"); 
     Status s;
 
@@ -39,6 +51,30 @@ int main()
     std::vector<KVS> kvss;
     std::vector<SM> sms;
 
+    /*
+     *************************************************ZSet**************************************************
+     */
+
+    /*
+     *  Test ZAdd
+     */
+    log_info("======Test ZAdd======");
+    s = n->ZAdd("tZAddKey", 0, "tZAddMem0");
+    s = n->ZAdd("tZAddKey", 1, "tZAddMem1");
+    s = n->ZAdd("tZAddKey", 2.3, "tZAddMem1_2");
+    s = n->ZAdd("tZAddKey", 2, "tZAddMem2");
+    s = n->ZAdd("tZAddKey", 3.3, "tZAddMem2_2");
+    s = n->ZAdd("tZAddKey", 3, "tZAddMem3");
+    s = n->ZAdd("tZAddKey", 7, "tZAddMem7");
+    log_info("Test ZAdd OK return %s", s.ToString().c_str());
+    log_info("");
+
+    /*
+     *  Test ZCard
+     */
+    log_info("======Test ZCard======");
+    log_info("Test ZCard, return %ld", n->ZCard("tZAddKey"));
+    log_info("");
     /*
      *  Test HIncrbyfloat
      */

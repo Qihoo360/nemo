@@ -5,11 +5,15 @@
 #include "xdebug.h"
 using namespace nemo;
 
-Status Nemo::ZAdd(const std::string &key, const int64_t score, const std::string &member) {
+Status Nemo::ZAdd(const std::string &key, const double score, const std::string &member) {
     Status s;
-    std::string db_key = EncodeZSetKey(key, member);
-    std::string size_key = EncodeZSizeKey(key);
-    std::string score_key = EncodeZScoreKey(key, member, score); 
+    if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX) {
+        return Status::InvalidArgument("zset score overflow");
+    }
+
+    //std::string db_key = EncodeZSetKey(key, member);
+    //std::string size_key = EncodeZSizeKey(key);
+    //std::string score_key = EncodeZScoreKey(key, member, score); 
     rocksdb::WriteBatch batch;
     MutexLock l(&mutex_zset_);
     int ret = DoZSet(key, score, member, batch);
@@ -46,7 +50,7 @@ int64_t Nemo::ZCard(const std::string &key) {
     }
 }
 
-ZIterator* Nemo::ZScan(const std::string &key, int64_t begin, int64_t end, uint64_t limit) {
+ZIterator* Nemo::ZScan(const std::string &key, const double begin, const double end, uint64_t limit) {
     std::string key_start, key_end;
     key_start = EncodeZScoreKey(key, "", begin);
     key_end = EncodeZScoreKey(key, "", end);
@@ -61,13 +65,13 @@ ZIterator* Nemo::ZScan(const std::string &key, int64_t begin, int64_t end, uint6
     return new ZIterator(new Iterator(it, key_end, limit), key); 
 }
 
-int64_t Nemo::ZCount(const std::string &key, int64_t begin, int64_t end) {
-    ZIterator* it = ZScan(key, begin, end + 1, -1);
-    int64_t s;
+int64_t Nemo::ZCount(const std::string &key, const double begin, const double end) {
+    ZIterator* it = ZScan(key, begin, end, -1);
+    double s;
     int64_t n = 0;
     while (it->Next()) {
         s = it->Score();
-        if (s >= begin && s <= end + 1 ) {
+        if (s >= begin && s <= end ) {
             n++;
         } else {
             break;
@@ -76,7 +80,7 @@ int64_t Nemo::ZCount(const std::string &key, int64_t begin, int64_t end) {
     return n;
 }
 
-Status Nemo::ZIncrby(const std::string &key, const std::string &member, const int64_t by) {
+Status Nemo::ZIncrby(const std::string &key, const std::string &member, const double by) {
     Status s;
     std::string old_score;
     std::string score_key;
@@ -85,17 +89,24 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const in
     MutexLock l(&mutex_zset_);
     s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
     if (s.ok()) {
-        int64_t old_score_int;
-        StrToInt64(old_score.data(), old_score.size(), &old_score_int);
-        score_key = EncodeZScoreKey(key, member, old_score_int);
+        double dval = *((double *)old_score.data());
+        score_key = EncodeZScoreKey(key, member, dval);
         writebatch.Delete(score_key);
-        score_key = EncodeZScoreKey(key, member, old_score_int + by);
+
+        dval += by;
+        score_key = EncodeZScoreKey(key, member, dval);
         writebatch.Put(score_key, "");
-        writebatch.Put(db_key, std::to_string(old_score_int + by));
+
+        std::string buf;
+        buf.append((char *)(&dval), sizeof(double));
+        writebatch.Put(db_key, buf);
     } else if (s.IsNotFound()) {
         score_key = EncodeZScoreKey(key, member, by);
         writebatch.Put(score_key, "");
-        writebatch.Put(db_key, std::to_string(by));
+
+        std::string buf;
+        buf.append((char *)(&by), sizeof(double));
+        writebatch.Put(db_key, buf);
         if (IncrZLen(key, 1, writebatch) != 0) {
             return Status::Corruption("incr zsize error");
         }
@@ -104,7 +115,6 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const in
     }
     s = zset_db_->Write(rocksdb::WriteOptions(), &writebatch);
     return s;
-
 }
 
 //TODO Range not rangebyscore
@@ -128,29 +138,37 @@ Status Nemo::ZRangebyscore(const std::string &key, const int64_t start, const in
     return Status::OK();
 }
 
-int Nemo::DoZSet(const std::string &key, const int64_t score, const std::string &member, rocksdb::WriteBatch &writebatch) {
+int Nemo::DoZSet(const std::string &key, const double score, const std::string &member, rocksdb::WriteBatch &writebatch) {
     Status s;
     std::string old_score;
     std::string score_key;
     std::string db_key = EncodeZSetKey(key, member);
-    int64_t ival;
 
-    StrToInt64(old_score.data(), old_score.size(), &ival);
     s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
-    if (s.ok() && score != ival) {
-        score_key = EncodeZScoreKey(key, member, ival);
-        writebatch.Delete(score_key);
-        score_key = EncodeZScoreKey(key, member, score);
-        writebatch.Put(score_key, "");
-        writebatch.Put(db_key, std::to_string(score));
-        return 1;
+    if (s.ok()) {
+        double dval = *((double *)old_score.data());
+        /* find the same value */ 
+        if (fabs(dval - score) < eps) {
+            return 0;
+        } else {
+          score_key = EncodeZScoreKey(key, member, dval);
+          writebatch.Delete(score_key);
+          score_key = EncodeZScoreKey(key, member, score);
+          writebatch.Put(score_key, "");
+
+          std::string buf;
+          buf.append((char *)(&score), sizeof(double));
+          writebatch.Put(db_key, buf);
+          return 1;
+        }
     } else if (s.IsNotFound()) {
         score_key = EncodeZScoreKey(key, member, score);
         writebatch.Put(score_key, "");
-        writebatch.Put(db_key, std::to_string(score));
+
+        std::string buf;
+        buf.append((char *)(&score), sizeof(double));
+        writebatch.Put(db_key, buf);
         return 2;
-    } else if (s.ok() && score == ival) {
-        return 0;
     } else {
         return -1;
     }
@@ -164,7 +182,7 @@ int Nemo::IncrZLen(const std::string &key, int64_t by, rocksdb::WriteBatch &writ
         return -1;
     }
     size += by;
-    if (size <=0 ) {
+    if (size <= 0) {
         writebatch.Delete(size_key);
     } else {
         writebatch.Put(size_key, std::to_string(size));

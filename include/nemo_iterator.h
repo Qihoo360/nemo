@@ -79,7 +79,7 @@ public:
 private:
     Iterator *it_;
     std::string key_;
-    int64_t score_;
+    double score_;
     std::string member_;
     //No Copying Allowed
     ZIterator(ZIterator&);

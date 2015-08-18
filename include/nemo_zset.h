@@ -9,12 +9,18 @@
 
 namespace nemo {
 
+inline int64_t EncodeScore(const double score) {
+    return (int64_t)(score * 100000LL + 0.5) + ZSET_SCORE_SHIFT;
+}
+inline double DecodeScore(const int64_t score) {
+    return (double)(score - ZSET_SCORE_SHIFT) / 100000.0; 
+}
+
 inline std::string EncodeZSetKey(const rocksdb::Slice &key, const rocksdb::Slice &member) {
     std::string buf;
     buf.append(1, DataType::kZSet);
     buf.append(1, (uint8_t)key.size());
     buf.append(key.data(), key.size());
-    buf.append(1, '=');
     buf.append(member.data(), member.size());
     return buf;
 }
@@ -25,9 +31,6 @@ inline int DecodeZSetKey(const rocksdb::Slice &slice, std::string *key, std::str
         return -1;
     }
     if (decoder.ReadLenData(key) == -1) {
-        return -1;
-    }
-    if (decoder.Skip(1) == -1) {
         return -1;
     }
     if (decoder.ReadData(member) == -1) {
@@ -54,24 +57,19 @@ inline int DecodeZSizeKey(const rocksdb::Slice &slice, std::string *size) {
     return 0;
 }
 
-inline std::string EncodeZScoreKey(const rocksdb::Slice &key, const rocksdb::Slice &member, int64_t score) {
+inline std::string EncodeZScoreKey(const rocksdb::Slice &key, const rocksdb::Slice &member, const double score) {
     std::string buf;
+    int64_t new_score = EncodeScore(score);
     buf.append(1, DataType::kZScore);
     buf.append(1, (uint8_t)key.size());
     buf.append(key.data(), key.size());
-    if (score >= 0) {
-        buf.append(1, '=');
-    } else {
-        buf.append(1, '-');
-    }
-    score = htobe64(score);
-    buf.append((char *)&score, sizeof(int64_t));
-    buf.append(1, '=');
+    new_score = htobe64(new_score);
+    buf.append((char *)&new_score, sizeof(int64_t));
     buf.append(member.data(), member.size());
     return buf;
 }
 
-inline int DecodeZScoreKey(const rocksdb::Slice &slice, std::string *key, std::string *member, int64_t *score) {
+inline int DecodeZScoreKey(const rocksdb::Slice &slice, std::string *key, std::string *member, double *score) {
     Decoder decoder(slice.data(), slice.size());
     if (decoder.Skip(1) == -1) {
         return -1;
@@ -79,13 +77,10 @@ inline int DecodeZScoreKey(const rocksdb::Slice &slice, std::string *key, std::s
     if (decoder.ReadLenData(key) == -1) {
         return -1;
     }
-    if (decoder.Skip(1) == -1) {
-        return -1;
-    }
-    decoder.ReadInt64(score);
-    if (decoder.Skip(1) == -1) {
-        return -1;
-    }
+    int64_t iscore;
+    decoder.ReadInt64(&iscore);
+    //iscore = be64toh(iscore);
+    *score = DecodeScore(iscore);
     if (decoder.ReadData(member) == -1) {
         return -1;
     }
