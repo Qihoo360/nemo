@@ -1,6 +1,6 @@
 #include "nemo.h"
 #include "nemo_iterator.h"
-#include "utilities/strings.h"
+#include "utilities/util.h"
 #include "xdebug.h"
 using namespace nemo;
 
@@ -61,9 +61,11 @@ Status Nemo::Incrby(const std::string &key, int64_t by, std::string &new_val) {
     std::string val;
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
-        new_val = Int64ToStr(by);        
+        new_val = std::to_string(by);        
     } else if (s.ok()) {
-        new_val = Int64ToStr((StrToInt64(val) + by));
+        int64_t ival;
+        StrToInt64(val.data(), val.size(), &ival); 
+        new_val = std::to_string(ival + by);
     } else {
         return Status::Corruption("Get error");
     }
@@ -76,9 +78,11 @@ Status Nemo::Decrby(const std::string &key, int64_t by, std::string &new_val) {
     std::string val;
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
-        new_val = Int64ToStr(by);        
+        new_val = std::to_string(by);        
     } else if (s.ok()) {
-        new_val = Int64ToStr((StrToInt64(val) - by));
+        int64_t ival;
+        StrToInt64(val.data(), val.size(), &ival); 
+        new_val = std::to_string(ival - by);
     } else {
         return Status::Corruption("Get error");
     }

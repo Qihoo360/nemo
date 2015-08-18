@@ -3,8 +3,7 @@ CXXFLAGS = -Wall -DDEBUG -g -O0 -std=c++11 -D__XDEBUG__
 
 OBJECT = main
 
-LIB_PATH = -L../output/lib/ \
-		   -L../3rdparty/rocksdb/ \
+LIB_PATH = -L../output/lib/
 
 LIBS = -lpthread \
 	   -lnemo \
@@ -14,10 +13,7 @@ LIBS = -lpthread \
 	   -lsnappy \
 	   -lrt
 
-INCLUDE_PATH = -I../include/ \
-			   -I$(ROCKSDB_PATH)/include/ \
-			   -I$(ROCKSDB_PATH)/include/rocksdb \
-			   -I../src/
+INCLUDE_PATH = -I../output/include/
 
 OBJS = main.o
 
@@ -35,4 +31,5 @@ $(OBJS): %.o : %.cc
 
 clean: 
 	rm -rf $(OBJECT)
+	rm -f $(OBJS)
 
