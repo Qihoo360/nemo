@@ -259,14 +259,36 @@ Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t b
         new_val = std::to_string(by);
     } else if (s.ok()) {
         int64_t ival;
-        StrToInt64(val.data(), val.size(), &ival); 
+        if (!StrToInt64(val.data(), val.size(), &ival)) {
+            return Status::NotSupported("HIncrby field is not number");
+        }
         new_val = std::to_string((ival + by));
+    } else {
+        return Status::Corruption("HIncrby error");
+    }
+    s = HSet(key, field, new_val);
+    return s;
+}
+
+Status Nemo::HIncrbyfloat(const std::string &key, const std::string &field, double by, std::string &new_val) {
+    Status s;
+    std::string val;
+    s = HGet(key, field, &val);
+    if (s.IsNotFound()) {
+        new_val = std::to_string(by);
+    } else if (s.ok()) {
+        double dval;
+        if (!StrToDouble(val.data(), val.size(), &dval)) {
+            return Status::NotSupported("HIncrbyfloat field is not number");
+        }
+        new_val = std::to_string(dval + by);
     } else {
         return Status::Corruption("HGet error");
     }
     s = HSet(key, field, new_val);
     return s;
 }
+
 
 int Nemo::DoHSet(const std::string &key, const std::string &field, const std::string &val, rocksdb::WriteBatch &writebatch) {
     int ret = 0;

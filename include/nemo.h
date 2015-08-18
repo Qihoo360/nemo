@@ -50,6 +50,7 @@ public:
     HIterator* HScan(const std::string &key, const std::string &start, const std::string &end, uint64_t limit);
     Status HVals(const std::string &key, std::vector<std::string> &vals);
     Status HIncrby(const std::string &key, const std::string &field, int64_t by, std::string &new_val);
+    Status HIncrbyfloat(const std::string &key, const std::string &field, double by, std::string &new_val);
     
     // ==============List=====================
     Status LIndex(const std::string &key, const int64_t index, std::string *val);

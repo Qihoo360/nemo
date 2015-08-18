@@ -299,6 +299,28 @@ int main()
     log_info("");
 
     /*
+     *  Test HIncrbyfloat
+     */
+    log_info("======Test HIncrbyfloat======");
+    s = n->HSet("tHIncrByfloatKey", "song", "12.1");
+    res = "";
+    s = n->HIncrbyfloat("tHIncrByfloatKey", "song", 6.2, res);
+    log_info("Test HIncrbyfloat OK return %s, 12.1 HIncrbyfloat 6.2 val: %s", s.ToString().c_str(), res.c_str());
+    res = "";
+    s = n->HIncrbyfloat("tHIncrByfloatKey", "song", -2.1, res);
+    log_info("Test HIncrbyfloat OK return %s, 18.3 HIncrbyfloat -2.1 val: %s", s.ToString().c_str(), res.c_str());
+    res = "";
+    s = n->HIncrbyfloat("tHIncrByfloatKey", "nonExist", 5.0, res);
+    log_info("Test HIncrbyfloat OK return %s, nonExist HIncrbyfloat 5.0 val: %s", s.ToString().c_str(), res.c_str());
+
+    //Test NonNum key HIncrBy
+    s = n->HSet("tHIncrByfloatKey", "song", "NonNum");
+    res = "";
+    s = n->HIncrby("tHIncrByfloatKey", "song", 6, res);
+    log_info("Test HIncrbyfloat OK return %s, NonNum HIncrbyfloat 6 val: %s", s.ToString().c_str(), res.c_str());
+    log_info("");
+
+    /*
      *  Test HMGet
      */
     log_info("======Test MGet======");
