@@ -32,6 +32,20 @@ public:
         return sizeof(int64_t);
     }
 
+    int32_t ReadUInt64(uint64_t *res) {
+        int32_t n = sizeof(uint64_t);
+        if (size_ < n) {
+            return -1;
+        }
+        if (res) {
+            *res = *(uint64_t *)ptr_;
+        }
+        *res = be64toh(*res);
+        ptr_ += sizeof(uint64_t);
+        size_ -= sizeof(uint64_t);
+        return sizeof(uint64_t);
+    }
+
     int32_t ReadData(std::string *res) {
         int32_t n = size_;
         if (res) {

@@ -24,7 +24,7 @@ struct FVS {
 };
 
 struct IV {
-    uint64_t index;
+    int64_t index;
     std::string val;
 };
 
