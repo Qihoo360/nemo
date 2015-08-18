@@ -1,8 +1,9 @@
 #include "nemo.h"
 #include "nemo_hash.h"
 #include "nemo_iterator.h"
-#include "utilities/strings.h"
+#include "utilities/util.h"
 #include "xdebug.h"
+
 using namespace nemo;
 
 Status Nemo::HSet(const std::string &key, const std::string &field, const std::string &val) {
@@ -255,9 +256,11 @@ Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t b
     std::string val;
     s = HGet(key, field, &val);
     if (s.IsNotFound()) {
-        new_val = Int64ToStr(by);
+        new_val = std::to_string(by);
     } else if (s.ok()) {
-        new_val = Int64ToStr((StrToInt64(val) + by));
+        int64_t ival;
+        StrToInt64(val.data(), val.size(), &ival); 
+        new_val = std::to_string((ival + by));
     } else {
         return Status::Corruption("HGet error");
     }
