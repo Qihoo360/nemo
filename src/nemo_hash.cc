@@ -273,18 +273,22 @@ Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t b
 Status Nemo::HIncrbyfloat(const std::string &key, const std::string &field, double by, std::string &new_val) {
     Status s;
     std::string val;
+    std::string res;
     s = HGet(key, field, &val);
     if (s.IsNotFound()) {
-        new_val = std::to_string(by);
+        res = std::to_string(by);
     } else if (s.ok()) {
         double dval;
         if (!StrToDouble(val.data(), val.size(), &dval)) {
-            return Status::Corruption("HIncrbyfloat field is not number");
+            return Status::Corruption("value is not float");
         }
-        new_val = std::to_string(dval + by);
+        res  = std::to_string(dval + by);
     } else {
-        return Status::Corruption("HGet error");
+        return Status::Corruption("HIncrbyfloat error");
     }
+    size_t pos = res.find_last_not_of("0", res.size());
+    pos = pos == std::string::npos ? pos : pos+1;
+    new_val = res.substr(0, pos); 
     s = HSet(key, field, new_val);
     return s;
 }
