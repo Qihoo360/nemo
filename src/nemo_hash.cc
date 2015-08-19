@@ -279,7 +279,7 @@ Status Nemo::HIncrbyfloat(const std::string &key, const std::string &field, doub
     } else if (s.ok()) {
         double dval;
         if (!StrToDouble(val.data(), val.size(), &dval)) {
-            return Status::Corruption("HIncrbyfloat field is not number");
+            return Status::Corruption("value is not integer");
         }
         new_val = std::to_string(dval + by);
     } else {
