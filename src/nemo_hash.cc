@@ -259,7 +259,9 @@ Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t b
         new_val = std::to_string(by);
     } else if (s.ok()) {
         int64_t ival;
-        StrToInt64(val.data(), val.size(), &ival); 
+        if (!StrToInt64(val.data(), val.size(), &ival)) {
+            return Status::Corruption("value is not integer");
+        } 
         new_val = std::to_string((ival + by));
     } else {
         return Status::Corruption("HGet error");
