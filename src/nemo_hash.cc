@@ -260,8 +260,8 @@ Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t b
     } else if (s.ok()) {
         int64_t ival;
         if (!StrToInt64(val.data(), val.size(), &ival)) {
-            return Status::Corruption("HIncrby field is not number");
-        }
+            return Status::Corruption("value is not integer");
+        } 
         new_val = std::to_string((ival + by));
     } else {
         return Status::Corruption("HIncrby error");
