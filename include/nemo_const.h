@@ -10,6 +10,12 @@ const int64_t ZSET_SCORE_MAX = ZSET_SCORE_SHIFT;
 const int64_t ZSET_SCORE_MIN = -ZSET_SCORE_SHIFT;
 const double eps = 1e-5;
 
+enum Position {
+  BEFORE = 0,
+  AFTER = 1
+};
+
+
 struct KV {
     std::string key;
     std::string val;

@@ -5,6 +5,7 @@
 #include "rocksdb/db.h"
 #include "nemo_iterator.h"
 #include "nemo_option.h"
+#include "nemo_const.h"
 
 namespace nemo {
 typedef rocksdb::Status Status;
@@ -35,7 +36,6 @@ public:
     KIterator* Scan(const std::string &start, const std::string &end, uint64_t limit);
 
     // ==============HASH=====================
-
     Status HSet(const std::string &key, const std::string &field, const std::string &val);
     Status HGet(const std::string &key, const std::string &field, std::string *val);
     Status HDel(const std::string &key, const std::string &field);
@@ -65,6 +65,7 @@ public:
     Status RPop(const std::string &key, std::string *val);
     Status RPushx(const std::string &key, const std::string &val, int64_t *llen);
     Status RPopLPush(const std::string &src, const std::string &dest, std::string &val);
+    Status LInsert(const std::string &key, Position pos, const std::string &pivot, const std::string &val, int64_t *llen);
 
     // ==============ZSet=====================
     //Status ZAdd(const std::string &key, const int64_t score, const std::string &member);

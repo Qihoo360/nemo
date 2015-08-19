@@ -739,3 +739,101 @@ Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::str
         return Status::Corruption("get listmeta error");
     }
 }
+
+Status Nemo::LInsert(const std::string &key, Position pos, const std::string &pivot, const std::string &val, int64_t *llen)
+{
+    Status s;
+    rocksdb::WriteBatch batch;
+    std::string meta;
+    int64_t len;
+    int64_t left;
+    int64_t right;
+    int64_t cur_seq;
+    int64_t before_seq;
+    int64_t after_seq;
+
+    int64_t priv;
+    int64_t next;
+    std::string en_val;
+    std::string raw_val;
+    std::string meta_key = EncodeLMetaKey(key);
+    MutexLock l(&mutex_list_);
+    s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
+    if (s.ok()) {
+        if (ParseMeta(meta, len, left, right, cur_seq) == 0) {
+
+            // traverse to find pivot
+            next = left;
+            int64_t tmp_seq;
+            do {
+              tmp_seq = next;
+              std::string cur_listkey = EncodeListKey(key, tmp_seq);
+              s = list_db_->Get(rocksdb::ReadOptions(), cur_listkey, &en_val);
+              if (!s.ok()) {
+                return Status::Corruption("get listkey error");
+              }
+              DecodeListVal(en_val, &priv, &next, raw_val);
+            } while (next != 0 && raw_val != pivot);
+
+            if (raw_val == pivot) {
+                if (pos == AFTER) {
+                    before_seq = tmp_seq;
+                    after_seq = next;
+                } else {
+                    before_seq = priv;
+                    after_seq = tmp_seq;
+                }
+
+                // modify before node
+                if (before_seq != 0) {
+                    std::string cur_listkey = EncodeListKey(key, before_seq);
+                    s = list_db_->Get(rocksdb::ReadOptions(), cur_listkey, &en_val);
+                    if (!s.ok()) {
+                        return Status::Corruption("get listkey error");
+                    }
+                    DecodeListVal(en_val, &priv, &next, raw_val);
+                    EncodeListVal(raw_val, priv, cur_seq, en_val);
+                    batch.Put(cur_listkey, en_val);
+                }
+                // modify after node
+                if (after_seq != 0) {
+                    std::string cur_listkey = EncodeListKey(key, after_seq);
+                    s = list_db_->Get(rocksdb::ReadOptions(), cur_listkey, &en_val);
+                    if (!s.ok()) {
+                        return Status::Corruption("get listkey error");
+                    }
+                    DecodeListVal(en_val, &priv, &next, raw_val);
+                    EncodeListVal(raw_val, cur_seq, next, en_val);
+                    batch.Put(cur_listkey, en_val);
+                }
+                // add new node
+                std::string add_key = EncodeListKey(key, cur_seq);
+                EncodeListVal(val, before_seq, after_seq, en_val);
+                batch.Put(add_key, en_val);
+
+                len++;
+                if (before_seq == 0) {
+                    left = cur_seq;
+                }
+                *((int64_t *)meta.data()) = len;
+                *((int64_t *)(meta.data() + sizeof(int64_t))) = left;
+                *((int64_t *)(meta.data() + 3 * sizeof(int64_t))) = ++cur_seq;
+                batch.Put(meta_key, meta);
+                s = list_db_->Write(rocksdb::WriteOptions(), &batch);
+                *llen = len;
+                return s;
+            } else {
+                *llen = -1;
+                return s;
+            }
+        } else {
+            return Status::Corruption("parse listmeta error");
+        }
+    } else if (s.IsNotFound()) {
+        *llen = 0;
+        return s;
+    } else {
+        *llen = 0;
+        return Status::Corruption("get key error");
+    }
+}

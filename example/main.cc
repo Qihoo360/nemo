@@ -568,6 +568,55 @@ int main()
     s = n->LTrim("tLPushKey", 1, 0);
     log_info("");
 
+    log_info("======Test LInsert======");
+    s = n->LTrim("tLPushKey", 1, 0);
+    s = n->LTrim("tLPushKey2", 1, 0);
+    s = n->LPush("tLPushKey", "tLPushVal1", &llen);
+    s = n->LPush("tLPushKey", "tLPushVal2", &llen);
+    s = n->LInsert("tLPushKey", AFTER, "tLPushVal2", "newkey", &llen);
+
+    ivs.clear();
+    s = n->LRange("tLPushKey", 0, -1, ivs);
+    log_info("Test LInsert OK return %s", s.ToString().c_str());
+    log_info("  insert between two keys, expect: [tLPushVal2 newkey tLPushVal1]");
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+        log_info("Test LInsert index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
+    log_info("");
+
+    s = n->LPush("tLPushKey2", "tLPushVal1", &llen);
+    s = n->LInsert("tLPushKey2", BEFORE, "tLPushVal1", "newkey", &llen);
+
+    log_info("  insert before left, expect: [newkey tLPushVal1]");
+    ivs.clear();
+    s = n->LRange("tLPushKey2", 0, -1, ivs);
+    log_info("Test LInsert OK return %s", s.ToString().c_str());
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+        log_info("Test LInsert index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
+    log_info("");
+
+    s = n->LInsert("tLPushKey2", AFTER, "tLPushVal1", "newkeyright", &llen);
+
+    log_info("  insert after right, expect: [newkey tLPushVal1 newkeyright]");
+    ivs.clear();
+    s = n->LRange("tLPushKey2", 0, -1, ivs);
+    log_info("Test LInsert OK return %s", s.ToString().c_str());
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+        log_info("Test LInsert index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
+    log_info("");
+
+    s = n->LInsert("tLPushKey2", AFTER, "newkeyright", "newkeyright2", &llen);
+
+    log_info("  insert after right again, expect: [newkey tLPushVal1 newkeyright newkeyright2]");
+    ivs.clear();
+    s = n->LRange("tLPushKey2", 0, -1, ivs);
+    log_info("Test LInsert OK return %s", s.ToString().c_str());
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+        log_info("Test LInsert index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
+    log_info("");
     /*
      *************************************************ZSet**************************************************
      */
