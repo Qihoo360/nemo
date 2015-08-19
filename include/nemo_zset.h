@@ -85,8 +85,8 @@ inline int DecodeZScoreKey(const rocksdb::Slice &slice, std::string *key, std::s
         return -1;
     }
     return 0;    
-    
 }
+
 }
 #endif
 

@@ -54,16 +54,16 @@ public:
     
     // ==============List=====================
     Status LIndex(const std::string &key, const int64_t index, std::string *val);
-    Status LLen(const std::string &key, uint64_t *llen);
-    Status LPush(const std::string &key, const std::string &val, uint64_t *llen);
+    Status LLen(const std::string &key, int64_t *llen);
+    Status LPush(const std::string &key, const std::string &val, int64_t *llen);
     Status LPop(const std::string &key, std::string *val);
-    Status LPushx(const std::string &key, const std::string &val, uint64_t *llen);
-    Status LRange(const std::string &key, const int32_t begin, const int32_t end, std::vector<IV> &ivs);
-    Status LSet(const std::string &key, const int32_t index, const std::string &val);
-    Status LTrim(const std::string &key, const int32_t begin, const int32_t end);
-    Status RPush(const std::string &key, const std::string &val, uint64_t *llen);
+    Status LPushx(const std::string &key, const std::string &val, int64_t *llen);
+    Status LRange(const std::string &key, const int64_t begin, const int64_t end, std::vector<IV> &ivs);
+    Status LSet(const std::string &key, const int64_t index, const std::string &val);
+    Status LTrim(const std::string &key, const int64_t begin, const int64_t end);
+    Status RPush(const std::string &key, const std::string &val, int64_t *llen);
     Status RPop(const std::string &key, std::string *val);
-    Status RPushx(const std::string &key, const std::string &val, uint64_t *llen);
+    Status RPushx(const std::string &key, const std::string &val, int64_t *llen);
     Status RPopLPush(const std::string &src, const std::string &dest, std::string &val);
 
     // ==============ZSet=====================
@@ -76,7 +76,7 @@ public:
 
     //TODO modify range
     Status ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
-    Status ZRangebyscore(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
+    Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms);
 
 private:
 
@@ -96,6 +96,9 @@ private:
     int IncrHLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
 
     int DoZSet(const std::string &key, const double score, const std::string &member, rocksdb::WriteBatch &writebatch);
+    int32_t L2R(const std::string &key, const int64_t index, const int64_t left, int64_t *priv, int64_t *cur, int64_t *next);
+    int32_t R2L(const std::string &key, const int64_t index, const int64_t right, int64_t *priv, int64_t *cur, int64_t *next);
+
     int IncrZLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
 
     Nemo(const Nemo &rval);

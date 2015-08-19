@@ -260,7 +260,7 @@ Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t b
     } else if (s.ok()) {
         int64_t ival;
         if (!StrToInt64(val.data(), val.size(), &ival)) {
-            return Status::NotSupported("HIncrby field is not number");
+            return Status::Corruption("HIncrby field is not number");
         }
         new_val = std::to_string((ival + by));
     } else {
@@ -279,7 +279,7 @@ Status Nemo::HIncrbyfloat(const std::string &key, const std::string &field, doub
     } else if (s.ok()) {
         double dval;
         if (!StrToDouble(val.data(), val.size(), &dval)) {
-            return Status::NotSupported("HIncrbyfloat field is not number");
+            return Status::Corruption("HIncrbyfloat field is not number");
         }
         new_val = std::to_string(dval + by);
     } else {
