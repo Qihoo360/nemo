@@ -66,6 +66,7 @@ public:
     Status RPushx(const std::string &key, const std::string &val, int64_t *llen);
     Status RPopLPush(const std::string &src, const std::string &dest, std::string &val);
     Status LInsert(const std::string &key, Position pos, const std::string &pivot, const std::string &val, int64_t *llen);
+    Status LRem(const std::string &key, const int64_t count, const std::string &val, int64_t *rem_count);
 
     // ==============ZSet=====================
     //Status ZAdd(const std::string &key, const int64_t score, const std::string &member);

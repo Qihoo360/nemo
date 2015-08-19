@@ -617,6 +617,53 @@ int main()
         log_info("Test LInsert index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
     }
     log_info("");
+
+    log_info("======Test LRem==========================================================");
+    s = n->LTrim("LRemKey", 1, 0);
+  //s = n->LTrim("LRemKey2", 1, 0);
+    s = n->LPush("LRemKey", "LRemVal1", &llen);
+    s = n->LPush("LRemKey", "LRemVal2", &llen);
+    s = n->LPush("LRemKey", "LRemVal1", &llen);
+    s = n->LPush("LRemKey", "LRemVal2", &llen);
+    s = n->LRem("LRemKey", 0, "LRemVal2", &llen);
+    log_info("Test LRem OK return %s", s.ToString().c_str());
+
+    ivs.clear();
+    s = n->LRange("LRemKey", 0, -1, ivs);
+    if (!s.ok()) {
+      log_info("Test LRem LRange (0, -1) return %s", s.ToString().c_str());
+    }
+    log_info("  rem all LRemVal2, expect: [LRemVal1 LRemVal1]");
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+      log_info("Test LRem index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
+    log_info("");
+
+    s = n->LRem("LRemKey", -1, "LRemVal1", &llen);
+    log_info("Test LRem OK return %s", s.ToString().c_str());
+    ivs.clear();
+    s = n->LRange("LRemKey", 0, -1, ivs);
+    if (!s.ok()) {
+      log_info("Test LRem LRange (0, -1) return %s", s.ToString().c_str());
+    }
+    log_info("  rem -1 LRemVal1, expect: [LRemVal1]");
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+      log_info("Test LRem index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
+    log_info("");
+
+    s = n->LRem("LRemKey", -1, "LRemVal1", &llen);
+    log_info("Test LRem OK return %s", s.ToString().c_str());
+    ivs.clear();
+    s = n->LRange("LRemKey", 0, -1, ivs);
+    if (!s.ok()) {
+      log_info("Test LRem LRange (0, -1) return %s", s.ToString().c_str());
+    }
+    log_info("  rem -1 LRemVal1, expect: []");
+    for (iter_iv = ivs.begin(); iter_iv != ivs.end(); iter_iv++) {
+      log_info("Test LRem index =  %ld, val = %s", (*(iter_iv)).index, (*(iter_iv)).val.c_str());
+    }
+    log_info("");
     /*
      *************************************************ZSet**************************************************
      */

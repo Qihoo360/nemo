@@ -740,8 +740,7 @@ Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::str
     }
 }
 
-Status Nemo::LInsert(const std::string &key, Position pos, const std::string &pivot, const std::string &val, int64_t *llen)
-{
+Status Nemo::LInsert(const std::string &key, Position pos, const std::string &pivot, const std::string &val, int64_t *llen) {
     Status s;
     rocksdb::WriteBatch batch;
     std::string meta;
@@ -834,6 +833,112 @@ Status Nemo::LInsert(const std::string &key, Position pos, const std::string &pi
         return s;
     } else {
         *llen = 0;
+        return Status::Corruption("get key error");
+    }
+}
+
+Status Nemo::LRem(const std::string &key, const int64_t count, const std::string &val, int64_t *rem_count) {
+    Status s;
+    rocksdb::WriteBatch batch;
+    std::string meta;
+    int64_t len;
+    int64_t left;
+    int64_t right;
+    int64_t cur_seq;
+    int64_t before_seq;
+    int64_t after_seq;
+
+    int64_t priv;
+    int64_t next;
+    std::string en_val;
+    std::string raw_val;
+    std::string meta_key = EncodeLMetaKey(key);
+    MutexLock l(&mutex_list_);
+    s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
+    if (s.ok()) {
+        if (ParseMeta(meta, len, left, right, cur_seq) == 0) {
+            int64_t tmp_seq;
+            int64_t tmp_priv, tmp_next;
+            priv = right;
+            next = left;
+            *rem_count = 0;
+
+            int64_t total_rem = abs(count);
+            if (total_rem > len) {
+                total_rem = len;
+            }
+
+            do {
+              if (len == 0) return s;
+
+              if (count < 0) {
+                  tmp_seq = priv;
+              } else {
+                  tmp_seq = next;
+              }
+
+              std::string cur_listkey = EncodeListKey(key, tmp_seq);
+              s = list_db_->Get(rocksdb::ReadOptions(), cur_listkey, &en_val);
+              if (!s.ok()) {
+                return Status::Corruption("get listkey error");
+              }
+              DecodeListVal(en_val, &priv, &next, raw_val);
+
+              if (raw_val == val) {
+                (*rem_count)++;
+
+                // modify before node
+                if (priv != 0) {
+                    std::string priv_listkey = EncodeListKey(key, priv);
+                    s = list_db_->Get(rocksdb::ReadOptions(), priv_listkey, &en_val);
+                    if (!s.ok()) {
+                        return Status::Corruption("get listkey error");
+                    }
+                    DecodeListVal(en_val, &tmp_priv, &tmp_next, raw_val);
+                    EncodeListVal(raw_val, tmp_priv, next, en_val);
+                    batch.Put(priv_listkey, en_val);
+                }
+                // modify after node
+                if (next != 0) {
+                    std::string next_listkey = EncodeListKey(key, next);
+                    s = list_db_->Get(rocksdb::ReadOptions(), next_listkey, &en_val);
+                    if (!s.ok()) {
+                        return Status::Corruption("get listkey error");
+                    }
+                    DecodeListVal(en_val, &tmp_priv, &tmp_next, raw_val);
+                    EncodeListVal(raw_val, priv, tmp_next, en_val);
+                    batch.Put(next_listkey, en_val);
+                }
+                // delete new node
+                batch.Delete(cur_listkey);
+
+                len--;
+                if (len == 0) {
+                  batch.Delete(meta_key);
+                } else {
+                  if (priv == 0) {
+                    left = next;
+                  }
+                  if (next == 0) {
+                    right = priv;
+                  }
+                  *((int64_t *)meta.data()) = len;
+                  *((int64_t *)(meta.data() + sizeof(int64_t))) = left;
+                  *((int64_t *)(meta.data() + 2 * sizeof(int64_t))) = right;
+                  batch.Put(meta_key, meta);
+                }
+                s = list_db_->Write(rocksdb::WriteOptions(), &batch);
+              }
+            } while ((count == 0 || *rem_count < total_rem) 
+                     && ((count < 0 && priv != 0) || (count >= 0 && next != 0)));
+            return Status::OK();
+        } else {
+            return Status::Corruption("parse listmeta error");
+        }
+    } else if (s.IsNotFound()) {
+        *rem_count = 0;
+        return s;
+    } else {
         return Status::Corruption("get key error");
     }
 }
