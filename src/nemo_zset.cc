@@ -102,6 +102,9 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
         writebatch.Delete(score_key);
 
         dval += by;
+        if (dval < ZSET_SCORE_MIN || dval > ZSET_SCORE_MAX) {
+            return Status::InvalidArgument("zset score overflow");
+        }
         score_key = EncodeZScoreKey(key, member, dval);
         writebatch.Put(score_key, "");
 
@@ -109,6 +112,9 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
         buf.append((char *)(&dval), sizeof(double));
         writebatch.Put(db_key, buf);
     } else if (s.IsNotFound()) {
+        if (by < ZSET_SCORE_MIN || by > ZSET_SCORE_MAX) {
+            return Status::InvalidArgument("zset score overflow");
+        }
         score_key = EncodeZScoreKey(key, member, by);
         writebatch.Put(score_key, "");
 
