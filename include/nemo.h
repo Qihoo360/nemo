@@ -70,7 +70,7 @@ public:
 
     // ==============ZSet=====================
     //Status ZAdd(const std::string &key, const int64_t score, const std::string &member);
-    Status ZAdd(const std::string &key, const double score, const std::string &member);
+    Status ZAdd(const std::string &key, const double score, const std::string &member, int64_t *res);
     int64_t ZCard(const std::string &key);
     int64_t ZCount(const std::string &key, const double begin, const double end);
     ZIterator* ZScan(const std::string &key, const double begin, const double end, uint64_t limit);

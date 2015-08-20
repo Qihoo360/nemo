@@ -5,7 +5,7 @@
 #include "xdebug.h"
 using namespace nemo;
 
-Status Nemo::ZAdd(const std::string &key, const double score, const std::string &member) {
+Status Nemo::ZAdd(const std::string &key, const double score, const std::string &member, int64_t *res) {
     Status s;
     if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX) {
         return Status::InvalidArgument("zset score overflow");
@@ -20,14 +20,17 @@ Status Nemo::ZAdd(const std::string &key, const double score, const std::string 
     if (ret == 2) {
         if (IncrZLen(key, 1, batch) == 0) {
             s = zset_db_->Write(rocksdb::WriteOptions(), &batch);
+            *res = 1;
             return s;
         } else {
             return Status::Corruption("incr zsize error");
         }
     } else if (ret == 1) {
+        *res = 0;
         s = zset_db_->Write(rocksdb::WriteOptions(), &batch);
         return s;
     } else if (ret == 0) {
+        *res = 0;
         return Status::OK();
     } else {
         return Status::Corruption("zadd error");

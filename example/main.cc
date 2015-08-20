@@ -672,13 +672,14 @@ int main()
      *  Test ZAdd
      */
     log_info("======Test ZAdd======");
-    s = n->ZAdd("tZAddKey", 0, "tZAddMem0");
-    s = n->ZAdd("tZAddKey", 1, "tZAddMem1");
-    s = n->ZAdd("tZAddKey", 1, "tZAddMem1_2");
-    s = n->ZAdd("tZAddKey", 2, "tZAddMem2");
-    s = n->ZAdd("tZAddKey", 2, "tZAddMem2_2");
-    s = n->ZAdd("tZAddKey", 3, "tZAddMem3");
-    s = n->ZAdd("tZAddKey", 7, "tZAddMem7");
+    int64_t zadd_res;
+    s = n->ZAdd("tZAddKey", 0, "tZAddMem0", &zadd_res);
+    s = n->ZAdd("tZAddKey", 1, "tZAddMem1", &zadd_res);
+    s = n->ZAdd("tZAddKey", 1, "tZAddMem1_2", &zadd_res);
+    s = n->ZAdd("tZAddKey", 2, "tZAddMem2", &zadd_res);
+    s = n->ZAdd("tZAddKey", 2, "tZAddMem2_2", &zadd_res);
+    s = n->ZAdd("tZAddKey", 3, "tZAddMem3", &zadd_res);
+    s = n->ZAdd("tZAddKey", 7, "tZAddMem7", &zadd_res);
     log_info("Test ZAdd OK return %s", s.ToString().c_str());
     log_info("");
 
