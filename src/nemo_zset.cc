@@ -67,9 +67,6 @@ ZIterator* Nemo::ZScan(const std::string &key, const double begin, const double 
     iterate_options.fill_cache = false;
     it = zset_db_->NewIterator(iterate_options);
     it->Seek(key_start);
-    if (it->Valid() && it->key() == key_start) {
-        it->Next();
-    }
     return new ZIterator(new Iterator(it, key_end, limit), key); 
 }
 
@@ -127,10 +124,29 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
 
 //TODO Range not rangebyscore
 Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms) {
-    int64_t t_start = start < 0 ? INT_MAX-1 : start;
-    int64_t t_stop = stop < 0 ? INT_MAX : stop+1;
-    ZIterator *iter = ZScan(key, t_start, t_stop, -1);
-    while(iter->Next()) {
+    Status s;
+    std::string size;
+    std::string size_key = EncodeZSizeKey(key);
+    s = zset_db_->Get(rocksdb::ReadOptions(), size_key, &size);
+    if (!s.ok()) {
+        return Status::Corruption("get size error");
+    }
+
+    int64_t len;
+    StrToInt64(size.data(), size.size(), &len);
+
+    int64_t t_start = start < 0 ? len + start : start;
+    int64_t t_stop = stop < 0 ?  len + stop + 1 : stop + 1;
+
+    if (t_start >= t_stop) {
+        sms.clear();
+        return Status::OK();
+    }
+
+    ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
+    for (int i = 0; iter->Next(); i++) {
+        if (i < t_start) continue;
+        if (i >= t_stop) break;
         sms.push_back({iter->Score(), iter->Member()});
     }
     return Status::OK();
