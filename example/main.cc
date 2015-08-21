@@ -169,6 +169,7 @@ int main()
     kvs.clear();
     kvs.push_back({"tScanKey1", "tScanVal1"});
     kvs.push_back({"tScanKey2", "tScanVal2"});
+    kvs.push_back({"tScanKey21", "tScanVal21"});
     kvs.push_back({"tScanKey3", "tScanVal3"});
     
     keys.clear();
@@ -177,7 +178,7 @@ int main()
     keys.push_back("tScanKey2");
 
     s = n->MSet(kvs);
-    KIterator *scan_iter = n->Scan("", "", -1);
+    KIterator *scan_iter = n->Scan("tScanKey1", "tScanKey2", -1);
     if (scan_iter == NULL) {
         log_info("Scan error!");
     }

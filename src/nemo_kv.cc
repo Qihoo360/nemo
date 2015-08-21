@@ -105,7 +105,7 @@ Status Nemo::GetSet(const std::string &key, const std::string &new_val, std::str
 }
 
 KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t limit) {
-    std::string key_start, key_end;
+    std::string key_end;
     if (end.empty()) {
         key_end = "";
     } else {
@@ -116,8 +116,5 @@ KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t
     iterate_options.fill_cache = false;
     it = kv_db_->NewIterator(iterate_options);
     it->Seek(start);
-    if (it->Valid() && it->key() == key_start) {
-        it->Next();
-    }
     return new KIterator(new Iterator(it, key_end, limit)); 
 }
