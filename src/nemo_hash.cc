@@ -186,9 +186,6 @@ HIterator* Nemo::HScan(const std::string &key, const std::string &start, const s
     iterate_options.fill_cache = false;
     it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
-    if (it->Valid() && it->key() == key_start) {
-        it->Next();
-    }
     return new HIterator(new Iterator(it, key_end, limit), key); 
 }
 
