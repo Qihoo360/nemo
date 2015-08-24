@@ -755,6 +755,33 @@ int main()
     log_info("");
 
     /*
+     *  Test ZRem
+     */
+    log_info("======Test ZRem======");
+    s = n->ZAdd("tZRemKey", 0, "member1", &zadd_res);
+    s = n->ZAdd("tZRemKey", 10.0, "member2", &zadd_res);
+    s = n->ZAdd("tZRemKey", 10.0, "member3", &zadd_res);
+
+    int64_t zrem_res;
+    s = n->ZRem("tZRemKey", "member2", &zrem_res);
+    log_info("Test ZRem with exist member return %s, expect [member1=0, member3=10.0]", s.ToString().c_str());
+    sms.clear();
+    s = n->ZRange("tZRemKey", 0, -1, sms);
+    for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
+        log_info("          score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
+    }
+    log_info("");
+
+    s = n->ZRem("tZRemKey", "member2", &zrem_res);
+    log_info("Test ZRem with nonexist member return %s, expect [member1=0, member3=10.0]", s.ToString().c_str());
+    sms.clear();
+    s = n->ZRange("tZRemKey", 0, -1, sms);
+    for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
+        log_info("          score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
+    }
+    log_info("");
+
+    /*
      *  Test ZUnionStore
      */
     log_info("======Test ZUnionStore======");

@@ -38,7 +38,8 @@ Nemo::Nemo(const std::string &db_path) :
     rocksdb::DB* db;
     rocksdb::Options options;
     options.create_if_missing = true;
-    options.write_buffer_size = 1500000000;
+    // comment write_buffer_size
+    //options.write_buffer_size = 1500000000;
     rocksdb::Status s = rocksdb::DB::Open(options, db_path_ + "kv", &db);
     if (!s.ok()) {
         log_err("open kv db %s error %s", db_path_.c_str(), s.ToString().c_str());

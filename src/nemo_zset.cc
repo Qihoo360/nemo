@@ -308,6 +308,36 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
     return Status::OK();
 }
 
+Status Nemo::ZRem(const std::string &key, const std::string &member, int64_t *res) {
+    Status s;
+    *res = 0;
+    rocksdb::WriteBatch batch;
+    std::string old_score;
+
+    MutexLock l(&mutex_zset_);
+
+    std::string db_key = EncodeZSetKey(key, member);
+    s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
+
+    if (s.ok()) {
+      batch.Delete(db_key);
+
+      double dscore = *((double *)old_score.data());
+      std::string score_key = EncodeZScoreKey(key, member, dscore);
+      batch.Delete(score_key);
+
+      if (IncrZLen(key, -1, batch) == 0) {
+        s = zset_db_->Write(rocksdb::WriteOptions(), &batch);
+        *res = 1;
+        return s;
+      } else {
+        return Status::Corruption("incr zsize error");
+      }
+    } else {
+      return s;
+    }
+}
+
 int Nemo::DoZSet(const std::string &key, const double score, const std::string &member, rocksdb::WriteBatch &writebatch) {
     Status s;
     std::string old_score;
