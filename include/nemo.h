@@ -74,13 +74,13 @@ public:
     int64_t ZCard(const std::string &key);
     int64_t ZCount(const std::string &key, const double begin, const double end);
     ZIterator* ZScan(const std::string &key, const double begin, const double end, uint64_t limit);
-    Status ZIncrby(const std::string &key, const std::string &member, const double by);
+    Status ZIncrby(const std::string &key, const std::string &member, const double by, std::string &new_val);
 
     //TODO modify range
     Status ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
-    Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms);
     Status ZUnionStore(const std::string &destination, const int numkeys, const std::vector<std::string> &keys, const std::vector<double> &weights, Aggregate agg, int64_t *res);
     Status ZInterStore(const std::string &destination, const int numkeys, const std::vector<std::string> &keys, const std::vector<double> &weights, Aggregate agg, int64_t *res);
+    Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms, int64_t offset = 0);
 
 private:
 

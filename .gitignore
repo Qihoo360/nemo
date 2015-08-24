@@ -30,3 +30,6 @@
 output/
 *tags
 example/main
+example/tmp
+tmp/
+test_rocksdb

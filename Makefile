@@ -61,6 +61,7 @@ $(TOBJS): %.o : %.cc
 
 clean: 
 #	make -C $(ROCKSDB_PATH) clean
+	make -C example clean
 	rm -rf $(SRC_DIR)/*.o
 	rm -rf $(OUTPUT)/*
 	rm -rf $(OUTPUT)

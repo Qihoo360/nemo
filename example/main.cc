@@ -715,10 +715,11 @@ int main()
      *  Test ZIncrby
      */
     log_info("======Test ZIncrby======");
-    s = n->ZIncrby("tZAddKey", "tZAddMem1", 5);
-    log_info("Test ZIncrby with exist key OK return %s", s.ToString().c_str());
-    s = n->ZIncrby("tZAddKey", "tZAddMem_ne", 7);
-    log_info("Test ZIncrby with non-exist key OK return %s", s.ToString().c_str());
+    std::string new_s;
+    s = n->ZIncrby("tZAddKey", "tZAddMem1", 5, new_s);
+    log_info("Test ZIncrby with exist key OK return %s, new score is %s", s.ToString().c_str(), new_s.c_str());
+    s = n->ZIncrby("tZAddKey", "tZAddMem_ne", 7, new_s);
+    log_info("Test ZIncrby with non-exist key OK return %s, new score is %s", s.ToString().c_str(), new_s.c_str());
     it_zset = n->ZScan("tZAddKey", 0, 10, -1);
     if (it_zset == NULL) {
         log_info("ZScan error!");
@@ -734,7 +735,8 @@ int main()
      */
     log_info("======Test ZRangebyscore======");
     sms.clear();
-    s = n->ZRangebyscore("tZAddKey", 2, 6, sms);
+//    s = n->ZRangebyscore("tZAddKey", 2, 6, sms);
+    s = n->ZRangebyscore("tZAddKey", ZSET_SCORE_MIN, ZSET_SCORE_MAX, sms);
     std::vector<SM>::iterator it_sm;
     for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
         log_info("Test ZRangebyscore score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
@@ -745,7 +747,7 @@ int main()
      */
     log_info("======Test ZRange======");
     sms.clear();
-    s = n->ZRange("tZAddKey", -9, -1, sms);
+    s = n->ZRange("tZAddKey", 0, -1, sms);
     log_info("ZRange return %s", s.ToString().c_str());
     for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
         log_info("Test ZRange score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
