@@ -73,7 +73,7 @@ public:
     ZIterator(Iterator *it, const rocksdb::Slice &key);
     ~ZIterator();
     bool Valid() { return it_->Valid(); };
-    bool Skip(uint64_t offset) { return it_->Skip(offset); };
+    bool Skip(int64_t offset) { if (offset < 0) {return true;} else {return it_->Skip(offset);} };
     bool Next();
     std::string Key() { return key_; };
     double Score() { return score_; };
