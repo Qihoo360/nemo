@@ -8,7 +8,7 @@ using namespace nemo;
 Status Nemo::ZAdd(const std::string &key, const double score, const std::string &member, int64_t *res) {
     Status s;
     if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX) {
-        return Status::InvalidArgument("zset score overflow");
+        return Status::Corruption("zset score overflow");
     }
 
     //std::string db_key = EncodeZSetKey(key, member);
@@ -106,7 +106,7 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
 
         dval += by;
         if (dval < ZSET_SCORE_MIN || dval > ZSET_SCORE_MAX) {
-            return Status::InvalidArgument("zset score overflow");
+            return Status::Corruption("zset score overflow");
         }
         score_key = EncodeZScoreKey(key, member, dval);
         writebatch.Put(score_key, "");
@@ -116,7 +116,7 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
         writebatch.Put(db_key, buf);
     } else if (s.IsNotFound()) {
         if (by < ZSET_SCORE_MIN || by > ZSET_SCORE_MAX) {
-            return Status::InvalidArgument("zset score overflow");
+            return Status::Corruption("zset score overflow");
         }
         score_key = EncodeZScoreKey(key, member, by);
         writebatch.Put(score_key, "");
@@ -136,13 +136,37 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
 
 //TODO Range not rangebyscore
 Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms) {
-    int64_t t_start = start < 0 ? INT_MAX-1 : start;
-    int64_t t_stop = stop < 0 ? INT_MAX : stop+1;
-    ZIterator *iter = ZScan(key, t_start, t_stop, -1);
-    while(iter->Next()) {
-        sms.push_back({iter->Score(), iter->Member()});
+    int64_t t_size = ZCard(key);
+    if (t_size >= 0) {
+        int64_t t_start = start > 0 ? start : t_size + start + 1;
+        int64_t t_stop = stop > 0 ? stop : t_size + stop + 1;
+        if (t_start < 0) {
+            t_start = 0;
+        }
+        if (t_stop > t_size) {
+            t_stop = t_size;
+        }
+        if (t_start > t_stop || t_start > t_size || t_stop < 0) {
+            return Status::OK();
+        } else {
+            ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
+            int32_t n = 0;
+            while (iter->Next() && n<t_start) {
+                n++;
+            }
+            if (n<t_start) {
+                return Status::OK();
+            } else {
+                while (iter->Next() && n<=t_stop) {
+                    sms.push_back({iter->Score(), iter->Member()});
+                    n++;
+                }
+                return Status::OK();
+            }
+        }
+    } else {
+        return Status::Corruption("get zsize error");
     }
-    return Status::OK();
 }
 
 Status Nemo::ZRangebyscore(const std::string &key, const double mn, const double mx, std::vector<SM> &sms) {
