@@ -134,7 +134,7 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
     pos = pos == std::string::npos ? pos : pos+1;
     new_score = res.substr(0, pos); 
     if (new_score[new_score.size()-1] == '.') {
-        new_score[new_score.size()-1] = '\0';
+        new_score = new_score.substr(0, new_score.size()-1);
     }
     s = zset_db_->Write(rocksdb::WriteOptions(), &writebatch);
     return s;

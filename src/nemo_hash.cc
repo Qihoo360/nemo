@@ -287,7 +287,7 @@ Status Nemo::HIncrbyfloat(const std::string &key, const std::string &field, doub
     pos = pos == std::string::npos ? pos : pos+1;
     new_val = res.substr(0, pos); 
     if (new_val[new_val.size()-1] == '.') {
-        new_val[new_val.size()-1] = '\0';
+        new_val = new_val.substr(0, new_val.size()-1);
     }
     s = HSet(key, field, new_val);
     return s;
