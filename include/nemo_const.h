@@ -15,6 +15,11 @@ enum Position {
   AFTER = 1
 };
 
+enum Aggregate {
+  SUM = 0,
+  MIN,
+  MAX
+};
 
 struct KV {
     std::string key;

@@ -79,6 +79,8 @@ public:
     //TODO modify range
     Status ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
     Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms);
+    Status ZUnionStore(const std::string &destination, const int numkeys, const std::vector<std::string> &keys, const std::vector<double> &weights, Aggregate agg, int64_t *res);
+    Status ZInterStore(const std::string &destination, const int numkeys, const std::vector<std::string> &keys, const std::vector<double> &weights, Aggregate agg, int64_t *res);
 
 private:
 

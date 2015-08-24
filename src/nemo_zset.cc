@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "nemo.h"
 #include "nemo_zset.h"
 #include "nemo_iterator.h"
@@ -176,6 +178,123 @@ Status Nemo::ZRangebyscore(const std::string &key, const double mn, const double
     while(iter->Next()) {
         sms.push_back({iter->Score(), iter->Member()});
     }
+    delete iter;
+    return Status::OK();
+}
+
+Status Nemo::ZUnionStore(const std::string &destination, const int numkeys, const std::vector<std::string>& keys, const std::vector<double>& weights = std::vector<double>(), Aggregate agg = SUM, int64_t *res = 0) {
+    std::map<std::string, double> mp_member_score;
+    *res = 0;
+
+    //MutexLock l(&mutex_zset_);
+
+    for (int key_i = 0; key_i < numkeys; key_i++) {
+        ZIterator *iter = ZScan(keys[key_i], ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
+        while (iter->Next()) {
+            std::string member = iter->Member();
+
+            double weight = 1;
+            if (weights.size() > key_i) {
+                weight = weights[key_i];
+            }
+
+            if (mp_member_score.find(member) == mp_member_score.end()) {
+                mp_member_score[member] = weight * iter->Score();
+            } else {
+                double score = mp_member_score[member];
+                switch (agg) {
+                  case SUM: score += weight * iter->Score(); break;
+                  case MIN: score = std::min(score, weight * iter->Score()); break;
+                  case MAX: score = std::max(score, weight * iter->Score()); break;
+                }
+                mp_member_score[member] = score;
+            }
+        }
+        
+        delete iter;
+    }
+
+    int64_t add_ret;
+    std::map<std::string, double>::iterator it;
+    Status status;
+
+    for (it = mp_member_score.begin(); it != mp_member_score.end(); it++) {
+        status = ZAdd(destination, it->second, it->first, &add_ret);
+        if (!status.ok()) {
+            return status;
+        }
+    }
+
+    *res = mp_member_score.size();
+    return Status::OK();
+}
+
+Status Nemo::ZInterStore(const std::string &destination, const int numkeys, const std::vector<std::string>& keys, const std::vector<double>& weights = std::vector<double>(), Aggregate agg = SUM, int64_t *res = 0) {
+    Status s;
+    *res = 0;
+
+    if (numkeys < 2) {
+        return Status::OK();
+    }
+
+    std::string l_key = keys[0];
+    std::string old_score;
+    std::string member;
+    std::string db_key;
+    int64_t add_ret;
+    std::map<std::string, double> mp_member_score;
+    std::map<std::string, double>::iterator it;
+    double l_weight = 1;
+    double r_weight = 1;
+    double l_score;
+    int key_i;
+
+    //MutexLock l(&mutex_zset_);
+
+    if (weights.size() > 1) {
+        l_weight = weights[0];
+    }
+
+    ZIterator *iter = ZScan(l_key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
+    
+    while (iter != NULL && iter->Next()) {
+        member = iter->Member();
+        l_score = l_weight * iter->Score();
+
+        for (key_i = 1; key_i < numkeys; key_i++) {
+          r_weight = 1;
+          if (weights.size() > key_i) {
+              r_weight = weights[key_i];
+          }
+          
+          db_key = EncodeZSetKey(keys[key_i], member);
+          s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
+
+          if (s.ok()) {
+            double r_score = *((double *)old_score.data());
+            switch (agg) {
+              case SUM: l_score += r_weight * r_score; break;
+              case MIN: l_score = std::min(l_score, r_weight * r_score); break;
+              case MAX: l_score = std::max(l_score, r_weight * r_score); break;
+            }
+          } else if (s.IsNotFound()) {
+              break;
+          } else {
+              delete iter;
+              return s;
+          }
+        }
+
+        if (key_i >= numkeys) {
+            s = ZAdd(destination, l_score, member, &add_ret);
+            if (!s.ok()) {
+              return s;
+            }
+            (*res)++;
+        }
+    }
+    delete iter;
+
     return Status::OK();
 }
 
