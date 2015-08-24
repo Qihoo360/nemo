@@ -74,7 +74,7 @@ public:
     ~ZIterator();
     bool Next();
     std::string Key() { return key_; };
-    int64_t Score() { return score_; };
+    double Score() { return score_; };
     std::string Member() { return member_; };
 private:
     Iterator *it_;

@@ -70,9 +70,6 @@ ZIterator* Nemo::ZScan(const std::string &key, const double begin, const double 
     iterate_options.fill_cache = false;
     it = zset_db_->NewIterator(iterate_options);
     it->Seek(key_start);
-    if (it->Valid() && it->key() == key_start) {
-        it->Next();
-    }
     return new ZIterator(new Iterator(it, key_end, limit), key); 
 }
 
@@ -138,29 +135,34 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
 Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms) {
     int64_t t_size = ZCard(key);
     if (t_size >= 0) {
-        int64_t t_start = start > 0 ? start : t_size + start + 1;
-        int64_t t_stop = stop > 0 ? stop : t_size + stop + 1;
+        int64_t t_start = start > 0 ? start : t_size + start;
+        int64_t t_stop = stop > 0 ? stop : t_size + stop;
         if (t_start < 0) {
             t_start = 0;
         }
-        if (t_stop > t_size) {
-            t_stop = t_size;
+        if (t_stop > t_size - 1) {
+            t_stop = t_size - 1;
         }
-        if (t_start > t_stop || t_start > t_size || t_stop < 0) {
+        if (t_start > t_stop || t_start > t_size - 1 || t_stop < 0) {
             return Status::OK();
         } else {
             ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
+            if (iter == NULL) {
+                return Status::Corruption("zscan error");
+            }
             int32_t n = 0;
-            while (iter->Next() && n<t_start) {
+            while (n<t_start && iter->Next()) {
                 n++;
             }
             if (n<t_start) {
-                return Status::OK();
+                delete iter;
+                return Status::Corruption("ziterate error");
             } else {
-                while (iter->Next() && n<=t_stop) {
+                while (n<=t_stop && iter->Next()) {
                     sms.push_back({iter->Score(), iter->Member()});
                     n++;
                 }
+                delete iter;
                 return Status::OK();
             }
         }
