@@ -78,7 +78,7 @@ public:
 
     //TODO modify range
     Status ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
-    Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms);
+    Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms, uint64_t limit = -1);
 
 private:
 

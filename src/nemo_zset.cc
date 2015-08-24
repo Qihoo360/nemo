@@ -180,8 +180,8 @@ Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t s
     }
 }
 
-Status Nemo::ZRangebyscore(const std::string &key, const double mn, const double mx, std::vector<SM> &sms) {
-    ZIterator *iter = ZScan(key, mn, mx, -1);
+Status Nemo::ZRangebyscore(const std::string &key, const double mn, const double mx, std::vector<SM> &sms, uint64_t limit) {
+    ZIterator *iter = ZScan(key, mn, mx, limit);
     while(iter->Next()) {
         sms.push_back({iter->Score(), iter->Member()});
     }
