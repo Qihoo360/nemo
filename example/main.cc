@@ -746,7 +746,7 @@ int main()
      */
     log_info("======Test ZRange======");
     sms.clear();
-    s = n->ZRange("tZAddKey", -9, -1, sms);
+    s = n->ZRange("tZAddKey", 0, -1, sms);
     log_info("ZRange return %s", s.ToString().c_str());
     for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
         log_info("Test ZRange score: %lf, member: %s", it_sm->score, it_sm->member.c_str());

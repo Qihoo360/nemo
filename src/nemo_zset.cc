@@ -144,8 +144,8 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
 Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms) {
     int64_t t_size = ZCard(key);
     if (t_size >= 0) {
-        int64_t t_start = start > 0 ? start : t_size + start;
-        int64_t t_stop = stop > 0 ? stop : t_size + stop;
+        int64_t t_start = start >= 0 ? start : t_size + start;
+        int64_t t_stop = stop >= 0 ? stop : t_size + stop;
         if (t_start < 0) {
             t_start = 0;
         }
