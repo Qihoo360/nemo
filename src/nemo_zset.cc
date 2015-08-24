@@ -88,7 +88,7 @@ int64_t Nemo::ZCount(const std::string &key, const double begin, const double en
     return n;
 }
 
-Status Nemo::ZIncrby(const std::string &key, const std::string &member, const double by) {
+Status Nemo::ZIncrby(const std::string &key, const std::string &member, const double by, std::string &new_score) {
     Status s;
     std::string old_score;
     std::string score_key;
@@ -96,8 +96,9 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
     rocksdb::WriteBatch writebatch;
     MutexLock l(&mutex_zset_);
     s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
+    double dval;
     if (s.ok()) {
-        double dval = *((double *)old_score.data());
+        dval = *((double *)old_score.data());
         score_key = EncodeZScoreKey(key, member, dval);
         writebatch.Delete(score_key);
 
@@ -115,6 +116,7 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
         if (by < ZSET_SCORE_MIN || by > ZSET_SCORE_MAX) {
             return Status::Corruption("zset score overflow");
         }
+        dval = by;
         score_key = EncodeZScoreKey(key, member, by);
         writebatch.Put(score_key, "");
 
@@ -126,6 +128,13 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
         }
     } else {
         return Status::Corruption("get the key error");
+    }
+    std::string res = std::to_string(dval); 
+    size_t pos = res.find_last_not_of("0", res.size());
+    pos = pos == std::string::npos ? pos : pos+1;
+    new_score = res.substr(0, pos); 
+    if (new_score[new_score.size()-1] == '.') {
+        new_score[new_score.size()-1] = '\0';
     }
     s = zset_db_->Write(rocksdb::WriteOptions(), &writebatch);
     return s;

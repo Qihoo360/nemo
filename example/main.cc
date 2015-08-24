@@ -715,10 +715,11 @@ int main()
      *  Test ZIncrby
      */
     log_info("======Test ZIncrby======");
-    s = n->ZIncrby("tZAddKey", "tZAddMem1", 5);
-    log_info("Test ZIncrby with exist key OK return %s", s.ToString().c_str());
-    s = n->ZIncrby("tZAddKey", "tZAddMem_ne", 7);
-    log_info("Test ZIncrby with non-exist key OK return %s", s.ToString().c_str());
+    std::string new_s;
+    s = n->ZIncrby("tZAddKey", "tZAddMem1", 5, new_s);
+    log_info("Test ZIncrby with exist key OK return %s, new score is %s", s.ToString().c_str(), new_s.c_str());
+    s = n->ZIncrby("tZAddKey", "tZAddMem_ne", 7, new_s);
+    log_info("Test ZIncrby with non-exist key OK return %s, new score is %s", s.ToString().c_str(), new_s.c_str());
     it_zset = n->ZScan("tZAddKey", 0, 10, -1);
     if (it_zset == NULL) {
         log_info("ZScan error!");

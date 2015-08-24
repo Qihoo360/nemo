@@ -74,7 +74,7 @@ public:
     int64_t ZCard(const std::string &key);
     int64_t ZCount(const std::string &key, const double begin, const double end);
     ZIterator* ZScan(const std::string &key, const double begin, const double end, uint64_t limit);
-    Status ZIncrby(const std::string &key, const std::string &member, const double by);
+    Status ZIncrby(const std::string &key, const std::string &member, const double by, std::string &new_val);
 
     //TODO modify range
     Status ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
