@@ -57,7 +57,7 @@ int64_t Nemo::ZCard(const std::string &key) {
 
 ZIterator* Nemo::ZScan(const std::string &key, const double begin, const double end, uint64_t limit) {
     double rel_begin = begin;
-    double rel_end = end;
+    double rel_end = end + eps;
     if (begin < ZSET_SCORE_MIN) {
       rel_begin = ZSET_SCORE_MIN;
     }
@@ -75,8 +75,10 @@ ZIterator* Nemo::ZScan(const std::string &key, const double begin, const double 
     return new ZIterator(new Iterator(it, key_end, limit), key); 
 }
 
-int64_t Nemo::ZCount(const std::string &key, const double begin, const double end) {
-    ZIterator* it = ZScan(key, begin, end, -1);
+int64_t Nemo::ZCount(const std::string &key, const double begin, const double end, bool is_lo, bool is_ro) {
+    double b = is_lo ? begin + eps : begin;
+    double e = is_ro ? end - eps : end;
+    ZIterator* it = ZScan(key, b, e, -1);
     double s;
     int64_t n = 0;
     while (it->Next()) {
@@ -87,6 +89,7 @@ int64_t Nemo::ZCount(const std::string &key, const double begin, const double en
             break;
         }
     }
+    delete it;
     return n;
 }
 
@@ -182,8 +185,10 @@ Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t s
     }
 }
 
-Status Nemo::ZRangebyscore(const std::string &key, const double mn, const double mx, std::vector<SM> &sms, int64_t offset) {
-    ZIterator *iter = ZScan(key, mn, mx, -1);
+Status Nemo::ZRangebyscore(const std::string &key, const double mn, const double mx, std::vector<SM> &sms, int64_t offset, bool is_lo, bool is_ro) {
+    double start = is_lo ? mn + eps : mn;
+    double stop = is_ro ? mx - eps : mx;
+    ZIterator *iter = ZScan(key, start, stop, -1);
     iter->Skip(offset);
     while(iter->Next()) {
         sms.push_back({iter->Score(), iter->Member()});

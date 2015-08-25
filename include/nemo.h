@@ -72,14 +72,14 @@ public:
     //Status ZAdd(const std::string &key, const int64_t score, const std::string &member);
     Status ZAdd(const std::string &key, const double score, const std::string &member, int64_t *res);
     int64_t ZCard(const std::string &key);
-    int64_t ZCount(const std::string &key, const double begin, const double end);
+    int64_t ZCount(const std::string &key, const double begin, const double end, bool is_lo = false, bool is_ro = false);
     ZIterator* ZScan(const std::string &key, const double begin, const double end, uint64_t limit);
     Status ZIncrby(const std::string &key, const std::string &member, const double by, std::string &new_val);
 
     Status ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
     Status ZUnionStore(const std::string &destination, const int numkeys, const std::vector<std::string> &keys, const std::vector<double> &weights, Aggregate agg, int64_t *res);
     Status ZInterStore(const std::string &destination, const int numkeys, const std::vector<std::string> &keys, const std::vector<double> &weights, Aggregate agg, int64_t *res);
-    Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms, int64_t offset = 0);
+    Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms, int64_t offset = 0, bool is_lo = false, bool is_ro = false);
     Status ZRem(const std::string &key, const std::string &member, int64_t *res);
 
 private:

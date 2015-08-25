@@ -734,9 +734,18 @@ int main()
      *  Test ZRangebyscore
      */
     log_info("======Test ZRangebyscore======");
+    s = n->ZAdd("zk1", 1.1, "m1", &zadd_res);
+    s = n->ZAdd("zk1", 1.2, "m2", &zadd_res);
+    s = n->ZAdd("zk1", 1.3, "m3", &zadd_res);
+    s = n->ZAdd("zk1", 1.4, "m4", &zadd_res);
+    s = n->ZAdd("zk1", 1.5, "m5", &zadd_res);
+    s = n->ZAdd("zk1", 1.6, "m6", &zadd_res);
+    s = n->ZAdd("zk1", 1.7, "m7", &zadd_res);
+    s = n->ZAdd("zk1", 1.8, "m7", &zadd_res);
+    s = n->ZAdd("zk1", 1.9, "m9", &zadd_res);
     sms.clear();
-//    s = n->ZRangebyscore("tZAddKey", 2, 6, sms);
-    s = n->ZRangebyscore("tZAddKey", ZSET_SCORE_MIN, ZSET_SCORE_MAX, sms);
+    s = n->ZRangebyscore("zk1", 1, 1.5, sms, 0, true, true);
+//    s = n->ZRangebyscore("tZAddKey", ZSET_SCORE_MIN, ZSET_SCORE_MAX, sms);
     std::vector<SM>::iterator it_sm;
     for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
         log_info("Test ZRangebyscore score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
