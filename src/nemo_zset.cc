@@ -39,6 +39,37 @@ Status Nemo::ZAdd(const std::string &key, const double score, const std::string 
     }
 }
 
+Status Nemo::ZAddNoLock(const std::string &key, const double score, const std::string &member, int64_t *res) {
+    Status s;
+    if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX) {
+        return Status::Corruption("zset score overflow");
+    }
+
+    //std::string db_key = EncodeZSetKey(key, member);
+    //std::string size_key = EncodeZSizeKey(key);
+    //std::string score_key = EncodeZScoreKey(key, member, score); 
+    rocksdb::WriteBatch batch;
+    int ret = DoZSet(key, score, member, batch);
+    if (ret == 2) {
+        if (IncrZLen(key, 1, batch) == 0) {
+            s = zset_db_->Write(rocksdb::WriteOptions(), &batch);
+            *res = 1;
+            return s;
+        } else {
+            return Status::Corruption("incr zsize error");
+        }
+    } else if (ret == 1) {
+        *res = 0;
+        s = zset_db_->Write(rocksdb::WriteOptions(), &batch);
+        return s;
+    } else if (ret == 0) {
+        *res = 0;
+        return Status::OK();
+    } else {
+        return Status::Corruption("zadd error");
+    }
+}
+
 int64_t Nemo::ZCard(const std::string &key) {
     Status s;
     std::string size;
@@ -201,7 +232,7 @@ Status Nemo::ZUnionStore(const std::string &destination, const int numkeys, cons
     std::map<std::string, double> mp_member_score;
     *res = 0;
 
-    //MutexLock l(&mutex_zset_);
+    MutexLock l(&mutex_zset_);
 
     for (int key_i = 0; key_i < numkeys; key_i++) {
         ZIterator *iter = ZScan(keys[key_i], ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
@@ -234,7 +265,7 @@ Status Nemo::ZUnionStore(const std::string &destination, const int numkeys, cons
     Status status;
 
     for (it = mp_member_score.begin(); it != mp_member_score.end(); it++) {
-        status = ZAdd(destination, it->second, it->first, &add_ret);
+        status = ZAddNoLock(destination, it->second, it->first, &add_ret);
         if (!status.ok()) {
             return status;
         }
@@ -264,7 +295,7 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
     double l_score;
     int key_i;
 
-    //MutexLock l(&mutex_zset_);
+    MutexLock l(&mutex_zset_);
 
     if (weights.size() > 1) {
         l_weight = weights[0];
@@ -301,7 +332,7 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
         }
 
         if (key_i >= numkeys) {
-            s = ZAdd(destination, l_score, member, &add_ret);
+            s = ZAddNoLock(destination, l_score, member, &add_ret);
             if (!s.ok()) {
               return s;
             }
