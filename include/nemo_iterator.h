@@ -88,5 +88,24 @@ private:
     void operator=(ZIterator&);
     
 };
+
+class ZLexIterator {
+public:
+    ZLexIterator(Iterator *it, const rocksdb::Slice &key);
+    ~ZLexIterator();
+    bool Valid() { return it_->Valid(); };
+    bool Skip(int64_t offset) { if (offset < 0) {return true;} else {return it_->Skip(offset);} };
+    bool Next();
+    std::string Key() { return key_; };
+    std::string Member() { return member_; };
+private:
+    Iterator *it_;
+    std::string key_;
+    std::string member_;
+    //No Copying Allowed
+    ZLexIterator(ZLexIterator&);
+    void operator=(ZLexIterator&);
+    
+};
 }
 #endif

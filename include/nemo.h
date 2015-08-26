@@ -84,6 +84,7 @@ public:
     Status ZRank(const std::string &key, const std::string &member, int64_t *rank);
     Status ZRevrank(const std::string &key, const std::string &member, int64_t *rank);
     Status ZScore(const std::string &key, const std::string &member, double *score);
+    Status ZRangebylex(const std::string &key, const std::string &min, const std::string &max, std::vector<std::string> &members, int64_t offset = 0);
 
 private:
 
@@ -103,6 +104,7 @@ private:
     int IncrHLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
 
     Status ZAddNoLock(const std::string &key, const double score, const std::string &member, int64_t *res);
+    ZLexIterator* ZScanbylex(const std::string &key, const std::string &min, const std::string &max, uint64_t limit);
     int DoZSet(const std::string &key, const double score, const std::string &member, rocksdb::WriteBatch &writebatch);
     int32_t L2R(const std::string &key, const int64_t index, const int64_t left, int64_t *priv, int64_t *cur, int64_t *next);
     int32_t R2L(const std::string &key, const int64_t index, const int64_t right, int64_t *priv, int64_t *cur, int64_t *next);

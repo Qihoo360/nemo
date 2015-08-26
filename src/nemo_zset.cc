@@ -106,6 +106,22 @@ ZIterator* Nemo::ZScan(const std::string &key, const double begin, const double 
     return new ZIterator(new Iterator(it, key_end, limit), key); 
 }
 
+ZLexIterator* Nemo::ZScanbylex(const std::string &key, const std::string &min, const std::string &max, uint64_t limit) {
+    std::string key_start, key_end;
+    key_start = EncodeZSetKey(key, min);
+    if (max == "") {
+        key_end == "";
+    } else {
+        key_end = EncodeZSetKey(key, max);
+    }
+    rocksdb::Iterator *it;
+    rocksdb::ReadOptions iterate_options;
+    iterate_options.fill_cache = false;
+    it = zset_db_->NewIterator(iterate_options);
+    it->Seek(key_start);
+    return new ZLexIterator(new Iterator(it, key_end, limit), key); 
+}
+
 int64_t Nemo::ZCount(const std::string &key, const double begin, const double end, bool is_lo, bool is_ro) {
     double b = is_lo ? begin + eps : begin;
     double e = is_ro ? end - eps : end;
@@ -176,7 +192,6 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
     return s;
 }
 
-//TODO Range not rangebyscore
 Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms) {
     int64_t t_size = ZCard(key);
     if (t_size >= 0) {
@@ -434,6 +449,16 @@ Status Nemo::ZScore(const std::string &key, const std::string &member, double *s
         *score = *((double *)(str_score.data()));
     }
     return s;
+}
+
+Status Nemo::ZRangebylex(const std::string &key, const std::string &min, const std::string &max, std::vector<std::string> &members, int64_t offset) {
+    ZLexIterator *iter = ZScanbylex(key, min, max, -1);
+    iter->Skip(offset);
+    while(iter->Next()) {
+        members.push_back(iter->Member());
+    }
+    delete iter;
+    return Status::OK();
 }
 
 int Nemo::DoZSet(const std::string &key, const double score, const std::string &member, rocksdb::WriteBatch &writebatch) {

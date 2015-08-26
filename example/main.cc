@@ -750,10 +750,19 @@ int main()
     for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
         log_info("Test ZRangebyscore score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
     }
+
+    /*
+     *  Test ZScore
+     */
     double score;
     s = n->ZScore("zk1", "m6", &score);
     log_info("Test ZScore return %s, score: %lf", s.ToString().c_str(), score);
-
+    
+//    ZLexIterator* zlex = n->ZScanbylex("zk1", "m2", "", -1);
+//    while (zlex->Next()) {
+//        log_info("ZScanbylex, Scan key: %s, value: %s", zlex->Key().c_str(), zlex->Member().c_str());
+//    }
+    
     /*
      *  Test ZRange
      */
