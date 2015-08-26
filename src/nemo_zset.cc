@@ -377,7 +377,6 @@ Status Nemo::ZRem(const std::string &key, const std::string &member, int64_t *re
 Status Nemo::ZRank(const std::string &key, const std::string &member, int64_t *rank) {
     Status s;
     *rank = 0;
-    rocksdb::WriteBatch batch;
     std::string old_score;
 
     MutexLock l(&mutex_zset_);
@@ -393,6 +392,46 @@ Status Nemo::ZRank(const std::string &key, const std::string &member, int64_t *r
         if (iter->Member().compare(member) == 0) {
             *rank = count;
         }
+    }
+    return s;
+}
+
+Status Nemo::ZRevrank(const std::string &key, const std::string &member, int64_t *rank) {
+    Status s;
+    *rank = 0;
+    std::string old_score;
+
+    MutexLock l(&mutex_zset_);
+
+    std::string db_key = EncodeZSetKey(key, member);
+    s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
+    int64_t count = 0;
+    if (s.ok()) {
+        ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
+        while (iter->Next() && iter->Member().compare(member) < 0) {
+        }
+        if (iter->Member().compare(member) == 0) {
+            count++;
+            while (iter->Next()) {
+                count++;
+            }
+        } 
+        *rank = count;
+    }
+    return s;
+}
+
+Status Nemo::ZScore(const std::string &key, const std::string &member, double *score) {
+    Status s;
+    *score = 0;
+    std::string str_score;
+
+    MutexLock l(&mutex_zset_);
+
+    std::string db_key = EncodeZSetKey(key, member);
+    s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &str_score);
+    if (s.ok()) {
+        *score = *((double *)(str_score.data()));
     }
     return s;
 }

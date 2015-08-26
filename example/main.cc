@@ -741,7 +741,7 @@ int main()
     s = n->ZAdd("zk1", 1.5, "m5", &zadd_res);
     s = n->ZAdd("zk1", 1.6, "m6", &zadd_res);
     s = n->ZAdd("zk1", 1.7, "m7", &zadd_res);
-    s = n->ZAdd("zk1", 1.8, "m7", &zadd_res);
+    s = n->ZAdd("zk1", 1.8, "m8", &zadd_res);
     s = n->ZAdd("zk1", 1.9, "m9", &zadd_res);
     sms.clear();
     s = n->ZRangebyscore("zk1", 1, 1.5, sms, 0, true, true);
@@ -750,6 +750,9 @@ int main()
     for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
         log_info("Test ZRangebyscore score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
     }
+    double score;
+    s = n->ZScore("zk1", "m6", &score);
+    log_info("Test ZScore return %s, score: %lf", s.ToString().c_str(), score);
 
     /*
      *  Test ZRange

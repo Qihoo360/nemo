@@ -82,6 +82,8 @@ public:
     Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms, int64_t offset = 0, bool is_lo = false, bool is_ro = false);
     Status ZRem(const std::string &key, const std::string &member, int64_t *res);
     Status ZRank(const std::string &key, const std::string &member, int64_t *rank);
+    Status ZRevrank(const std::string &key, const std::string &member, int64_t *rank);
+    Status ZScore(const std::string &key, const std::string &member, double *score);
 
 private:
 
