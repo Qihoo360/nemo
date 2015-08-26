@@ -81,6 +81,7 @@ public:
     Status ZInterStore(const std::string &destination, const int numkeys, const std::vector<std::string> &keys, const std::vector<double> &weights, Aggregate agg, int64_t *res);
     Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms, int64_t offset = 0, bool is_lo = false, bool is_ro = false);
     Status ZRem(const std::string &key, const std::string &member, int64_t *res);
+    Status ZRank(const std::string &key, const std::string &member, int64_t *rank);
 
 private:
 
