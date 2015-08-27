@@ -452,12 +452,23 @@ Status Nemo::ZScore(const std::string &key, const std::string &member, double *s
 }
 
 Status Nemo::ZRangebylex(const std::string &key, const std::string &min, const std::string &max, std::vector<std::string> &members, int64_t offset) {
+    MutexLock l(&mutex_zset_);
     ZLexIterator *iter = ZScanbylex(key, min, max, -1);
     iter->Skip(offset);
-    while(iter->Next()) {
+    while (iter->Next()) {
         members.push_back(iter->Member());
     }
     delete iter;
+    return Status::OK();
+}
+
+Status Nemo::ZLexcount(const std::string &key, const std::string &min, const std::string &max, int64_t* count) {
+    MutexLock l(&mutex_zset_);
+    count = 0;
+    ZLexIterator *iter = ZScanbylex(key, min, max, -1);
+    while (iter->Next()) {
+        count++;
+    }
     return Status::OK();
 }
 
