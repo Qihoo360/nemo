@@ -154,3 +154,31 @@ bool nemo::ZIterator::Next() {
     }
     return false;
 }
+
+nemo::ZLexIterator::ZLexIterator(Iterator *it, const rocksdb::Slice &key)
+    : it_(it) {
+    this->key_.assign(key.data(), key.size());
+}
+
+nemo::ZLexIterator::~ZLexIterator() {
+    delete it_;
+}
+
+bool nemo::ZLexIterator::Next() {
+    while (it_->Next()) {
+        rocksdb::Slice ks = it_->Key();
+//        rocksdb::Slice vs = it_->Val();
+        if (ks.data()[0] != DataType::kZSet) {
+            return false;
+        }
+        std::string k;
+        if (DecodeZSetKey(ks, &k, &this->member_) == -1) {
+            continue;
+        }
+        if (k != this->key_) {
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
