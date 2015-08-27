@@ -599,6 +599,33 @@ Status Nemo::ZRemrangebyrank(const std::string &key, const int64_t start, const 
     }
 }
 
+Status Nemo::ZRemrangebyscore(const std::string &key, const double mn, const double mx, int64_t* count, bool is_lo, bool is_ro) {
+    rocksdb::WriteBatch batch;
+    std::string score_key;
+    std::string size_key;
+    std::string db_key;
+    *count = 0;
+    Status s;
+    double start = is_lo ? mn + eps : mn;
+    double stop = is_ro ? mx - eps : mx;
+    MutexLock l(&mutex_zset_);
+    ZIterator *iter = ZScan(key, start, stop, -1);
+    while(iter->Next()) {
+        db_key = EncodeZSetKey(key, iter->Member());
+        score_key = EncodeZScoreKey(key, iter->Member(), iter->Score());
+        batch.Delete(db_key);
+        batch.Delete(score_key);
+        (*count)++;
+    }
+    delete iter;
+    if (IncrZLen(key, -(*count), batch) == 0) {
+        s = zset_db_->Write(rocksdb::WriteOptions(), &batch);
+        return s;
+    } else {
+        return Status::Corruption("incr zsize error");
+    }
+}
+
 int Nemo::DoZSet(const std::string &key, const double score, const std::string &member, rocksdb::WriteBatch &writebatch) {
     Status s;
     std::string old_score;

@@ -87,6 +87,7 @@ public:
     Status ZLexcount(const std::string &key, const std::string &min, const std::string &max, int64_t* count);
     Status ZRemrangebylex(const std::string &key, const std::string &min, const std::string &max, bool is_lo, bool is_ro, int64_t* count);
     Status ZRemrangebyrank(const std::string &key, const int64_t start, const int64_t stop, int64_t* count);
+    Status ZRemrangebyscore(const std::string &key, const double start, const double stop, int64_t* count, bool is_lo = false, bool is_ro = false);
 
 private:
 
