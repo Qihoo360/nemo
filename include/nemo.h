@@ -4,17 +4,16 @@
 #include "nemo_mutex.h"
 #include "rocksdb/db.h"
 #include "nemo_iterator.h"
-#include "nemo_option.h"
 #include "nemo_const.h"
+#include "nemo_options.h"
 
 namespace nemo {
 typedef rocksdb::Status Status;
 
-
 class Nemo
 {
 public:
-    Nemo(const std::string &db_path);
+    Nemo(const std::string &db_path, const Options &options);
     ~Nemo() {
         pthread_mutex_destroy(&(mutex_kv_));
         pthread_mutex_destroy(&(mutex_hash_));
@@ -85,6 +84,7 @@ public:
 private:
 
     std::string db_path_;
+    rocksdb::Options open_options_;
     std::unique_ptr<rocksdb::DB> kv_db_;
     std::unique_ptr<rocksdb::DB> hash_db_;
     std::unique_ptr<rocksdb::DB> list_db_;

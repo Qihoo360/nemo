@@ -1,14 +1,15 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <iostream>
+
 #include "nemo.h"
 #include "xdebug.h"
 
-#include <iostream>
 
 namespace nemo {
 
-Nemo::Nemo(const std::string &db_path) :
+Nemo::Nemo(const std::string &db_path, const Options &options) :
     db_path_(db_path)
 {
     pthread_mutex_init(&(mutex_kv_), NULL);
@@ -35,12 +36,13 @@ Nemo::Nemo(const std::string &db_path) :
         mkdir((db_path_ + "zset").c_str(), 0755);
     }
 
+
     rocksdb::DB* db;
-    rocksdb::Options options;
-    options.create_if_missing = true;
-    // comment write_buffer_size
-    //options.write_buffer_size = 1500000000;
-    rocksdb::Status s = rocksdb::DB::Open(options, db_path_ + "kv", &db);
+
+    open_options_.create_if_missing = true;
+    open_options_.write_buffer_size = options.write_buffer_size;
+    
+    rocksdb::Status s = rocksdb::DB::Open(open_options_, db_path_ + "kv", &db);
     if (!s.ok()) {
         log_err("open kv db %s error %s", db_path_.c_str(), s.ToString().c_str());
     } else {
@@ -48,7 +50,7 @@ Nemo::Nemo(const std::string &db_path) :
     }
     kv_db_ = std::unique_ptr<rocksdb::DB>(db);
 
-    s = rocksdb::DB::Open(options, db_path_ + "hash", &db);
+    s = rocksdb::DB::Open(open_options_, db_path_ + "hash", &db);
     if (!s.ok()) {
         log_err("open hash db %s error %s", db_path_.c_str(), s.ToString().c_str());
     } else {
@@ -56,7 +58,7 @@ Nemo::Nemo(const std::string &db_path) :
     }
     hash_db_ = std::unique_ptr<rocksdb::DB>(db);
     
-    s = rocksdb::DB::Open(options, db_path_ + "list", &db);
+    s = rocksdb::DB::Open(open_options_, db_path_ + "list", &db);
     if (!s.ok()) {
         log_err("open list db %s error %s", db_path_.c_str(), s.ToString().c_str());
     } else {
@@ -64,7 +66,7 @@ Nemo::Nemo(const std::string &db_path) :
     }
     list_db_ = std::unique_ptr<rocksdb::DB>(db);
 
-    s = rocksdb::DB::Open(options, db_path_ + "zset", &db);
+    s = rocksdb::DB::Open(open_options_, db_path_ + "zset", &db);
     if (!s.ok()) {
         log_err("open zset db %s error %s", db_path_.c_str(), s.ToString().c_str());
     } else {

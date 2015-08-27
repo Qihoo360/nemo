@@ -8,7 +8,8 @@ using namespace nemo;
 
 int main()
 {
-    Nemo *n = new Nemo("./tmp/"); 
+    nemo::Options options;
+    Nemo *n = new Nemo("./tmp/", options); 
     Status s;
 
     std::string res;
