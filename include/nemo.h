@@ -86,6 +86,7 @@ public:
     Status ZRangebylex(const std::string &key, const std::string &min, const std::string &max, std::vector<std::string> &members, int64_t offset = 0);
     Status ZLexcount(const std::string &key, const std::string &min, const std::string &max, int64_t* count);
     Status ZRemrangebylex(const std::string &key, const std::string &min, const std::string &max, bool is_lo, bool is_ro, int64_t* count);
+    Status ZRemrangebyrank(const std::string &key, const int64_t start, const int64_t stop, int64_t* count);
 
 private:
 

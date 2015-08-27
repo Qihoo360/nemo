@@ -125,6 +125,7 @@ ZLexIterator* Nemo::ZScanbylex(const std::string &key, const std::string &min, c
 int64_t Nemo::ZCount(const std::string &key, const double begin, const double end, bool is_lo, bool is_ro) {
     double b = is_lo ? begin + eps : begin;
     double e = is_ro ? end - eps : end;
+    MutexLock l(&mutex_zset_);
     ZIterator* it = ZScan(key, b, e, -1);
     double s;
     int64_t n = 0;
@@ -193,6 +194,7 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
 }
 
 Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms) {
+    MutexLock l(&mutex_zset_);
     int64_t t_size = ZCard(key);
     if (t_size >= 0) {
         int64_t t_start = start >= 0 ? start : t_size + start;
@@ -234,6 +236,7 @@ Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t s
 Status Nemo::ZRangebyscore(const std::string &key, const double mn, const double mx, std::vector<SM> &sms, int64_t offset, bool is_lo, bool is_ro) {
     double start = is_lo ? mn + eps : mn;
     double stop = is_ro ? mx - eps : mx;
+    MutexLock l(&mutex_zset_);
     ZIterator *iter = ZScan(key, start, stop, -1);
     iter->Skip(offset);
     while(iter->Next()) {
@@ -407,6 +410,7 @@ Status Nemo::ZRank(const std::string &key, const std::string &member, int64_t *r
         if (iter->Member().compare(member) == 0) {
             *rank = count;
         }
+        delete iter;
     }
     return s;
 }
@@ -431,6 +435,7 @@ Status Nemo::ZRevrank(const std::string &key, const std::string &member, int64_t
                 count++;
             }
         } 
+        delete iter;
         *rank = count;
     }
     return s;
@@ -440,8 +445,6 @@ Status Nemo::ZScore(const std::string &key, const std::string &member, double *s
     Status s;
     *score = 0;
     std::string str_score;
-
-    MutexLock l(&mutex_zset_);
 
     std::string db_key = EncodeZSetKey(key, member);
     s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &str_score);
@@ -469,6 +472,7 @@ Status Nemo::ZLexcount(const std::string &key, const std::string &min, const std
     while (iter->Next()) {
         count++;
     }
+    delete iter;
     return Status::OK();
 }
 
@@ -496,7 +500,8 @@ Status Nemo::ZRemrangebylex(const std::string &key, const std::string &min, cons
               batch.Delete(score_key);
               (*count)++;
             } else {
-              return s;
+                delete iter;
+                return s;
             }
         }
     }
@@ -512,7 +517,8 @@ Status Nemo::ZRemrangebylex(const std::string &key, const std::string &min, cons
               batch.Delete(score_key);
               (*count)++;
             } else {
-              return s;
+                delete iter;
+                return s;
             } 
         } else if (!is_ro && member.compare(max) == 0) {
             db_key = EncodeZSetKey(key, member);
@@ -524,15 +530,72 @@ Status Nemo::ZRemrangebylex(const std::string &key, const std::string &min, cons
               batch.Delete(score_key);
               (*count)++;
             } else {
-              return s;
+                delete iter;
+                return s;
             } 
         }
     }
+    delete iter;
     if (IncrZLen(key, -(*count), batch) == 0) {
         s = zset_db_->Write(rocksdb::WriteOptions(), &batch);
         return s;
     } else {
         return Status::Corruption("incr zsize error");
+    }
+}
+
+Status Nemo::ZRemrangebyrank(const std::string &key, const int64_t start, const int64_t stop, int64_t* count) {
+    rocksdb::WriteBatch batch;
+    std::string score_key;
+    std::string size_key;
+    std::string db_key;
+    *count = 0;
+    Status s;
+    MutexLock l(&mutex_zset_);
+    int64_t t_size = ZCard(key);
+    if (t_size >= 0) {
+        int64_t t_start = start >= 0 ? start : t_size + start;
+        int64_t t_stop = stop >= 0 ? stop : t_size + stop;
+        if (t_start < 0) {
+            t_start = 0;
+        }
+        if (t_stop > t_size - 1) {
+            t_stop = t_size - 1;
+        }
+        if (t_start > t_stop || t_start > t_size - 1 || t_stop < 0) {
+            return Status::OK();
+        } else {
+            ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
+            if (iter == NULL) {
+                return Status::Corruption("zscan error");
+            }
+            int32_t n = 0;
+            while (n<t_start && iter->Next()) {
+                n++;
+            }
+            if (n<t_start) {
+                delete iter;
+                return Status::Corruption("ziterate error");
+            } else {
+                while (n<=t_stop && iter->Next()) {
+                    db_key = EncodeZSetKey(key, iter->Member());
+                    score_key = EncodeZScoreKey(key, iter->Member(), iter->Score());
+                    batch.Delete(db_key);
+                    batch.Delete(score_key);
+                    (*count)++;
+                    n++;
+                }
+                delete iter;
+                if (IncrZLen(key, -(*count), batch) == 0) {
+                    s = zset_db_->Write(rocksdb::WriteOptions(), &batch);
+                    return s;
+                } else {
+                    return Status::Corruption("incr zsize error");
+                }
+            }
+        }
+    } else {
+        return Status::Corruption("get zsize error");
     }
 }
 
