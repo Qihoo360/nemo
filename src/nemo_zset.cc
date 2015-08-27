@@ -472,6 +472,70 @@ Status Nemo::ZLexcount(const std::string &key, const std::string &min, const std
     return Status::OK();
 }
 
+Status Nemo::ZRemrangebylex(const std::string &key, const std::string &min, const std::string &max, bool is_lo, bool is_ro, int64_t* count) {
+    *count = 0;
+    MutexLock l(&mutex_zset_);
+    ZLexIterator *iter = ZScanbylex(key, min, max, -1);
+    rocksdb::WriteBatch batch;
+    std::string score_key;
+    std::string old_score;
+    std::string size_key;
+    std::string db_key;
+    std::string member;
+    Status s;
+    double dscore;
+    if (iter->Next()) {
+        member = iter->Member();
+        if (min == "" || (!is_lo && member.compare(min) == 0)) {
+            db_key = EncodeZSetKey(key, member);
+            s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
+            if (s.ok()) {
+              batch.Delete(db_key);
+              dscore = *((double *)old_score.data());
+              score_key = EncodeZScoreKey(key, member, dscore);
+              batch.Delete(score_key);
+              (*count)++;
+            } else {
+              return s;
+            }
+        }
+    }
+    while (iter->Next()) {
+        member = iter->Member();
+        if (max == "" || member.compare(max) < 0) {
+            db_key = EncodeZSetKey(key, member);
+            s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
+            if (s.ok()) {
+              batch.Delete(db_key);
+              dscore = *((double *)old_score.data());
+              score_key = EncodeZScoreKey(key, member, dscore);
+              batch.Delete(score_key);
+              (*count)++;
+            } else {
+              return s;
+            } 
+        } else if (!is_ro && member.compare(max) == 0) {
+            db_key = EncodeZSetKey(key, member);
+            s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
+            if (s.ok()) {
+              batch.Delete(db_key);
+              dscore = *((double *)old_score.data());
+              score_key = EncodeZScoreKey(key, member, dscore);
+              batch.Delete(score_key);
+              (*count)++;
+            } else {
+              return s;
+            } 
+        }
+    }
+    if (IncrZLen(key, -(*count), batch) == 0) {
+        s = zset_db_->Write(rocksdb::WriteOptions(), &batch);
+        return s;
+    } else {
+        return Status::Corruption("incr zsize error");
+    }
+}
+
 int Nemo::DoZSet(const std::string &key, const double score, const std::string &member, rocksdb::WriteBatch &writebatch) {
     Status s;
     std::string old_score;

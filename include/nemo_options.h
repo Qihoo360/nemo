@@ -7,8 +7,8 @@ struct Options {
     bool create_if_missing;
     int write_buffer_size;
     int max_open_files;
-    int write_threads;
     bool use_bloomfilter;
+    int write_threads;
 	
 	Options() : create_if_missing(true),
         write_buffer_size(4 * 1024 * 1024),
