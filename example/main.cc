@@ -82,7 +82,8 @@ int main()
      */
 
     log_info("======Test MDel======");
-    s = n->MDel(keys);
+    int64_t mcount;
+    s = n->MDel(keys, &mcount);
     log_info("Test MDel OK return %s", s.ToString().c_str());
     //After MDel, all should return NotFound
     kvss.clear();
@@ -114,7 +115,7 @@ int main()
     }
 
     //just delete all key-value set before
-    s = n->MDel(keys);
+    s = n->MDel(keys, &mcount);
     log_info("");
 
     /*
@@ -188,7 +189,7 @@ int main()
     }
 
     //just delete all key-value set before
-    s = n->MDel(keys);
+    s = n->MDel(keys, &mcount);
     log_info("");
 
     res = "";

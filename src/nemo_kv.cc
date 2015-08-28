@@ -33,12 +33,18 @@ Status Nemo::MSet(const std::vector<KV> &kvs) {
     return s;
 }
 
-Status Nemo::MDel(const std::vector<std::string> &keys) {
+Status Nemo::MDel(const std::vector<std::string> &keys, int64_t* count) {
+    *count = 0;
     Status s;
+    std::string val;
     std::vector<std::string>::const_iterator it;
     rocksdb::WriteBatch batch;
     for (it = keys.begin(); it != keys.end(); it++) {
-       batch.Delete(*it); 
+        s = kv_db_->Get(rocksdb::ReadOptions(), *it, &val);
+        if (s.ok()) {
+            (*count)++;
+            batch.Delete(*it); 
+        }
     }
     s = kv_db_->Write(rocksdb::WriteOptions(), &(batch));
     return s;
@@ -59,6 +65,7 @@ Status Nemo::MGet(const std::vector<std::string> &keys, std::vector<KVS> &kvss) 
 Status Nemo::Incrby(const std::string &key, int64_t by, std::string &new_val) {
     Status s;
     std::string val;
+    MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
         new_val = std::to_string(by);        
@@ -76,6 +83,7 @@ Status Nemo::Incrby(const std::string &key, int64_t by, std::string &new_val) {
 Status Nemo::Decrby(const std::string &key, int64_t by, std::string &new_val) {
     Status s;
     std::string val;
+    MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
         new_val = std::to_string(by);        
@@ -104,7 +112,7 @@ Status Nemo::GetSet(const std::string &key, const std::string &new_val, std::str
     }
 }
 
-KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t limit) {
+KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot) {
     std::string key_end;
     if (end.empty()) {
         key_end = "";
@@ -113,8 +121,11 @@ KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t
     }
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
+    if (use_snapshot) {
+        iterate_options.snapshot = kv_db_->GetSnapshot();
+    }
     iterate_options.fill_cache = false;
     it = kv_db_->NewIterator(iterate_options);
     it->Seek(start);
-    return new KIterator(new Iterator(it, key_end, limit)); 
+    return new KIterator(new Iterator(it, key_end, limit, iterate_options)); 
 }

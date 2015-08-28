@@ -288,8 +288,11 @@ Status Nemo::LRange(const std::string &key, const int64_t begin, const int64_t e
     std::string res;
     std::string meta_key = EncodeLMetaKey(key);
     std::string db_key;
-    MutexLock l(&mutex_list_);
-    s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
+//    MutexLock l(&mutex_list_);
+    const rocksdb::Snapshot* ss = list_db_->GetSnapshot();
+    rocksdb::ReadOptions rop = rocksdb::ReadOptions();
+    rop.snapshot = ss;
+    s = list_db_->Get(rop, meta_key, &meta);
     if (s.ok()) {
         if (ParseMeta(meta, len, left, right, cur_seq) == 0) {
             if (len == 0) {
@@ -298,6 +301,7 @@ Status Nemo::LRange(const std::string &key, const int64_t begin, const int64_t e
                 int64_t index_b = begin >= 0 ? begin : len + begin;
                 int64_t index_e = end >= 0 ? end : len + end;
                 if (index_b > index_e || index_b >= len || index_e < 0) {
+                    list_db_->ReleaseSnapshot(ss);
                     return Status::OK();
                 }
                 if (index_b < 0) {
@@ -310,6 +314,7 @@ Status Nemo::LRange(const std::string &key, const int64_t begin, const int64_t e
                 int64_t cur;
                 int64_t next;
                 if (L2R(key, index_b, left, &priv, &cur, &next) != 0) {
+                    list_db_->ReleaseSnapshot(ss);
                     return Status::Corruption("error in iterate");
                 }
                 int32_t t = index_e - index_b + 1;
@@ -329,18 +334,24 @@ Status Nemo::LRange(const std::string &key, const int64_t begin, const int64_t e
                     i++;
                 }
                 if (i<t) {
+                    list_db_->ReleaseSnapshot(ss);
                     return Status::Corruption("get element error");
                 }
+                list_db_->ReleaseSnapshot(ss);
                 return Status::OK();
             } else {
+                list_db_->ReleaseSnapshot(ss);
                 return Status::Corruption("get invalid listlen");
             }
         } else {
+            list_db_->ReleaseSnapshot(ss);
             return Status::Corruption("parse listmeta error");
         }
     } else if (s.IsNotFound()) {
+        list_db_->ReleaseSnapshot(ss);
         return Status::NotFound("not found the key");
     } else {
+        list_db_->ReleaseSnapshot(ss);
         return Status::Corruption("get listmeta error");
     }
 }

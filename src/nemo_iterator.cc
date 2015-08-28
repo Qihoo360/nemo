@@ -3,10 +3,11 @@
 #include "nemo_zset.h"
 #include "xdebug.h"
 
-nemo::Iterator::Iterator(rocksdb::Iterator *it, const std::string &end, uint64_t limit, Direction direction)
+nemo::Iterator::Iterator(rocksdb::Iterator *it, const std::string &end, uint64_t limit, rocksdb::ReadOptions options, Direction direction)
     : it_(it),
     end_(end),
     limit_(limit),
+    options_(options),
     is_first_(true),
     direction_(direction) {
 }

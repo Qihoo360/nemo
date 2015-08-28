@@ -86,7 +86,7 @@ int64_t Nemo::ZCard(const std::string &key) {
     }
 }
 
-ZIterator* Nemo::ZScan(const std::string &key, const double begin, const double end, uint64_t limit) {
+ZIterator* Nemo::ZScan(const std::string &key, const double begin, const double end, uint64_t limit, bool use_snapshot) {
     double rel_begin = begin;
     double rel_end = end + eps;
     if (begin < ZSET_SCORE_MIN) {
@@ -100,13 +100,16 @@ ZIterator* Nemo::ZScan(const std::string &key, const double begin, const double 
     key_end = EncodeZScoreKey(key, "", rel_end);
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
+    if (use_snapshot) {
+        iterate_options.snapshot = zset_db_->GetSnapshot();
+    }
     iterate_options.fill_cache = false;
     it = zset_db_->NewIterator(iterate_options);
     it->Seek(key_start);
-    return new ZIterator(new Iterator(it, key_end, limit), key); 
+    return new ZIterator(new Iterator(it, key_end, limit, iterate_options), key); 
 }
 
-ZLexIterator* Nemo::ZScanbylex(const std::string &key, const std::string &min, const std::string &max, uint64_t limit) {
+ZLexIterator* Nemo::ZScanbylex(const std::string &key, const std::string &min, const std::string &max, uint64_t limit, bool use_snapshot) {
     std::string key_start, key_end;
     key_start = EncodeZSetKey(key, min);
     if (max == "") {
@@ -116,17 +119,20 @@ ZLexIterator* Nemo::ZScanbylex(const std::string &key, const std::string &min, c
     }
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
+    if (use_snapshot) {
+        iterate_options.snapshot = zset_db_->GetSnapshot();
+    }
     iterate_options.fill_cache = false;
     it = zset_db_->NewIterator(iterate_options);
     it->Seek(key_start);
-    return new ZLexIterator(new Iterator(it, key_end, limit), key); 
+    return new ZLexIterator(new Iterator(it, key_end, limit, iterate_options), key); 
 }
 
 int64_t Nemo::ZCount(const std::string &key, const double begin, const double end, bool is_lo, bool is_ro) {
     double b = is_lo ? begin + eps : begin;
     double e = is_ro ? end - eps : end;
-    MutexLock l(&mutex_zset_);
-    ZIterator* it = ZScan(key, b, e, -1);
+//    MutexLock l(&mutex_zset_);
+    ZIterator* it = ZScan(key, b, e, -1, true);
     double s;
     int64_t n = 0;
     while (it->Next()) {
@@ -137,6 +143,7 @@ int64_t Nemo::ZCount(const std::string &key, const double begin, const double en
             break;
         }
     }
+    zset_db_->ReleaseSnapshot(it->Opt().snapshot);
     delete it;
     return n;
 }
@@ -194,7 +201,7 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
 }
 
 Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms) {
-    MutexLock l(&mutex_zset_);
+//    MutexLock l(&mutex_zset_);
     int64_t t_size = ZCard(key);
     if (t_size >= 0) {
         int64_t t_start = start >= 0 ? start : t_size + start;
@@ -208,7 +215,7 @@ Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t s
         if (t_start > t_stop || t_start > t_size - 1 || t_stop < 0) {
             return Status::OK();
         } else {
-            ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
+            ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1, true);
             if (iter == NULL) {
                 return Status::Corruption("zscan error");
             }
@@ -217,6 +224,7 @@ Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t s
                 n++;
             }
             if (n<t_start) {
+                zset_db_->ReleaseSnapshot(iter->Opt().snapshot);
                 delete iter;
                 return Status::Corruption("ziterate error");
             } else {
@@ -224,6 +232,7 @@ Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t s
                     sms.push_back({iter->Score(), iter->Member()});
                     n++;
                 }
+                zset_db_->ReleaseSnapshot(iter->Opt().snapshot);
                 delete iter;
                 return Status::OK();
             }
@@ -236,12 +245,13 @@ Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t s
 Status Nemo::ZRangebyscore(const std::string &key, const double mn, const double mx, std::vector<SM> &sms, int64_t offset, bool is_lo, bool is_ro) {
     double start = is_lo ? mn + eps : mn;
     double stop = is_ro ? mx - eps : mx;
-    MutexLock l(&mutex_zset_);
-    ZIterator *iter = ZScan(key, start, stop, -1);
+//    MutexLock l(&mutex_zset_);
+    ZIterator *iter = ZScan(key, start, stop, -1, true);
     iter->Skip(offset);
     while(iter->Next()) {
         sms.push_back({iter->Score(), iter->Member()});
     }
+    zset_db_->ReleaseSnapshot(iter->Opt().snapshot);
     delete iter;
     return Status::OK();
 }
@@ -397,19 +407,20 @@ Status Nemo::ZRank(const std::string &key, const std::string &member, int64_t *r
     *rank = 0;
     std::string old_score;
 
-    MutexLock l(&mutex_zset_);
+//    MutexLock l(&mutex_zset_);
 
     std::string db_key = EncodeZSetKey(key, member);
     s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
     int64_t count = 0;
     if (s.ok()) {
-        ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
+        ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1, true);
         while (iter->Next() && iter->Member().compare(member) < 0) {
             count++;
         }
         if (iter->Member().compare(member) == 0) {
             *rank = count;
         }
+        zset_db_->ReleaseSnapshot(iter->Opt().snapshot);
         delete iter;
     }
     return s;
@@ -420,13 +431,13 @@ Status Nemo::ZRevrank(const std::string &key, const std::string &member, int64_t
     *rank = 0;
     std::string old_score;
 
-    MutexLock l(&mutex_zset_);
+//    MutexLock l(&mutex_zset_);
 
     std::string db_key = EncodeZSetKey(key, member);
     s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
     int64_t count = 0;
     if (s.ok()) {
-        ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
+        ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1, true);
         while (iter->Next() && iter->Member().compare(member) < 0) {
         }
         if (iter->Member().compare(member) == 0) {
@@ -435,6 +446,7 @@ Status Nemo::ZRevrank(const std::string &key, const std::string &member, int64_t
                 count++;
             }
         } 
+        zset_db_->ReleaseSnapshot(iter->Opt().snapshot);
         delete iter;
         *rank = count;
     }
@@ -455,23 +467,25 @@ Status Nemo::ZScore(const std::string &key, const std::string &member, double *s
 }
 
 Status Nemo::ZRangebylex(const std::string &key, const std::string &min, const std::string &max, std::vector<std::string> &members, int64_t offset) {
-    MutexLock l(&mutex_zset_);
-    ZLexIterator *iter = ZScanbylex(key, min, max, -1);
+//    MutexLock l(&mutex_zset_);
+    ZLexIterator *iter = ZScanbylex(key, min, max, -1, true);
     iter->Skip(offset);
     while (iter->Next()) {
         members.push_back(iter->Member());
     }
+    zset_db_->ReleaseSnapshot(iter->Opt().snapshot);
     delete iter;
     return Status::OK();
 }
 
 Status Nemo::ZLexcount(const std::string &key, const std::string &min, const std::string &max, int64_t* count) {
-    MutexLock l(&mutex_zset_);
+//    MutexLock l(&mutex_zset_);
     count = 0;
-    ZLexIterator *iter = ZScanbylex(key, min, max, -1);
+    ZLexIterator *iter = ZScanbylex(key, min, max, -1, true);
     while (iter->Next()) {
         count++;
     }
+    zset_db_->ReleaseSnapshot(iter->Opt().snapshot);
     delete iter;
     return Status::OK();
 }

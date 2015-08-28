@@ -12,17 +12,19 @@ enum Direction {
 
 class Iterator {
 public:
-    Iterator(rocksdb::Iterator *it, const std::string &end, uint64_t limit, Direction direction = kForward);
+    Iterator(rocksdb::Iterator *it, const std::string &end, uint64_t limit, rocksdb::ReadOptions options, Direction direction = kForward);
     ~Iterator();
     bool Skip(uint64_t offset);
     bool Next();
     bool Valid() { return it_->Valid(); };
     rocksdb::Slice Key();
     rocksdb::Slice Val();
+    rocksdb::ReadOptions Opt() { return options_; };
 private:
     rocksdb::Iterator *it_;
     std::string end_;
     uint64_t limit_;
+    rocksdb::ReadOptions options_;
     bool is_first_;
     int direction_;
     //No Copying Allowed
@@ -37,6 +39,7 @@ public:
     bool Next();
     bool Valid() { return it_->Valid(); };
     bool Skip(uint64_t offset) { return it_->Skip(offset); };
+    rocksdb::ReadOptions Opt() { return it_->Opt(); };
     std::string Key() { return key_; };
     std::string Val() { return val_; };
 private:
@@ -55,6 +58,7 @@ public:
     bool Next();
     bool Valid() { return it_->Valid(); };
     bool Skip(uint64_t offset) { return it_->Skip(offset); };
+    rocksdb::ReadOptions Opt() { return it_->Opt(); };
     std::string Key() { return key_; };
     std::string Field() { return field_; };
     std::string Val() { return val_; };
@@ -75,6 +79,7 @@ public:
     bool Valid() { return it_->Valid(); };
     bool Skip(int64_t offset) { if (offset < 0) {return true;} else {return it_->Skip(offset);} };
     bool Next();
+    rocksdb::ReadOptions Opt() { return it_->Opt(); };
     std::string Key() { return key_; };
     double Score() { return score_; };
     std::string Member() { return member_; };
@@ -96,6 +101,7 @@ public:
     bool Valid() { return it_->Valid(); };
     bool Skip(int64_t offset) { if (offset < 0) {return true;} else {return it_->Skip(offset);} };
     bool Next();
+    rocksdb::ReadOptions Opt() { return it_->Opt(); };
     std::string Key() { return key_; };
     std::string Member() { return member_; };
 private:

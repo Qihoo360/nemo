@@ -20,6 +20,19 @@ Status Nemo::HSet(const std::string &key, const std::string &field, const std::s
     return s;
 }
 
+Status Nemo::HSetNoLock(const std::string &key, const std::string &field, const std::string &val) {
+    Status s;
+    rocksdb::WriteBatch writebatch;
+    int ret = DoHSet(key, field, val, writebatch);
+    if (ret > 0) {
+        if (IncrHLen(key, ret, writebatch) == -1) {
+            return Status::Corruption("incrhlen error");
+        }
+    }
+    s = hash_db_->Write(rocksdb::WriteOptions(), &(writebatch));
+    return s;
+}
+
 Status Nemo::HGet(const std::string &key, const std::string &field, std::string *val) {
     std::string dbkey = EncodeHashKey(key, field);
     Status s = hash_db_->Get(rocksdb::ReadOptions(), dbkey, val);
@@ -62,6 +75,7 @@ Status Nemo::HKeys(const std::string &key, std::vector<std::string> &fields) {
     std::string key_start = EncodeHashKey(key, "");
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
+    iterate_options.snapshot = hash_db_->GetSnapshot();
     iterate_options.fill_cache = false;
     it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
@@ -77,6 +91,8 @@ Status Nemo::HKeys(const std::string &key, std::vector<std::string> &fields) {
        }
        it->Next();
     }
+    hash_db_->ReleaseSnapshot(iterate_options.snapshot);
+    delete it;
     return Status::OK();
 
 }
@@ -106,6 +122,7 @@ Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
     std::string key_start = EncodeHashKey(key, "");
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
+    iterate_options.snapshot = hash_db_->GetSnapshot();
     iterate_options.fill_cache = false;
     it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
@@ -121,6 +138,8 @@ Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
        }
        it->Next();
     }
+    hash_db_->ReleaseSnapshot(iterate_options.snapshot);
+    delete it;
     return Status::OK();
 }
 
@@ -173,7 +192,7 @@ Status Nemo::HMGet(const std::string &key, const std::vector<std::string> &field
     return Status::OK();
 }
 
-HIterator* Nemo::HScan(const std::string &key, const std::string &start, const std::string &end, uint64_t limit) {
+HIterator* Nemo::HScan(const std::string &key, const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot) {
     std::string key_start, key_end;
     key_start = EncodeHashKey(key, start);
     if (end.empty()) {
@@ -183,10 +202,13 @@ HIterator* Nemo::HScan(const std::string &key, const std::string &start, const s
     }
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
+    if (use_snapshot) {
+        iterate_options.snapshot = hash_db_->GetSnapshot();
+    }
     iterate_options.fill_cache = false;
     it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
-    return new HIterator(new Iterator(it, key_end, limit), key); 
+    return new HIterator(new Iterator(it, key_end, limit, iterate_options), key); 
 }
 
 Status Nemo::HSetnx(const std::string &key, const std::string &field, const std::string &val) {
@@ -230,6 +252,7 @@ Status Nemo::HVals(const std::string &key, std::vector<std::string> &vals) {
     std::string key_start = EncodeHashKey(key, "");
     rocksdb::Iterator *it;
     rocksdb::ReadOptions iterate_options;
+    iterate_options.snapshot = hash_db_->GetSnapshot();
     iterate_options.fill_cache = false;
     it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
@@ -245,12 +268,15 @@ Status Nemo::HVals(const std::string &key, std::vector<std::string> &vals) {
        }
        it->Next();
     }
+    hash_db_->ReleaseSnapshot(iterate_options.snapshot);
+    delete it;
     return Status::OK();
 }
 
 Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t by, std::string &new_val) {
     Status s;
     std::string val;
+    MutexLock l(&mutex_hash_);
     s = HGet(key, field, &val);
     if (s.IsNotFound()) {
         new_val = std::to_string(by);
@@ -263,7 +289,7 @@ Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t b
     } else {
         return Status::Corruption("HIncrby error");
     }
-    s = HSet(key, field, new_val);
+    s = HSetNoLock(key, field, new_val);
     return s;
 }
 
@@ -271,6 +297,7 @@ Status Nemo::HIncrbyfloat(const std::string &key, const std::string &field, doub
     Status s;
     std::string val;
     std::string res;
+    MutexLock l(&mutex_hash_);
     s = HGet(key, field, &val);
     if (s.IsNotFound()) {
         res = std::to_string(by);
@@ -289,7 +316,7 @@ Status Nemo::HIncrbyfloat(const std::string &key, const std::string &field, doub
     if (new_val[new_val.size()-1] == '.') {
         new_val = new_val.substr(0, new_val.size()-1);
     }
-    s = HSet(key, field, new_val);
+    s = HSetNoLock(key, field, new_val);
     return s;
 }
 
