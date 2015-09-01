@@ -30,7 +30,7 @@ public:
     Status MDel(const std::vector<std::string> &keys, int64_t* count);
     Status MGet(const std::vector<std::string> &keys, std::vector<KVS> &kvss);
     Status Incrby(const std::string &key, int64_t by, std::string &new_val);
-    Status Decrby(const std::string &key, int64_t by, std::string &new_val);
+    Status Incrbyfloat(const std::string &key, double by, std::string &new_val);
     Status GetSet(const std::string &key, const std::string &new_val, std::string *old_val);
     KIterator* Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
 
