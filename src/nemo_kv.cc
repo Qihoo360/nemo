@@ -105,6 +105,7 @@ Status Nemo::Decrby(const std::string &key, int64_t by, std::string &new_val) {
 Status Nemo::Incrbyfloat(const std::string &key, double by, std::string &new_val) {
     Status s;
     std::string val;
+    std::string res;
     MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
@@ -114,9 +115,15 @@ Status Nemo::Incrbyfloat(const std::string &key, double by, std::string &new_val
         if (!StrToDouble(val.data(), val.size(), &ival)) {
             return Status::Corruption("value is not a float");
         } 
-        new_val = std::to_string(ival + by);
+        res = std::to_string(ival + by);
     } else {
         return Status::Corruption("Get error");
+    }
+    size_t pos = res.find_last_not_of("0", res.size());
+    pos = pos == std::string::npos ? pos : pos+1;
+    new_val = res.substr(0, pos); 
+    if (new_val[new_val.size()-1] == '.') {
+        new_val = new_val.substr(0, new_val.size()-1);
     }
     s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
     return s;
