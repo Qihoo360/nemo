@@ -71,7 +71,9 @@ Status Nemo::Incrby(const std::string &key, int64_t by, std::string &new_val) {
         new_val = std::to_string(by);        
     } else if (s.ok()) {
         int64_t ival;
-        StrToInt64(val.data(), val.size(), &ival); 
+        if (!StrToInt64(val.data(), val.size(), &ival)) {
+            return Status::Corruption("value is not a integer");
+        } 
         new_val = std::to_string(ival + by);
     } else {
         return Status::Corruption("Get error");
@@ -89,7 +91,9 @@ Status Nemo::Decrby(const std::string &key, int64_t by, std::string &new_val) {
         new_val = std::to_string(by);        
     } else if (s.ok()) {
         int64_t ival;
-        StrToInt64(val.data(), val.size(), &ival); 
+        if (!StrToInt64(val.data(), val.size(), &ival)) {
+            return Status::Corruption("value is not a float");
+        } 
         new_val = std::to_string(ival - by);
     } else {
         return Status::Corruption("Get error");
