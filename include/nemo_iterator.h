@@ -113,5 +113,25 @@ private:
     void operator=(ZLexIterator&);
     
 };
+
+class SIterator {
+public:
+    SIterator(Iterator *it, const rocksdb::Slice &key);
+    ~SIterator();
+    bool Next();
+    bool Valid() { return it_->Valid(); };
+    bool Skip(uint64_t offset) { return it_->Skip(offset); };
+    rocksdb::ReadOptions Opt() { return it_->Opt(); };
+    std::string Key() { return key_; };
+    std::string Member() { return member_; };
+private:
+    Iterator *it_;
+    std::string key_;
+    std::string member_;
+    //No Copying Allowed
+    SIterator(SIterator&);
+    void operator=(SIterator&);
+};
+
 }
 #endif

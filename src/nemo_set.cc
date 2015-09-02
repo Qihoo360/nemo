@@ -106,3 +106,14 @@ SIterator* Nemo::SScan(const std::string &key, uint64_t limit, bool use_snapshot
     it->Seek(set_key);
     return new SIterator(new Iterator(it, "", limit, iterate_options), key); 
 }
+
+Status Nemo::SMembers(const std::string &key, std::vector<std::string> &members) {
+    SIterator *iter = SScan(key, -1, true);
+
+    while (iter->Next()) {
+        members.push_back(iter->Member());
+    }
+    set_db_->ReleaseSnapshot(iter->Opt().snapshot);
+    delete iter;
+    return Status::OK();
+}

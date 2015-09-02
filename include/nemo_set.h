@@ -1,5 +1,5 @@
-#ifndef NEMO_INCLUDE_NEMO_LIST_H_
-#define NEMO_INCLUDE_NEMO_LIST_H_
+#ifndef NEMO_INCLUDE_NEMO_SET_H_
+#define NEMO_INCLUDE_NEMO_SET_H_
 
 #include "nemo.h"
 #include "nemo_const.h"

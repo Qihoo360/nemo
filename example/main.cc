@@ -967,32 +967,41 @@ int main()
     log_info("");
 
     /*
+     *  Test SMembers
+     */
+    log_info("======Test SMembers======");
+    values.clear();
+    s = n->SMembers("setKey", values);
+    log_info("Test SMembers return %s, expect [member1, member2, member3]", s.ToString().c_str());
+    std::vector<std::string>::iterator smit;
+    for (smit = values.begin(); smit != values.end(); smit++) {
+        log_info("Test SMembers member: %s", smit->c_str());
+    }
+    log_info("");
+
+    /*
      *  Test SRem
      */
     log_info("======Test SRem======");
-    s = n->SAdd("tSRemKey", "member1", &sadd_res);
-    s = n->SAdd("tSRemKey", "member2", &sadd_res);
-    s = n->SAdd("tSRemKey", "member3", &sadd_res);
+    int64_t srem_res;
+    s = n->SRem("setKey", "member2", &srem_res);
+    log_info("Test SRem with exist member return %s, expect [member1, member3]", s.ToString().c_str());
 
- //   int64_t srem_res;
- //   s = n->SRem("tSRemKey", "member2", &srem_res);
- //   log_info("Test SRem with exist member return %s, expect [member1, member3]", s.ToString().c_str());
- //   sms.clear();
- //   s = n->SMembers("tSRemKey", sms);
- //   for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
- //       log_info("          score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
- //   }
- //   log_info("");
+    values.clear();
+    s = n->SMembers("setKey", values);
+    for (smit = values.begin(); smit != values.end(); smit++) {
+        log_info("    member: %s", smit->c_str());
+    }
+    log_info("");
 
- //   s = n->SRem("tSRemKey", "member2", &srem_res);
- //   log_info("Test SRem with nonexist member return %s, expect [member1, member3]", s.ToString().c_str());
- //   sms.clear();
- //   s = n->ZRange("tSRemKey", 0, -1, sms);
- //   for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
- //       log_info("          score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
- //   }
- //   log_info("");
-
+    s = n->SRem("setKey", "member2", &srem_res);
+    log_info("Test SRem with nonexist member return %s, rem_res is %lld expect [member1, member3]", s.ToString().c_str(), srem_res);
+    values.clear();
+    s = n->SMembers("setKey", values);
+    for (smit = values.begin(); smit != values.end(); smit++) {
+        log_info("    member: %s", smit->c_str());
+    }
+    log_info("");
 
     return 0;
 }

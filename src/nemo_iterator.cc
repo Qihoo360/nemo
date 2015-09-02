@@ -1,3 +1,4 @@
+#include "nemo_set.h"
 #include "nemo_iterator.h"
 #include "nemo_hash.h"
 #include "nemo_zset.h"
@@ -183,3 +184,37 @@ bool nemo::ZLexIterator::Next() {
     }
     return false;
 }
+
+/***
+ * Set
+***/
+
+nemo::SIterator::SIterator(Iterator *it, const rocksdb::Slice &key) 
+    : it_(it) {
+    this->key_.assign(key.data(), key.size());
+}
+
+nemo::SIterator::~SIterator() {
+    delete it_;
+}
+
+bool nemo::SIterator::Next() {
+    while (it_->Next()) {
+        rocksdb::Slice ks = it_->Key();
+        rocksdb::Slice vs = it_->Val();
+        if (ks.data()[0] != DataType::kSet) {
+            return false;
+        }
+        std::string k;
+        if (DecodeSetKey(ks, &k, &this->member_) == -1) {
+            continue;
+        }
+        if (k != this->key_) {
+            return false;
+        }
+        //this->val_.assign(vs.data(), vs.size());
+        return true;
+    }
+    return false;
+}
+

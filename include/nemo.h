@@ -96,6 +96,7 @@ public:
     Status SRem(const std::string &key, const std::string &member, int64_t *res);
     int64_t SCard(const std::string &key);
     SIterator* SScan(const std::string &key, uint64_t limit, bool use_snapshot = false);
+    Status SMembers(const std::string &key, std::vector<std::string> &vals);
 
 private:
 
