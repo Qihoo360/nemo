@@ -35,6 +35,9 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
     if (opendir((db_path_ + "zset").c_str()) == NULL) {
         mkdir((db_path_ + "zset").c_str(), 0755);
     }
+    if (opendir((db_path_ + "set").c_str()) == NULL) {
+        mkdir((db_path_ + "set").c_str(), 0755);
+    }
 
 
     rocksdb::DB* db;
