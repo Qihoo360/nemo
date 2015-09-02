@@ -91,9 +91,11 @@ public:
     Status ZRemrangebyrank(const std::string &key, const int64_t start, const int64_t stop, int64_t* count);
     Status ZRemrangebyscore(const std::string &key, const double start, const double stop, int64_t* count, bool is_lo = false, bool is_ro = false);
 
-    // ==============ZSet=====================
+    // ==============Set=====================
     Status SAdd(const std::string &key, const std::string &member, int64_t *res);
+    Status SRem(const std::string &key, const std::string &member, int64_t *res);
     int64_t SCard(const std::string &key);
+    SIterator* SScan(const std::string &key, uint64_t limit, bool use_snapshot = false);
 
 private:
 

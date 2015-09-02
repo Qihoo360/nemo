@@ -949,5 +949,50 @@ int main()
     log_info("SCard with non-existe key return: %ld", n->SCard("non-exist"));
     log_info("");
 
+    /*
+     *  Test SScan
+     */
+    log_info("======Test SScan======");
+    s = n->SAdd("setKey", "member1", &sadd_res);
+    s = n->SAdd("setKey", "member2", &sadd_res);
+    s = n->SAdd("setKey", "member3", &sadd_res);
+
+    SIterator *sit = n->SScan("setKey", -1);
+    if (sit == NULL) {
+        log_info("SScan error!");
+    }
+    while (sit->Next()) {
+        log_info("SScan key: %s, member: %s", sit->Key().c_str(), sit->Member().c_str()); 
+    }
+    log_info("");
+
+    /*
+     *  Test SRem
+     */
+    log_info("======Test SRem======");
+    s = n->SAdd("tSRemKey", "member1", &sadd_res);
+    s = n->SAdd("tSRemKey", "member2", &sadd_res);
+    s = n->SAdd("tSRemKey", "member3", &sadd_res);
+
+ //   int64_t srem_res;
+ //   s = n->SRem("tSRemKey", "member2", &srem_res);
+ //   log_info("Test SRem with exist member return %s, expect [member1, member3]", s.ToString().c_str());
+ //   sms.clear();
+ //   s = n->SMembers("tSRemKey", sms);
+ //   for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
+ //       log_info("          score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
+ //   }
+ //   log_info("");
+
+ //   s = n->SRem("tSRemKey", "member2", &srem_res);
+ //   log_info("Test SRem with nonexist member return %s, expect [member1, member3]", s.ToString().c_str());
+ //   sms.clear();
+ //   s = n->ZRange("tSRemKey", 0, -1, sms);
+ //   for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
+ //       log_info("          score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
+ //   }
+ //   log_info("");
+
+
     return 0;
 }

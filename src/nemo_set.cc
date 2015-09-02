@@ -31,6 +31,31 @@ Status Nemo::SAdd(const std::string &key, const std::string &member, int64_t *re
     return s;
 }
 
+Status Nemo::SRem(const std::string &key, const std::string &member, int64_t *res) {
+    Status s;
+    MutexLock l(&mutex_set_);
+    rocksdb::WriteBatch writebatch;
+    std::string set_key = EncodeSetKey(key, member);
+
+    std::string val;
+    s = set_db_->Get(rocksdb::ReadOptions(), set_key, &val);
+
+    if (s.ok()) {
+        *res = 1;
+        if (IncrSSize(key, -1, writebatch) < 0) {
+            return Status::Corruption("incrSSize error");
+        }
+        writebatch.Delete(set_key);
+    } else if (s.IsNotFound()) {
+        *res = 0;
+    } else {
+        return Status::Corruption("srem check member error");
+    }
+
+    s = set_db_->Write(rocksdb::WriteOptions(), &(writebatch));
+    return s;
+}
+
 int Nemo::IncrSSize(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch) {
     int64_t len = SCard(key);
 
@@ -66,4 +91,18 @@ int64_t Nemo::SCard(const std::string &key) {
         int64_t ret = *(int64_t *)val.data();
         return ret < 0 ? 0 : ret;
     }
+}
+
+SIterator* Nemo::SScan(const std::string &key, uint64_t limit, bool use_snapshot) {
+    std::string set_key = EncodeSetKey(key, "");
+
+    rocksdb::Iterator *it;
+    rocksdb::ReadOptions iterate_options;
+    if (use_snapshot) {
+        iterate_options.snapshot = set_db_->GetSnapshot();
+    }
+    iterate_options.fill_cache = false;
+    it = set_db_->NewIterator(iterate_options);
+    it->Seek(set_key);
+    return new SIterator(new Iterator(it, "", limit, iterate_options), key); 
 }
