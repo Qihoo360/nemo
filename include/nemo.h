@@ -19,6 +19,7 @@ public:
         pthread_mutex_destroy(&(mutex_hash_));
         pthread_mutex_destroy(&(mutex_list_));
         pthread_mutex_destroy(&(mutex_zset_));
+        pthread_mutex_destroy(&(mutex_set_));
     };
 
     // =================KV=====================
