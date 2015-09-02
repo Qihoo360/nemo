@@ -73,6 +73,12 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
         //log_info("open db success");
     }
     zset_db_ = std::unique_ptr<rocksdb::DB>(db);
+
+    s = rocksdb::DB::Open(open_options_, db_path_ + "set", &db);
+    if (!s.ok()) {
+        log_err("open set db %s error %s", db_path_.c_str(), s.ToString().c_str());
+    }
+    set_db_ = std::unique_ptr<rocksdb::DB>(db);
 }
 };
 

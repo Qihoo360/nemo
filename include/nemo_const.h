@@ -60,6 +60,8 @@ namespace DataType {
     static const char kZSet      = 'z';
     static const char kZSize     = 'Z';
     static const char kZScore    = 'y';
+    static const char kSet      = 's';
+    static const char kSSize     = 'S';
 //    static const char ZSET      = 's'; // key => score
 //    static const char ZSCORE    = 'z'; // key|score => ""
 //    static const char ZSIZE     = 'Z';

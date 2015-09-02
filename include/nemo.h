@@ -90,6 +90,10 @@ public:
     Status ZRemrangebyrank(const std::string &key, const int64_t start, const int64_t stop, int64_t* count);
     Status ZRemrangebyscore(const std::string &key, const double start, const double stop, int64_t* count, bool is_lo = false, bool is_ro = false);
 
+    // ==============ZSet=====================
+    Status SAdd(const std::string &key, const std::string &member, int64_t *res);
+    int64_t SCard(const std::string &key);
+
 private:
 
     std::string db_path_;
@@ -98,11 +102,13 @@ private:
     std::unique_ptr<rocksdb::DB> hash_db_;
     std::unique_ptr<rocksdb::DB> list_db_;
     std::unique_ptr<rocksdb::DB> zset_db_;
+    std::unique_ptr<rocksdb::DB> set_db_;
 
     pthread_mutex_t mutex_kv_;
     pthread_mutex_t mutex_hash_;
     pthread_mutex_t mutex_list_;
     pthread_mutex_t mutex_zset_;
+    pthread_mutex_t mutex_set_;
 
     int DoHSet(const std::string &key, const std::string &field, const std::string &val, rocksdb::WriteBatch &writebatch);
     int DoHDel(const std::string &key, const std::string &field, rocksdb::WriteBatch &writebatch);
@@ -116,6 +122,8 @@ private:
     int32_t R2L(const std::string &key, const int64_t index, const int64_t right, int64_t *priv, int64_t *cur, int64_t *next);
 
     int IncrZLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
+
+    int IncrSSize(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
 
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);

@@ -931,5 +931,23 @@ int main()
         }
     }
     log_info("");
+
+    /*
+     *  Test SAdd
+     */
+    int64_t sadd_res;
+    log_info("======Test SAdd======");
+    s = n->SAdd("setKey", "member1", &sadd_res);
+    log_info("Test SAdd OK return %s", s.ToString().c_str());
+    log_info("");
+
+    /*
+     *  Test Scard
+     */
+    log_info("======Test SCard======");
+    log_info("SCard with existed key return: %ld", n->SCard("setKey"));
+    log_info("SCard with non-existe key return: %ld", n->SCard("non-exist"));
+    log_info("");
+
     return 0;
 }
