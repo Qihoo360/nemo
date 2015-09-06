@@ -46,13 +46,12 @@ Status Nemo::SRem(const std::string &key, const std::string &member, int64_t *re
             return Status::Corruption("incrSSize error");
         }
         writebatch.Delete(set_key);
+        s = set_db_->Write(rocksdb::WriteOptions(), &(writebatch));
     } else if (s.IsNotFound()) {
         *res = 0;
     } else {
         return Status::Corruption("srem check member error");
     }
-
-    s = set_db_->Write(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 
