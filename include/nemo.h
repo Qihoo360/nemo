@@ -38,6 +38,7 @@ public:
     Status Setnx(const std::string &key, const std::string &value, int64_t *ret);
     Status MSetnx(const std::vector<KV> &kvs, int64_t *ret);
     Status Getrange(const std::string key, int64_t start, int64_t end, std::string &substr);
+    Status Strlen(const std::string &key, int64_t *len);
     KIterator* Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
 
     // ==============HASH=====================

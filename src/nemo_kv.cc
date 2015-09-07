@@ -214,6 +214,18 @@ Status Nemo::Getrange(const std::string key, int64_t start, int64_t end, std::st
     return s;
 }
 
+Status Nemo::Strlen(const std::string &key, int64_t *len) {
+    Status s;
+    std::string val;
+    s = Get(key, &val);
+    if (s.ok()) {
+        *len = val.length();
+    } else if (s.IsNotFound()) {
+        *len = 0;
+    }
+    return s;
+}
+
 KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot) {
     std::string key_end;
     if (end.empty()) {
