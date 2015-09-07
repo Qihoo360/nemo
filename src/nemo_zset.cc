@@ -3,7 +3,7 @@
 #include "nemo.h"
 #include "nemo_zset.h"
 #include "nemo_iterator.h"
-#include "utilities/util.h"
+#include "util.h"
 #include "xdebug.h"
 using namespace nemo;
 

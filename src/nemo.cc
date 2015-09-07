@@ -40,18 +40,20 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
     }
 
 
-    rocksdb::DB* db;
 
     open_options_.create_if_missing = true;
     open_options_.write_buffer_size = options.write_buffer_size;
     
-    rocksdb::Status s = rocksdb::DB::Open(open_options_, db_path_ + "kv", &db);
+    rocksdb::DBWithTTL *db_ttl;
+    rocksdb::Status s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "kv", &db_ttl);
     if (!s.ok()) {
         log_err("open kv db %s error %s", db_path_.c_str(), s.ToString().c_str());
     } else {
         //log_info("open db success");
     }
-    kv_db_ = std::unique_ptr<rocksdb::DB>(db);
+    kv_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
+
+    rocksdb::DB* db;
 
     s = rocksdb::DB::Open(open_options_, db_path_ + "hash", &db);
     if (!s.ok()) {

@@ -3,7 +3,7 @@
 
 #include "nemo.h"
 #include "nemo_const.h"
-#include "utilities/decoder.h"
+#include "decoder.h"
 
 namespace nemo {
 

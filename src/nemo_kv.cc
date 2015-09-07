@@ -1,12 +1,16 @@
 #include "nemo.h"
 #include "nemo_iterator.h"
-#include "utilities/util.h"
+#include "util.h"
 #include "xdebug.h"
 using namespace nemo;
 
-Status Nemo::Set(const std::string &key, const std::string &val) {
+Status Nemo::Set(const std::string &key, const std::string &val, const int32_t ttl) {
     Status s;
-    s = kv_db_->Put(rocksdb::WriteOptions(), key, val);
+    if (ttl <= 0) {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, val);
+    } else {
+        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, val, ttl);
+    }
     return s;
 }
 
@@ -176,4 +180,66 @@ KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t
     it = kv_db_->NewIterator(iterate_options);
     it->Seek(start);
     return new KIterator(new Iterator(it, key_end, limit, iterate_options)); 
+}
+
+Status Nemo::Expire(const std::string &key, const int32_t seconds, int64_t *res) {
+    Status s;
+    std::string val;
+
+    s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
+    if (s.IsNotFound()) {
+        *res = 0;
+    } else if (s.ok()) {
+        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, val, seconds);
+        *res = 1;
+    }
+    return s;
+}
+
+Status Nemo::TTL(const std::string &key, int64_t *res) {
+    Status s;
+    std::string val;
+
+    s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
+    if (s.IsNotFound()) {
+        *res = -2;
+    } else if (s.ok()) {
+        int32_t ttl;
+        s = kv_db_->GetKeyTTL(rocksdb::ReadOptions(), key, &ttl);
+        if (s.ok()) {
+            if (ttl > 1 * 365 * 24 * 3600) {
+                *res = -1;
+            } else {
+                *res = ttl;
+            }
+        }
+    }
+    return s;
+}
+
+Status Nemo::Persist(const std::string &key, int64_t *res) {
+    Status s;
+    std::string val;
+
+    *res = 0;
+    s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
+    if (s.ok()) {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, val);
+        *res = 1;
+    }
+    return s;
+}
+
+Status Nemo::Expireat(const std::string &key, const int32_t timestamp, int64_t *res) {
+    Status s;
+    std::string val;
+
+    s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
+    if (s.IsNotFound()) {
+        *res = 0;
+    } else if (s.ok()) {
+        s = kv_db_->PutWithExpiredTime(rocksdb::WriteOptions(), key, val, timestamp);
+        *res = 1;
+    }
+    return s;
 }

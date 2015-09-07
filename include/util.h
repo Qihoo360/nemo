@@ -1,5 +1,5 @@
-#ifndef UTIL_STRING_H
-#define UTIL_STRING_H
+#ifndef NEMO_UTIL_H
+#define NEMO_UTIL_H
 
 #include <inttypes.h>
 #include <unistd.h>

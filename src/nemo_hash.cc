@@ -1,7 +1,7 @@
 #include "nemo.h"
 #include "nemo_hash.h"
 #include "nemo_iterator.h"
-#include "utilities/util.h"
+#include "util.h"
 #include "xdebug.h"
 
 using namespace nemo;

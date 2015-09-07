@@ -1,14 +1,13 @@
 #ifndef NEMO_INCLUDE_NEMO_SET_H_
 #define NEMO_INCLUDE_NEMO_SET_H_
 
-#include "nemo.h"
-#include "nemo_const.h"
-#include "utilities/decoder.h"
-//#include "utilities/util.h"
 #include <stdint.h>
 
-namespace nemo {
+#include "nemo.h"
+#include "nemo_const.h"
+#include "decoder.h"
 
+namespace nemo {
 
 inline std::string EncodeSetKey(const rocksdb::Slice &key, const rocksdb::Slice &member) {
     std::string buf;

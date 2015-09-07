@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -Wall -DDEBUG -g -O0 -std=c++11 -D__XDEBUG__
 
-OBJECT = main
+OBJECT = main test
 
 LIB_PATH = -L../output/lib/
 
@@ -23,6 +23,9 @@ all: $(OBJECT)
 	@echo "Success, go, go, go..."
 
 main: main.o
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
+
+test: test.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
 
 $(OBJS): %.o : %.cc

@@ -1,6 +1,6 @@
 #include "nemo.h"
 #include "nemo_list.h"
-#include "utilities/util.h"
+#include "util.h"
 #include "xdebug.h"
 using namespace nemo;
 

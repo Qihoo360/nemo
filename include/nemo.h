@@ -1,8 +1,10 @@
 #ifndef NEMO_INCLUDE_NEMO_H_
 #define NEMO_INCLUDE_NEMO_H_
 
-#include "nemo_mutex.h"
 #include "rocksdb/db.h"
+#include "rocksdb/utilities/db_ttl.h"
+
+#include "nemo_mutex.h"
 #include "nemo_iterator.h"
 #include "nemo_const.h"
 #include "nemo_options.h"
@@ -24,7 +26,7 @@ public:
 
     // =================KV=====================
 
-    Status Set(const std::string &key, const std::string &val);
+    Status Set(const std::string &key, const std::string &val, const int32_t ttl = 0);
     Status Get(const std::string &key, std::string *val);
     Status Del(const std::string &key);
     Status MSet(const std::vector<KV> &kvs);
@@ -36,6 +38,10 @@ public:
     Status GetSet(const std::string &key, const std::string &new_val, std::string *old_val);
     Status Append(const std::string &key, const std::string &value, int64_t *new_len);
     KIterator* Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
+    Status TTL(const std::string &key, int64_t *res);
+    Status Persist(const std::string &key, int64_t *res);
+    Status Expire(const std::string &key, const int32_t seconds, int64_t *res);
+    Status Expireat(const std::string &key, const int32_t timestamp, int64_t *res);
 
     // ==============HASH=====================
     Status HSet(const std::string &key, const std::string &field, const std::string &val);
@@ -103,7 +109,7 @@ private:
 
     std::string db_path_;
     rocksdb::Options open_options_;
-    std::unique_ptr<rocksdb::DB> kv_db_;
+    std::unique_ptr<rocksdb::DBWithTTL> kv_db_;
     std::unique_ptr<rocksdb::DB> hash_db_;
     std::unique_ptr<rocksdb::DB> list_db_;
     std::unique_ptr<rocksdb::DB> zset_db_;

@@ -1,11 +1,11 @@
 #ifndef NEMO_INCLUDE_NEMO_LIST_H_
 #define NEMO_INCLUDE_NEMO_LIST_H_
 
+#include <stdint.h>
+
 #include "nemo.h"
 #include "nemo_const.h"
-#include "utilities/decoder.h"
-//#include "utilities/util.h"
-#include <stdint.h>
+#include "decoder.h"
 
 namespace nemo {
 

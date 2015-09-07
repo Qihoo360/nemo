@@ -18,7 +18,7 @@
 #include <string>
 #include <algorithm>
 
-#include "utilities/util.h"
+#include "util.h"
 
 namespace nemo {
 

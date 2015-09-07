@@ -18,9 +18,7 @@ ROCKSDB_PATH = ./3rdparty/rocksdb/
 
 
 INCLUDE_PATH = -I./include/ \
-			   -I$(ROCKSDB_PATH)/include/ \
-			   -I$(ROCKSDB_PATH)/include/rocksdb \
-			   -I./src/
+			   -I$(ROCKSDB_PATH)/include/
 
 LIBRARY = libnemo.a
 
@@ -44,8 +42,8 @@ $(LIBRARY): $(OBJS)
 	mkdir $(OUTPUT)/lib
 	rm -rf $@
 	ar -rcs $@ $(OBJS)
-	cp -rf $(ROCKSDB_PATH)/include/* ./include/
-	cp -rf ./include $(OUTPUT)/
+	cp -rf $(ROCKSDB_PATH)/include/* $(OUTPUT)/include
+	cp -rf ./include/* $(OUTPUT)/include
 	mv ./libnemo.a $(OUTPUT)/lib/
 	cp $(ROCKSDB_PATH)/librocksdb.a $(OUTPUT)/lib
 	make -C example
@@ -63,7 +61,6 @@ clean:
 #	make -C $(ROCKSDB_PATH) clean
 	make -C example clean
 	rm -rf $(SRC_DIR)/*.o
-	rm -rf $(OUTPUT)/*
 	rm -rf $(OUTPUT)
 	rm -rf $(LIBRARY)
 	rm -rf $(OBJECT)
