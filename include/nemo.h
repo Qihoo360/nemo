@@ -35,6 +35,8 @@ public:
     Status Incrbyfloat(const std::string &key, double by, std::string &new_val);
     Status GetSet(const std::string &key, const std::string &new_val, std::string *old_val);
     Status Append(const std::string &key, const std::string &value, int64_t *new_len);
+    Status Setnx(const std::string &key, const std::string &value, int32_t *ret);
+    Status MSetnx(const std::vector<KV> &kvs, int32_t *ret);
     KIterator* Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
 
     // ==============HASH=====================
