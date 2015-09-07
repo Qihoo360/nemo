@@ -34,6 +34,7 @@ public:
     Status Decrby(const std::string &key, int64_t by, std::string &new_val);
     Status Incrbyfloat(const std::string &key, double by, std::string &new_val);
     Status GetSet(const std::string &key, const std::string &new_val, std::string *old_val);
+    Status Append(const std::string &key, const std::string &value, int64_t *new_len);
     KIterator* Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
 
     // ==============HASH=====================

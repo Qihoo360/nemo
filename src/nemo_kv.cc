@@ -143,6 +143,23 @@ Status Nemo::GetSet(const std::string &key, const std::string &new_val, std::str
     }
 }
 
+Status Nemo::Append(const std::string &key, const std::string &value, int64_t *new_len) {
+    Status s;
+    *new_len = 0;
+    std::string old_val;
+    MutexLock l(&mutex_kv_);
+    s = kv_db_->Get(rocksdb::ReadOptions(), key, &old_val);
+    if (s.ok()) {
+        std::string new_val = old_val.append(value);
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val); 
+        *new_len = new_val.length();
+    } else if (s.IsNotFound()) {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, value); 
+        *new_len = value.length();
+    }
+    return s;
+}
+
 KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot) {
     std::string key_end;
     if (end.empty()) {
