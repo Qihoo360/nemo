@@ -165,6 +165,16 @@ int main()
     log_info("");
 
     /*
+     *  Test Getrange
+     */
+    log_info("======Test Getrange======");
+    s = n->Set("tGetrangekey", "abcd");
+    std::string substr;
+    s = n->Getrange("tGetrangekey", 0, -1, substr);
+    log_info("substr: %s", substr.c_str());
+
+    
+    /*
      *  Test Scan
      */
     log_info("======Test Scan======");

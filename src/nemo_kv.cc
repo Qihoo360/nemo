@@ -160,7 +160,7 @@ Status Nemo::Append(const std::string &key, const std::string &value, int64_t *n
     return s;
 }
 
-Status Nemo::Setnx(const std::string &key, const std::string &value, int32_t *ret) {
+Status Nemo::Setnx(const std::string &key, const std::string &value, int64_t *ret) {
     *ret = 0;
     std::string val;
     MutexLock l(&mutex_kv_);
@@ -172,7 +172,7 @@ Status Nemo::Setnx(const std::string &key, const std::string &value, int32_t *re
     return s;
 }
 
-Status Nemo::MSetnx(const std::vector<KV> &kvs, int32_t *ret) {
+Status Nemo::MSetnx(const std::vector<KV> &kvs, int64_t *ret) {
     Status s;
     std::vector<KV>::const_iterator it;
     rocksdb::WriteBatch batch;
@@ -188,6 +188,28 @@ Status Nemo::MSetnx(const std::vector<KV> &kvs, int32_t *ret) {
     }
     if (*ret == 1) {
         s = kv_db_->Write(rocksdb::WriteOptions(), &(batch));
+    }
+    return s;
+}
+
+Status Nemo::Getrange(const std::string key, int64_t start, int64_t end, std::string &substr) {
+    substr = "";
+    std::string val;
+    Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
+    if (s.ok()) {
+        int64_t size = val.length();
+        int64_t start_t = start >= 0 ? start : size + start;
+        int64_t end_t = end >= 0 ? end : size + end;
+        if (start_t > end_t || start_t > size -1 || end_t < 0) {
+            return Status::OK();
+        }
+        if (start_t < 0) {
+            start_t  = 0;
+        }
+        if (end_t >= size) {
+            end_t = size - 1;
+        }
+        substr = val.substr(start_t, end_t-start_t+1);
     }
     return s;
 }

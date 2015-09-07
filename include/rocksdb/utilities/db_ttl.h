@@ -50,8 +50,19 @@ class DBWithTTL : public StackableDB {
       const ColumnFamilyOptions& options, const std::string& column_family_name,
       ColumnFamilyHandle** handle, int ttl) = 0;
 
+  static Status OpenWithKeyTTL(const Options& options, const std::string& dbname,
+                     DBWithTTL** dbptr);
+
+  Status GetKeyTTL(const ReadOptions& options, const Slice& key, int32_t *ttl);
+
+  Status PutWithKeyTTL(const WriteOptions& options, const Slice& key, const Slice& val, int32_t ttl = 0);
+  Status WriteWithKeyTTL(const WriteOptions& opts, WriteBatch* updates, int32_t ttl);
+  Status PutWithExpiredTime(const WriteOptions& options, const Slice& key, const Slice& val, int32_t expired_time);
+  Status WriteWithExpiredTime(const WriteOptions& opts, WriteBatch* updates, int32_t expired_time);
+
+
   static Status Open(const Options& options, const std::string& dbname,
-                     DBWithTTL** dbptr, int32_t ttl = 0,
+                     DBWithTTL** dbptr, int32_t ttl = kMaxTTL,
                      bool read_only = false);
 
   static Status Open(const DBOptions& db_options, const std::string& dbname,
@@ -62,6 +73,7 @@ class DBWithTTL : public StackableDB {
 
  protected:
   explicit DBWithTTL(DB* db) : StackableDB(db) {}
+  static const int32_t kMaxTTL = 21 * 365 * 24 * 3600;
 };
 
 }  // namespace rocksdb
