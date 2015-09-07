@@ -164,6 +164,72 @@ Status Nemo::Append(const std::string &key, const std::string &value, int64_t *n
     return s;
 }
 
+Status Nemo::Setnx(const std::string &key, const std::string &value, int64_t *ret) {
+    *ret = 0;
+    std::string val;
+    MutexLock l(&mutex_kv_);
+    Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
+    if (s.IsNotFound()) {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, value);
+        *ret = 1;
+    }
+    return s;
+}
+
+Status Nemo::MSetnx(const std::vector<KV> &kvs, int64_t *ret) {
+    Status s;
+    std::vector<KV>::const_iterator it;
+    rocksdb::WriteBatch batch;
+    std::string val;
+    *ret = 1;
+    for (it = kvs.begin(); it != kvs.end(); it++) {
+        s = kv_db_->Get(rocksdb::ReadOptions(), it->key, &val);
+        if (s.ok()) {
+            *ret = 0;
+            break;
+        }
+        batch.Put(it->key, it->val); 
+    }
+    if (*ret == 1) {
+        s = kv_db_->Write(rocksdb::WriteOptions(), &(batch));
+    }
+    return s;
+}
+
+Status Nemo::Getrange(const std::string key, int64_t start, int64_t end, std::string &substr) {
+    substr = "";
+    std::string val;
+    Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
+    if (s.ok()) {
+        int64_t size = val.length();
+        int64_t start_t = start >= 0 ? start : size + start;
+        int64_t end_t = end >= 0 ? end : size + end;
+        if (start_t > end_t || start_t > size -1 || end_t < 0) {
+            return Status::OK();
+        }
+        if (start_t < 0) {
+            start_t  = 0;
+        }
+        if (end_t >= size) {
+            end_t = size - 1;
+        }
+        substr = val.substr(start_t, end_t-start_t+1);
+    }
+    return s;
+}
+
+Status Nemo::Strlen(const std::string &key, int64_t *len) {
+    Status s;
+    std::string val;
+    s = Get(key, &val);
+    if (s.ok()) {
+        *len = val.length();
+    } else if (s.IsNotFound()) {
+        *len = 0;
+    }
+    return s;
+}
+
 KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot) {
     std::string key_end;
     if (end.empty()) {
