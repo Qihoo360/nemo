@@ -82,7 +82,13 @@ Status Nemo::Incrby(const std::string &key, int64_t by, std::string &new_val) {
     } else {
         return Status::Corruption("Get error");
     }
-    s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
+    int64_t ttl;
+    s = TTL(key, &ttl);
+    if (ttl) {
+        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+    } else {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
+    }
     return s;
 }
 
@@ -102,7 +108,13 @@ Status Nemo::Decrby(const std::string &key, int64_t by, std::string &new_val) {
     } else {
         return Status::Corruption("Get error");
     }
-    s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
+    int64_t ttl;
+    s = TTL(key, &ttl);
+    if (ttl) {
+        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+    } else {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
+    }
     return s;
 }
 
@@ -129,7 +141,13 @@ Status Nemo::Incrbyfloat(const std::string &key, double by, std::string &new_val
     if (new_val[new_val.size()-1] == '.') {
         new_val = new_val.substr(0, new_val.size()-1);
     }
-    s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
+    int64_t ttl;
+    s = TTL(key, &ttl);
+    if (ttl) {
+        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+    } else {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
+    }
     return s;
 }
 
@@ -164,13 +182,33 @@ Status Nemo::Append(const std::string &key, const std::string &value, int64_t *n
     return s;
 }
 
-Status Nemo::Setnx(const std::string &key, const std::string &value, int64_t *ret) {
+Status Nemo::Setnx(const std::string &key, const std::string &value, int64_t *ret, const int32_t ttl) {
     *ret = 0;
     std::string val;
     MutexLock l(&mutex_kv_);
     Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
-        s = kv_db_->Put(rocksdb::WriteOptions(), key, value);
+        if (ttl <= 0) {
+            s = kv_db_->Put(rocksdb::WriteOptions(), key, value);
+        } else {
+            s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, value, ttl);
+        }
+        *ret = 1;
+    }
+    return s;
+}
+
+Status Nemo::Setxx(const std::string &key, const std::string &value, int64_t *ret, const int32_t ttl) {
+    *ret = 0;
+    std::string val;
+    MutexLock l(&mutex_kv_);
+    Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
+    if (s.ok()) {
+        if (ttl <= 0) {
+            s = kv_db_->Put(rocksdb::WriteOptions(), key, value);
+        } else {
+            s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, value, ttl);
+        }
         *ret = 1;
     }
     return s;

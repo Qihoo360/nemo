@@ -48,7 +48,7 @@ int main()
         log_info("          Set with ttl after %ds, return %s", (i+1)*3, s.ToString().c_str());
         if (s.ok()) {
             n->TTL("tSetKeyWithTTL", &ttl);
-            log_info("          new TTL is %lld, Get res:%s\n", ttl, res.c_str());
+            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
         }
     }
     log_info("");
@@ -67,6 +67,16 @@ int main()
     log_info("");
 
     /*
+     *  Test Setxx
+     */
+    log_info("======Test Setxx======");
+    s = n->Del("a");
+    int64_t xx_ret;
+    s = n->Setxx("a", "b", &xx_ret);
+    log_info("Test Setxx OK return %s, retval: %ld", s.ToString().c_str(), xx_ret);
+    s = n->Get("a", &res);
+    log_info("After setxx, Get return %s, result res = %s", s.ToString().c_str(), res.c_str());
+    /*
      *  Test Expire 
      */
     int64_t e_ret;
@@ -80,7 +90,7 @@ int main()
         log_info("          after %ds, return %s", (i+1)*3, s.ToString().c_str());
         if (s.ok()) {
             n->TTL("tSetKey", &ttl);
-            log_info("          new TTL is %lld, Get res:%s\n", ttl, res.c_str());
+            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
         }
     }
     log_info("");
@@ -94,7 +104,7 @@ int main()
 
     std::time_t t = std::time(0);
     s = n->Expireat("tSetKey", t + 8, &e_ret);
-    log_info("Test Expireat with key=tSetKey at timestamp=%d in 8s, return %s", (t+8), s.ToString().c_str());
+    log_info("Test Expireat with key=tSetKey at timestamp=%ld in 8s, return %s", (t+8), s.ToString().c_str());
 
     for (int i = 0; i < 3; i++) {
         sleep(3);
@@ -102,7 +112,7 @@ int main()
         log_info("          after %ds, return %s", (i+1)*3, s.ToString().c_str());
         if (s.ok()) {
             n->TTL("tSetKey", &ttl);
-            log_info("          new TTL is %lld, Get res:%s\n", ttl, res.c_str());
+            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
         }
     }
     log_info("");
@@ -126,7 +136,7 @@ int main()
         log_info("          after %ds, return %s", (i+1)*3, s.ToString().c_str());
         if (s.ok()) {
             n->TTL("tSetKey", &ttl);
-            log_info("          new TTL is %d, Get res:%s\n", ttl, res.c_str());
+            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
         }
     }
     log_info("");
@@ -1093,7 +1103,7 @@ int main()
     log_info("");
 
     s = n->SRem("setKey", "member2", &srem_res);
-    log_info("Test SRem with nonexist member return %s, rem_res is %lld expect [member1, member3]", s.ToString().c_str(), srem_res);
+    log_info("Test SRem with nonexist member return %s, rem_res is %ld expect [member1, member3]", s.ToString().c_str(), srem_res);
     values.clear();
     s = n->SMembers("setKey", values);
     for (smit = values.begin(); smit != values.end(); smit++) {
