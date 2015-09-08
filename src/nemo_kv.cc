@@ -82,7 +82,13 @@ Status Nemo::Incrby(const std::string &key, int64_t by, std::string &new_val) {
     } else {
         return Status::Corruption("Get error");
     }
-    s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
+    int64_t ttl;
+    s = TTL(key, &ttl);
+    if (ttl) {
+        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+    } else {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
+    }
     return s;
 }
 
@@ -102,7 +108,13 @@ Status Nemo::Decrby(const std::string &key, int64_t by, std::string &new_val) {
     } else {
         return Status::Corruption("Get error");
     }
-    s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
+    int64_t ttl;
+    s = TTL(key, &ttl);
+    if (ttl) {
+        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+    } else {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
+    }
     return s;
 }
 
@@ -129,7 +141,13 @@ Status Nemo::Incrbyfloat(const std::string &key, double by, std::string &new_val
     if (new_val[new_val.size()-1] == '.') {
         new_val = new_val.substr(0, new_val.size()-1);
     }
-    s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
+    int64_t ttl;
+    s = TTL(key, &ttl);
+    if (ttl) {
+        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+    } else {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
+    }
     return s;
 }
 
