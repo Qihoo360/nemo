@@ -69,7 +69,7 @@ Status Nemo::MGet(const std::vector<std::string> &keys, std::vector<KVS> &kvss) 
     return Status::OK();
 }
 
-Status Nemo::Incrby(const std::string &key, int64_t by, std::string &new_val) {
+Status Nemo::Incrby(const std::string &key, const int64_t by, std::string &new_val) {
     Status s;
     std::string val;
     MutexLock l(&mutex_kv_);
@@ -95,7 +95,7 @@ Status Nemo::Incrby(const std::string &key, int64_t by, std::string &new_val) {
     return s;
 }
 
-Status Nemo::Decrby(const std::string &key, int64_t by, std::string &new_val) {
+Status Nemo::Decrby(const std::string &key, const int64_t by, std::string &new_val) {
     Status s;
     std::string val;
     MutexLock l(&mutex_kv_);
@@ -121,7 +121,7 @@ Status Nemo::Decrby(const std::string &key, int64_t by, std::string &new_val) {
     return s;
 }
 
-Status Nemo::Incrbyfloat(const std::string &key, double by, std::string &new_val) {
+Status Nemo::Incrbyfloat(const std::string &key, const double by, std::string &new_val) {
     Status s;
     std::string val;
     std::string res;
@@ -237,7 +237,7 @@ Status Nemo::MSetnx(const std::vector<KV> &kvs, int64_t *ret) {
     return s;
 }
 
-Status Nemo::Getrange(const std::string key, int64_t start, int64_t end, std::string &substr) {
+Status Nemo::Getrange(const std::string key, const int64_t start, const int64_t end, std::string &substr) {
     substr = "";
     std::string val;
     Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
@@ -255,6 +255,41 @@ Status Nemo::Getrange(const std::string key, int64_t start, int64_t end, std::st
             end_t = size - 1;
         }
         substr = val.substr(start_t, end_t-start_t+1);
+    }
+    return s;
+}
+
+Status Nemo::Setrange(const std::string key, const int64_t offset, const std::string &value, int64_t *len) {
+    std::string val;
+    std::string new_val;
+    if (offset < 0) {
+        return Status::Corruption("offset < 0");
+    }
+    Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
+    if (s.ok()) {
+        if ((size_t)offset > val.length()) {
+            val.resize(offset);
+            new_val = val.append(value);
+        } else {
+            std::string head = val.substr(0, offset);
+            std::string tail;
+            if (offset + value.length() - 1 < val.length() -1 ) {
+                tail = val.substr(offset+value.length());
+            }
+            new_val = head + value + tail;
+        }
+        *len = new_val.length();
+    } else if (s.IsNotFound()) {
+        std::string tmp(offset, '\0');
+        new_val = tmp.append(value);
+        *len = new_val.length();
+    }
+    int64_t ttl;
+    s = TTL(key, &ttl);
+    if (ttl) {
+        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+    } else {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
     }
     return s;
 }

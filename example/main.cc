@@ -27,6 +27,17 @@ int main()
     std::vector<SM> sms;
 
     /*
+     *  Test Setrange
+     */
+    log_info("======Test Setrange======");
+    s = n->Set("tSetRangeKey", "abcd");
+    int64_t sr_len;
+    s = n->Setrange("tSetRangeKey", 6, "123", &sr_len);
+    std::string sr_val;
+    s = n->Get("tSetRangeKey", &sr_val);
+    log_info("After Setrange, val = %s, new_len = %ld", sr_val.c_str(), sr_len);
+    s = n->Del("tSetRangeKey");
+    /*
      *  Test Set
      */
     log_info("======Test Set======");
