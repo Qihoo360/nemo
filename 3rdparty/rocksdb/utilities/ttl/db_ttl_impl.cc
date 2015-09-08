@@ -128,23 +128,26 @@ Status DBWithTTLImpl::CreateColumnFamily(const ColumnFamilyOptions& options,
   return CreateColumnFamilyWithTtl(options, column_family_name, handle, 0);
 }
 
-// Get the current ttl  
+// Get the remained ttl accroding to the current timestamp and parameter
+// -1 means never timeout, we treat get current time
 int32_t DBWithTTLImpl::GetTTLFromNow(const Slice& value, int32_t ttl, Env* env) {
-  
+
+  int32_t timestamp_value =
+      DecodeFixed32(value.data() + value.size() - kTSLength);
+  if (timestamp_value == 0) {
+      return -1;
+  }
+
   int64_t curtime;
   if (!env->GetCurrentTime(&curtime).ok()) {
     return -1;
   }
-  int32_t timestamp_value =
-      DecodeFixed32(value.data() + value.size() - kTSLength);
-  
-  int32_t ttl_from_now = timestamp_value + ttl - curtime;
-  if (ttl_from_now >= 0)
-    return ttl_from_now;
-  else
-    return 0;
+
+  int32_t ttl_from_now = ttl - (curtime - timestamp_value);
+  return ttl_from_now >= 0 ? ttl_from_now : 0;
 }
 
+// Get TTL, -1 means live forever
 Status DBWithTTL::GetKeyTTL(const ReadOptions& options, const Slice& key, int32_t *ttl) {
     std::string value;
     Status st = db_->Get(options, db_->DefaultColumnFamily(), key, &value);
@@ -167,7 +170,6 @@ Status DBWithTTL::GetKeyTTL(const ReadOptions& options, const Slice& key, int32_
 }
 
 
-
 // Appends the current timestamp to the string.
 // Returns false if could not get the current_time, true if append succeeds
 Status DBWithTTLImpl::AppendTS(const Slice& val, std::string* val_with_ts,
@@ -185,19 +187,25 @@ Status DBWithTTLImpl::AppendTS(const Slice& val, std::string* val_with_ts,
   return st;
 }
 
+// Appends the caculated timestamp which equals to current timstamp add ttl.
+// If ttl is non-positive, timestamp is 0 which means never timeout
 Status DBWithTTLImpl::AppendTSWithKeyTTL(const Slice& val, std::string* val_with_ts,
                                Env* env, int32_t ttl) {
   val_with_ts->reserve(kTSLength + val.size());
   char ts_string[kTSLength];
-  int64_t curtime;
-  Status st = env->GetCurrentTime(&curtime);
-  if (!st.ok()) {
-    return st;
+  if (ttl <= 0) {
+    EncodeFixed32(ts_string, 0);
+  } else {
+    int64_t curtime;
+    Status st = env->GetCurrentTime(&curtime);
+    if (!st.ok()) {
+        return st;
+    }
+    EncodeFixed32(ts_string, (int32_t)(curtime+ttl-1));
   }
-  EncodeFixed32(ts_string, (int32_t)(curtime+ttl-1));
   val_with_ts->append(val.data(), val.size());
   val_with_ts->append(ts_string, kTSLength);
-  return st;
+  return Status::OK();
 }
 
 Status DBWithTTLImpl::AppendTSWithExpiredTime(const Slice& val, std::string* val_with_ts,
@@ -217,9 +225,10 @@ Status DBWithTTLImpl::SanityCheckTimestamp(const Slice& str) {
     return Status::Corruption("Error: value's length less than timestamp's\n");
   }
   // Checks that TS is not lesser than kMinTimestamp
+  // 0 means never timeout.
   // Gaurds against corruption & normal database opened incorrectly in ttl mode
   int32_t timestamp_value = DecodeFixed32(str.data() + str.size() - kTSLength);
-  if (timestamp_value < kMinTimestamp) {
+  if (timestamp_value != 0 && timestamp_value < kMinTimestamp) {
     return Status::Corruption("Error: Timestamp < ttl feature release time!\n");
   }
   return Status::OK();
@@ -234,8 +243,10 @@ bool DBWithTTLImpl::IsStale(const Slice& value, int32_t ttl, Env* env) {
   if (!env->GetCurrentTime(&curtime).ok()) {
     return false;  // Treat the data as fresh if could not get current time
   }
-  int32_t timestamp_value =
-      DecodeFixed32(value.data() + value.size() - kTSLength);
+  int32_t timestamp_value = DecodeFixed32(value.data() + value.size() - kTSLength);
+  if (timestamp_value == 0) { // 0 means fresh
+      return false;
+  }
   return timestamp_value < curtime - ttl;
 }
 
@@ -250,7 +261,8 @@ Status DBWithTTLImpl::StripTS(std::string* str) {
   return st;
 }
 
-// We treat Put as live forever (use a big TTL value)
+// We treat Put as live forever,
+// We will use 0 as a special TTL value and special appended TS
 Status DBWithTTLImpl::Put(const WriteOptions& options,
                           ColumnFamilyHandle* column_family, const Slice& key,
                           const Slice& val) {
@@ -259,7 +271,7 @@ Status DBWithTTLImpl::Put(const WriteOptions& options,
   return WriteWithKeyTTL(options, &batch, ttl_);
 }
 
-// PutWithKeyTTL should use a positive TTL, the default value is timeout immediatly
+// PutWithKeyTTL should use a positive TTL
 Status DBWithTTL::PutWithKeyTTL(const WriteOptions& options, const Slice& key, const Slice& val, int32_t ttl) {
   WriteBatch batch;
   batch.Put(db_->DefaultColumnFamily(), key, val);

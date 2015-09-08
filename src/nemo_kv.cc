@@ -272,13 +272,7 @@ Status Nemo::TTL(const std::string &key, int64_t *res) {
     } else if (s.ok()) {
         int32_t ttl;
         s = kv_db_->GetKeyTTL(rocksdb::ReadOptions(), key, &ttl);
-        if (s.ok()) {
-            if (ttl > 1 * 365 * 24 * 3600) {
-                *res = -1;
-            } else {
-                *res = ttl;
-            }
-        }
+        *res = ttl;
     }
     return s;
 }
