@@ -117,6 +117,16 @@ int main()
     }
     log_info("");
 
+    s = n->Set("tSetKey", "tSetVal");
+    s = n->Expireat("tSetKey", 8, &e_ret);
+    log_info("Test Expireat with key=tSetKey at a passed timestamp=8, return %s", s.ToString().c_str());
+    s = n->Get("tSetKey", &res);
+    log_info("          Get a invalid key return %s, expect ok",  s.ToString().c_str());
+    if (s.IsNotFound()) {
+        n->TTL("tSetKey", &ttl);
+        log_info("          NotFound key's TTL is %ld, Get res:%s\n", ttl, res.c_str());
+    }
+    log_info("");
 
     /*
      *  Test Persist 

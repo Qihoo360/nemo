@@ -1,7 +1,10 @@
+#include <ctime>
+
 #include "nemo.h"
 #include "nemo_iterator.h"
 #include "util.h"
 #include "xdebug.h"
+
 using namespace nemo;
 
 Status Nemo::Set(const std::string &key, const std::string &val, const int32_t ttl) {
@@ -340,7 +343,12 @@ Status Nemo::Expireat(const std::string &key, const int32_t timestamp, int64_t *
     if (s.IsNotFound()) {
         *res = 0;
     } else if (s.ok()) {
-        s = kv_db_->PutWithExpiredTime(rocksdb::WriteOptions(), key, val, timestamp);
+        std::time_t cur = std::time(0);
+        if (timestamp <= cur) {
+            s = kv_db_->Delete(rocksdb::WriteOptions(), key);
+        } else {
+            s = kv_db_->PutWithExpiredTime(rocksdb::WriteOptions(), key, val, timestamp);
+        }
         *res = 1;
     }
     return s;
