@@ -294,7 +294,11 @@ Status Nemo::Expire(const std::string &key, const int32_t seconds, int64_t *res)
     if (s.IsNotFound()) {
         *res = 0;
     } else if (s.ok()) {
-        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, val, seconds);
+        if (seconds > 0) {
+            s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, val, seconds);
+        } else { 
+            s = kv_db_->Delete(rocksdb::WriteOptions(), key);
+        }
         *res = 1;
     }
     return s;
