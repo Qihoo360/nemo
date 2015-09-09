@@ -49,6 +49,9 @@ public:
     Status Expire(const std::string &key, const int32_t seconds, int64_t *res);
     Status Expireat(const std::string &key, const int32_t timestamp, int64_t *res);
 
+    // used only for bada_kv
+    Status SetWithExpireAt(const std::string &key, const std::string &val, const int32_t timestamp = 0);
+
     // ==============HASH=====================
     Status HSet(const std::string &key, const std::string &field, const std::string &val);
     Status HGet(const std::string &key, const std::string &field, std::string *val);

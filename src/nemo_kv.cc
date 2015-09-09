@@ -392,3 +392,15 @@ Status Nemo::Expireat(const std::string &key, const int32_t timestamp, int64_t *
     }
     return s;
 }
+
+// we don't check timestamp here
+Status Nemo::SetWithExpireAt(const std::string &key, const std::string &val, const int32_t timestamp) {
+    //std::time_t cur = std::time(0);
+    Status s;
+    if (timestamp <= 0) {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, val);
+    } else {
+        s = kv_db_->PutWithExpiredTime(rocksdb::WriteOptions(), key, val, timestamp);
+    }
+    return s;
+}
