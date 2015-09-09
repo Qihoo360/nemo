@@ -364,8 +364,12 @@ Status Nemo::Persist(const std::string &key, int64_t *res) {
     *res = 0;
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.ok()) {
-        s = kv_db_->Put(rocksdb::WriteOptions(), key, val);
-        *res = 1;
+        int32_t ttl;
+        s = kv_db_->GetKeyTTL(rocksdb::ReadOptions(), key, &ttl);
+        if (ttl >= 0) {
+            s = kv_db_->Put(rocksdb::WriteOptions(), key, val);
+            *res = 1;
+        }
     }
     return s;
 }
