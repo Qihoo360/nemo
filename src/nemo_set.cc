@@ -116,3 +116,136 @@ Status Nemo::SMembers(const std::string &key, std::vector<std::string> &members)
     delete iter;
     return Status::OK();
 }
+
+Status Nemo::SUnion(const std::vector<std::string> &keys, std::vector<std::string>& members) {
+    std::map<std::string, bool> result_flag;
+    
+    for (int i = 0; i < (int)keys.size(); i++) {
+        SIterator *iter = SScan(keys[i], -1, true);
+        
+        while (iter->Next()) {
+            std::string member = iter->Member();
+            if (result_flag.find(member) == result_flag.end()) {
+                members.push_back(member);
+                result_flag[member] = 1;
+            }
+        }
+        delete iter;
+    }
+    return Status::OK();
+}
+
+Status Nemo::SUnionStore(const std::string &destination, const std::vector<std::string> &keys, int64_t *res) {
+    int numkey = keys.size();
+    if (numkey <= 0) {
+        return Status::Corruption("SInter invalid parameter, no keys");
+    } else {   // we don't care that destination is one of the keys.
+        Status s;
+        int64_t res;
+        if (SCard(destination) > 0) {
+            SIterator *iter = SScan(destination, -1, true);
+            while (iter->Next()) {
+                s = SRem(destination, iter->Member(), &res);
+                if (!s.ok()) {
+                    delete iter;
+                    return s;
+                }
+            }
+            delete iter;
+        }
+    }
+
+    for (int i = 0; i < numkey; i++) {
+        SIterator *iter = SScan(keys[i], -1, true);
+        
+        while (iter->Next()) {
+            int64_t add_res;
+            Status s = SAdd(destination, iter->Member(), &add_res);
+            if (!s.ok()) {
+                delete iter;
+                return s;
+            }
+        }
+        delete iter;
+    }
+    *res = SCard(destination);
+    return Status::OK();
+}
+
+bool Nemo::SIsMember(const std::string &key, const std::string &member) {
+    std::string val;
+
+    std::string set_key = EncodeSetKey(key, member);
+    Status s = set_db_->Get(rocksdb::ReadOptions(), set_key, &val);
+
+    return s.ok();
+}
+
+Status Nemo::SInter(const std::vector<std::string> &keys, std::vector<std::string>& members) {
+    int numkey = keys.size();
+    if (numkey <= 0) {
+        return Status::Corruption("SInter invalid parameter, no keys");
+    }
+
+    SIterator *iter = SScan(keys[0], -1, true);
+    
+    while (iter->Next()) {
+        int i = 1;
+        std::string member = iter->Member();
+        for (; i < numkey; i++) {
+            if (!SIsMember(keys[i], member)) {
+                break;
+            }
+        }
+        if (i >= numkey) {
+            members.push_back(member);
+        }
+    }
+    delete iter;
+    return Status::OK();
+}
+
+Status Nemo::SInterStore(const std::string &destination, const std::vector<std::string> &keys, int64_t *res) {
+    int numkey = keys.size();
+    if (numkey <= 0) {
+        return Status::Corruption("SInter invalid parameter, no keys");
+    } else {   // we don't care that destination is one of the keys.
+        Status s;
+        int64_t res;
+        if (SCard(destination) > 0) {
+            SIterator *iter = SScan(destination, -1, true);
+            while (iter->Next()) {
+                s = SRem(destination, iter->Member(), &res);
+                if (!s.ok()) {
+                    delete iter;
+                    return s;
+                }
+            }
+            delete iter;
+        }
+    }
+
+    Status s;
+    SIterator *iter = SScan(keys[0], -1, true);
+    
+    while (iter->Next()) {
+        int i = 1;
+        int64_t add_res;
+        std::string member = iter->Member();
+        for (; i < numkey; i++) {
+            if (!SIsMember(keys[i], member)) {
+                break;
+            }
+        }
+        if (i >= numkey) {
+            s = SAdd(destination, member, &add_res);
+            if (!s.ok()) {
+                delete iter;
+                return s;
+            }
+        }
+    }
+    *res = SCard(destination);
+    delete iter;
+    return Status::OK();
+}

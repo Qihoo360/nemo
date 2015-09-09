@@ -113,6 +113,11 @@ public:
     int64_t SCard(const std::string &key);
     SIterator* SScan(const std::string &key, uint64_t limit, bool use_snapshot = false);
     Status SMembers(const std::string &key, std::vector<std::string> &vals);
+    Status SUnionStore(const std::string &destination, const std::vector<std::string> &keys, int64_t *res);
+    Status SUnion(const std::vector<std::string> &keys, std::vector<std::string>& members);
+    Status SInterStore(const std::string &destination, const std::vector<std::string> &keys, int64_t *res);
+    Status SInter(const std::vector<std::string> &keys, std::vector<std::string>& members);
+    bool SIsMember(const std::string &key, const std::string &member);
 
 private:
 
