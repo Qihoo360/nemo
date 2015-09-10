@@ -1109,6 +1109,113 @@ int main()
     log_info("");
 
     /*
+     *  Test SUnion
+     */
+    log_info("======Test SUnion======");
+    s = n->SAdd("unionKey1", "member1", &sadd_res);
+    s = n->SAdd("unionKey1", "member2", &sadd_res);
+    s = n->SAdd("unionKey1", "member3", &sadd_res);
+
+    s = n->SAdd("unionKey2", "member21", &sadd_res);
+    s = n->SAdd("unionKey2", "member2", &sadd_res);
+
+    keys.clear();
+    keys.push_back("unionKey1");
+    keys.push_back("unionKey2");
+    values.clear();
+    s = n->SUnion(keys, values);
+    log_info("Test SUnion[key1, key2] return %s, expect [member1, member2, member21, member3]", s.ToString().c_str());
+    std::vector<std::string>::iterator suit;
+    for (suit = values.begin(); suit != values.end(); suit++) {
+        log_info("Test SUnion member: %s", suit->c_str());
+    }
+    log_info("");
+
+    /*
+     *  Test SUnionStore
+     */
+    log_info("======Test SUnionStore======");
+    s = n->SAdd("unionKey1", "member1", &sadd_res);
+    s = n->SAdd("unionKey1", "member2", &sadd_res);
+    s = n->SAdd("unionKey1", "member3", &sadd_res);
+
+    s = n->SAdd("unionKey2", "member21", &sadd_res);
+    s = n->SAdd("unionKey2", "member2", &sadd_res);
+
+    keys.clear();
+    keys.push_back("unionKey1");
+    keys.push_back("unionKey2");
+    std::string dest = "dest";
+
+    int64_t sus_res;
+    s = n->SUnionStore(dest, keys, &sus_res);
+    log_info("Test SUnionStore[dest, key1, key2] return %s, card is %lld, expect [member1, member2, member21, member3]", s.ToString().c_str(), sus_res);
+
+    values.clear();
+    s = n->SMembers(dest, values);
+    for (suit = values.begin(); suit != values.end(); suit++) {
+        log_info("Test SUnionStore member: %s", suit->c_str());
+    }
+    log_info("");
+
+    /*
+     *  Test SInter
+     */
+    log_info("======Test SInter======");
+    s = n->SAdd("unionKey1", "member1", &sadd_res);
+    s = n->SAdd("unionKey1", "member2", &sadd_res);
+    s = n->SAdd("unionKey1", "member3", &sadd_res);
+
+    s = n->SAdd("unionKey2", "member21", &sadd_res);
+    s = n->SAdd("unionKey2", "member2", &sadd_res);
+
+    keys.clear();
+    keys.push_back("unionKey1");
+    keys.push_back("unionKey2");
+    values.clear();
+    s = n->SInter(keys, values);
+    log_info("Test SInter[key1, key2] return %s, expect [member2]", s.ToString().c_str());
+    for (suit = values.begin(); suit != values.end(); suit++) {
+        log_info("Test SInter member: %s", suit->c_str());
+    }
+    log_info("");
+
+    /*
+     *  Test SInterStore
+     */
+    log_info("======Test SInterStore======");
+    s = n->SAdd("unionKey1", "member1", &sadd_res);
+    s = n->SAdd("unionKey1", "member2", &sadd_res);
+    s = n->SAdd("unionKey1", "member3", &sadd_res);
+
+    s = n->SAdd("unionKey2", "member21", &sadd_res);
+    s = n->SAdd("unionKey2", "member2", &sadd_res);
+
+    keys.clear();
+    keys.push_back("unionKey1");
+    keys.push_back("unionKey2");
+    dest = "dest";
+
+    int64_t sis_res;
+    s = n->SInterStore(dest, keys, &sis_res);
+    log_info("Test SInterStore[dest, key1, key2] return %s, card is %lld, expect [member2]", s.ToString().c_str(), sis_res);
+
+    values.clear();
+    s = n->SMembers(dest, values);
+    for (suit = values.begin(); suit != values.end(); suit++) {
+        log_info("Test SInterStore member: %s", suit->c_str());
+    }
+    log_info("");
+
+    /*
+     *  Test SIsMember
+     */
+    log_info("======Test SIsMember======");
+    log_info("Test SIsMember with exist member return %d, expect [true]", n->SIsMember("setKey", "member1"));
+    log_info("Test SIsMember with non-exist member return %d, expect [false]", n->SIsMember("setKey", "non-member"));
+    log_info("Test SIsMember with non-exist key return %d, expect [false]", n->SIsMember("setKeyasdf", "member"));
+
+    /*
      *  Test SRem
      */
     log_info("======Test SRem======");
