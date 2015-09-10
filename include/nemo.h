@@ -117,7 +117,12 @@ public:
     Status SUnion(const std::vector<std::string> &keys, std::vector<std::string>& members);
     Status SInterStore(const std::string &destination, const std::vector<std::string> &keys, int64_t *res);
     Status SInter(const std::vector<std::string> &keys, std::vector<std::string>& members);
+    Status SDiffStore(const std::string &destination, const std::vector<std::string> &keys, int64_t *res);
+    Status SDiff(const std::vector<std::string> &keys, std::vector<std::string>& members);
     bool SIsMember(const std::string &key, const std::string &member);
+    Status SPop(const std::string &key, std::string &member);
+    Status SRandMember(const std::string &key, std::vector<std::string> &members, const int count = 1);
+    Status SMove(const std::string &source, const std::string &destination, const std::string &member, int64_t *res);
 
 private:
 
@@ -149,6 +154,10 @@ private:
     int IncrZLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
 
     int IncrSSize(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
+
+
+    Status SAddNoLock(const std::string &key, const std::string &member, int64_t *res);
+    Status SRemNoLock(const std::string &key, const std::string &member, int64_t *res);
 
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);

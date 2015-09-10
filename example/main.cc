@@ -197,7 +197,6 @@ int main()
     /*
      *  Test MDel
      */
-
     log_info("======Test MDel======");
     int64_t mcount;
     s = n->MDel(keys, &mcount);
@@ -1158,20 +1157,30 @@ int main()
     }
     log_info("");
 
+    s = n->SUnionStore("unionKey1", keys, &sus_res);
+    log_info("Test SUnionStore[key1, key1, key2] return %s, card is %lld, expect key1=[member1, member2, member21, member3]", s.ToString().c_str(), sus_res);
+
+    values.clear();
+    s = n->SMembers("unionKey1", values);
+    for (suit = values.begin(); suit != values.end(); suit++) {
+        log_info("Test SUnionStore member: %s", suit->c_str());
+    }
+    log_info("");
+
     /*
      *  Test SInter
      */
     log_info("======Test SInter======");
-    s = n->SAdd("unionKey1", "member1", &sadd_res);
-    s = n->SAdd("unionKey1", "member2", &sadd_res);
-    s = n->SAdd("unionKey1", "member3", &sadd_res);
+    s = n->SAdd("interKey1", "member1", &sadd_res);
+    s = n->SAdd("interKey1", "member2", &sadd_res);
+    s = n->SAdd("interKey1", "member3", &sadd_res);
 
-    s = n->SAdd("unionKey2", "member21", &sadd_res);
-    s = n->SAdd("unionKey2", "member2", &sadd_res);
+    s = n->SAdd("interKey2", "member21", &sadd_res);
+    s = n->SAdd("interKey2", "member2", &sadd_res);
 
     keys.clear();
-    keys.push_back("unionKey1");
-    keys.push_back("unionKey2");
+    keys.push_back("interKey1");
+    keys.push_back("interKey2");
     values.clear();
     s = n->SInter(keys, values);
     log_info("Test SInter[key1, key2] return %s, expect [member2]", s.ToString().c_str());
@@ -1184,16 +1193,16 @@ int main()
      *  Test SInterStore
      */
     log_info("======Test SInterStore======");
-    s = n->SAdd("unionKey1", "member1", &sadd_res);
-    s = n->SAdd("unionKey1", "member2", &sadd_res);
-    s = n->SAdd("unionKey1", "member3", &sadd_res);
+    s = n->SAdd("interKey1", "member1", &sadd_res);
+    s = n->SAdd("interKey1", "member2", &sadd_res);
+    s = n->SAdd("interKey1", "member3", &sadd_res);
 
-    s = n->SAdd("unionKey2", "member21", &sadd_res);
-    s = n->SAdd("unionKey2", "member2", &sadd_res);
+    s = n->SAdd("interKey2", "member21", &sadd_res);
+    s = n->SAdd("interKey2", "member2", &sadd_res);
 
     keys.clear();
-    keys.push_back("unionKey1");
-    keys.push_back("unionKey2");
+    keys.push_back("interKey1");
+    keys.push_back("interKey2");
     dest = "dest";
 
     int64_t sis_res;
@@ -1207,10 +1216,127 @@ int main()
     }
     log_info("");
 
+    s = n->SInterStore("interKey1", keys, &sis_res);
+    log_info("Test SInterStore[key1, key1, key2] return %s, card is %lld, expect key1=[member2]", s.ToString().c_str(), sis_res);
+
+    values.clear();
+    s = n->SMembers("interKey1", values);
+    for (suit = values.begin(); suit != values.end(); suit++) {
+        log_info("Test SInterStore member: %s", suit->c_str());
+    }
+    log_info("");
+
+    /*
+     *  Test SDiff
+     */
+    log_info("======Test SDiff======");
+    s = n->SAdd("diffKey1", "member1", &sadd_res);
+    s = n->SAdd("diffKey1", "member2", &sadd_res);
+    s = n->SAdd("diffKey1", "member3", &sadd_res);
+
+    s = n->SAdd("diffKey2", "member21", &sadd_res);
+    s = n->SAdd("diffKey2", "member2", &sadd_res);
+
+    keys.clear();
+    keys.push_back("diffKey1");
+    keys.push_back("diffKey2");
+    values.clear();
+    s = n->SDiff(keys, values);
+    log_info("Test SDiff[key1, key2] return %s, expect [member1, member3]", s.ToString().c_str());
+    for (suit = values.begin(); suit != values.end(); suit++) {
+        log_info("Test SDiff member: %s", suit->c_str());
+    }
+    log_info("");
+
+    /*
+     *  Test SDiffStore
+     */
+    log_info("======Test SDiffStore======");
+    s = n->SAdd("diffKey1", "member1", &sadd_res);
+    s = n->SAdd("diffKey1", "member2", &sadd_res);
+    s = n->SAdd("diffKey1", "member3", &sadd_res);
+
+    s = n->SAdd("diffKey2", "member21", &sadd_res);
+    s = n->SAdd("diffKey2", "member2", &sadd_res);
+
+    keys.clear();
+    keys.push_back("diffKey1");
+    keys.push_back("diffKey2");
+    dest = "dest";
+
+    int64_t sds_res;
+    s = n->SDiffStore(dest, keys, &sds_res);
+    log_info("Test SDiffStore[dest, key1, key2] return %s, card is %lld, expect [member1, member3]", s.ToString().c_str(), sds_res);
+
+    values.clear();
+    s = n->SMembers(dest, values);
+    for (suit = values.begin(); suit != values.end(); suit++) {
+        log_info("Test SDiffStore member: %s", suit->c_str());
+    }
+    log_info("");
+
+    s = n->SDiffStore("diffKey1", keys, &sds_res);
+    log_info("Test SDiffStore[key1, key1, key2] return %s, card is %lld, expect key1=[member1, member3]", s.ToString().c_str(), sds_res);
+
+    values.clear();
+    s = n->SMembers("diffKey1", values);
+    for (suit = values.begin(); suit != values.end(); suit++) {
+        log_info("Test SDiffStore member: %s", suit->c_str());
+    }
+    log_info("");
+
+    /*
+     *  Test SRandMember
+     */
+    log_info("======Test SRandMember======");
+    s = n->SAdd("randKey1", "member1", &sadd_res);
+    s = n->SAdd("randKey1", "member2", &sadd_res);
+    s = n->SAdd("randKey1", "member3", &sadd_res);
+    s = n->SAdd("randKey1", "member4", &sadd_res);
+
+    values.clear();
+    s = n->SRandMember("randKey1", values, 5);
+    log_info("Test SRandMember(5) no-repeated return %s, expect {member[1-4]}", s.ToString().c_str());
+    for (suit = values.begin(); suit != values.end(); suit++) {
+        log_info("Test SRandMember member: %s", suit->c_str());
+    }
+    log_info("");
+
+    values.clear();
+    s = n->SRandMember("randKey1", values, -5);
+    log_info("Test SRandMember(-5) allow repeated return %s, expect 5 random members", s.ToString().c_str());
+    for (suit = values.begin(); suit != values.end(); suit++) {
+        log_info("Test SRandMember member: %s", suit->c_str());
+    }
+    log_info("");
+
+    /*
+     *  Test SPop
+     */
+    log_info("======Test SPop======");
+    s = n->SAdd("popKey1", "member1", &sadd_res);
+    s = n->SAdd("popKey1", "member2", &sadd_res);
+    s = n->SAdd("popKey1", "member3", &sadd_res);
+    s = n->SAdd("popKey1", "member4", &sadd_res);
+
+    values.clear();
+    std::string pop_string;
+    s = n->SPop("popKey1", pop_string);
+    log_info("Test SPop() return %s, pop = (%s), expect random member{member[1-4]}", s.ToString().c_str(), pop_string.c_str());
+
+    values.clear();
+    s = n->SMembers("popKey1", values);
+    log_info(" After SPop, SMembers return %s, expect 3 members remains", s.ToString().c_str());
+    for (suit = values.begin(); suit != values.end(); suit++) {
+        log_info("Test SPop member: %s", suit->c_str());
+    }
+    log_info("");
+
     /*
      *  Test SIsMember
      */
     log_info("======Test SIsMember======");
+    s = n->SAdd("setKey1", "member1", &sadd_res);
     log_info("Test SIsMember with exist member return %d, expect [true]", n->SIsMember("setKey", "member1"));
     log_info("Test SIsMember with non-exist member return %d, expect [false]", n->SIsMember("setKey", "non-member"));
     log_info("Test SIsMember with non-exist key return %d, expect [false]", n->SIsMember("setKeyasdf", "member"));
@@ -1238,6 +1364,31 @@ int main()
         log_info("    member: %s", smit->c_str());
     }
     log_info("");
+
+    /*
+     *  Test SMove
+     */
+    log_info("======Test SMove======");
+    s = n->SAdd("moveKey1", "member1", &sadd_res);
+    s = n->SAdd("moveKey1", "member2", &sadd_res);
+    s = n->SAdd("moveKey2", "member1", &sadd_res);
+
+    int64_t smove_res;
+    s = n->SMove("moveKey1", "moveKey2", "member2", &smove_res);
+    log_info("Test SMove(key1, key2, member2) return %s, expect key1=[member1] key2=[member1, member2]", s.ToString().c_str());
+
+    values.clear();
+    s = n->SMembers("moveKey1", values);
+    for (smit = values.begin(); smit != values.end(); smit++) {
+        log_info("    moveKey1 member: %s", smit->c_str());
+    }
+    values.clear();
+    s = n->SMembers("moveKey2", values);
+    for (smit = values.begin(); smit != values.end(); smit++) {
+        log_info("    moveKey2 member: %s", smit->c_str());
+    }
+    log_info("");
+
 
     return 0;
 }
