@@ -1148,7 +1148,7 @@ int main()
 
     int64_t sus_res;
     s = n->SUnionStore(dest, keys, &sus_res);
-    log_info("Test SUnionStore[dest, key1, key2] return %s, card is %lld, expect [member1, member2, member21, member3]", s.ToString().c_str(), sus_res);
+    log_info("Test SUnionStore[dest, key1, key2] return %s, card is %ld, expect [member1, member2, member21, member3]", s.ToString().c_str(), sus_res);
 
     values.clear();
     s = n->SMembers(dest, values);
@@ -1158,7 +1158,7 @@ int main()
     log_info("");
 
     s = n->SUnionStore("unionKey1", keys, &sus_res);
-    log_info("Test SUnionStore[key1, key1, key2] return %s, card is %lld, expect key1=[member1, member2, member21, member3]", s.ToString().c_str(), sus_res);
+    log_info("Test SUnionStore[key1, key1, key2] return %s, card is %ld, expect key1=[member1, member2, member21, member3]", s.ToString().c_str(), sus_res);
 
     values.clear();
     s = n->SMembers("unionKey1", values);
@@ -1207,7 +1207,7 @@ int main()
 
     int64_t sis_res;
     s = n->SInterStore(dest, keys, &sis_res);
-    log_info("Test SInterStore[dest, key1, key2] return %s, card is %lld, expect [member2]", s.ToString().c_str(), sis_res);
+    log_info("Test SInterStore[dest, key1, key2] return %s, card is %ld, expect [member2]", s.ToString().c_str(), sis_res);
 
     values.clear();
     s = n->SMembers(dest, values);
@@ -1217,7 +1217,7 @@ int main()
     log_info("");
 
     s = n->SInterStore("interKey1", keys, &sis_res);
-    log_info("Test SInterStore[key1, key1, key2] return %s, card is %lld, expect key1=[member2]", s.ToString().c_str(), sis_res);
+    log_info("Test SInterStore[key1, key1, key2] return %s, card is %ld, expect key1=[member2]", s.ToString().c_str(), sis_res);
 
     values.clear();
     s = n->SMembers("interKey1", values);
@@ -1266,7 +1266,7 @@ int main()
 
     int64_t sds_res;
     s = n->SDiffStore(dest, keys, &sds_res);
-    log_info("Test SDiffStore[dest, key1, key2] return %s, card is %lld, expect [member1, member3]", s.ToString().c_str(), sds_res);
+    log_info("Test SDiffStore[dest, key1, key2] return %s, card is %ld, expect [member1, member3]", s.ToString().c_str(), sds_res);
 
     values.clear();
     s = n->SMembers(dest, values);
@@ -1276,7 +1276,7 @@ int main()
     log_info("");
 
     s = n->SDiffStore("diffKey1", keys, &sds_res);
-    log_info("Test SDiffStore[key1, key1, key2] return %s, card is %lld, expect key1=[member1, member3]", s.ToString().c_str(), sds_res);
+    log_info("Test SDiffStore[key1, key1, key2] return %s, card is %ld, expect key1=[member1, member3]", s.ToString().c_str(), sds_res);
 
     values.clear();
     s = n->SMembers("diffKey1", values);
@@ -1375,7 +1375,8 @@ int main()
 
     int64_t smove_res;
     s = n->SMove("moveKey1", "moveKey2", "member2", &smove_res);
-    log_info("Test SMove(key1, key2, member2) return %s, expect key1=[member1] key2=[member1, member2]", s.ToString().c_str());
+    log_info("Test SMove(key1, key2, member2) return %s, expect key1=%ld [member1]  key2= %ld [member1, member2]",
+             s.ToString().c_str(), n->SCard("moveKey1"), n->SCard("moveKey2"));
 
     values.clear();
     s = n->SMembers("moveKey1", values);
