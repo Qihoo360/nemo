@@ -444,7 +444,7 @@ Status Nemo::SRandMember(const std::string &key, std::vector<std::string> &membe
     srand (time(NULL));
     for (int ci = 0; ci < ncount; ci++) {
         if (repeat_flag) {
-            int k = rand() % card + 1;
+            int k = rand() % card;
             idx_flag[k]++;
         } else {
             if (remain_card <= 0) break;
