@@ -36,7 +36,7 @@ Status Nemo::MSet(const std::vector<KV> &kvs) {
     for (it = kvs.begin(); it != kvs.end(); it++) {
         batch.Put(it->key, it->val); 
     }
-    s = kv_db_->Write(rocksdb::WriteOptions(), &(batch));
+    s = kv_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(batch), 0);
     return s;
 }
 
@@ -240,7 +240,7 @@ Status Nemo::MSetnx(const std::vector<KV> &kvs, int64_t *ret) {
         batch.Put(it->key, it->val); 
     }
     if (*ret == 1) {
-        s = kv_db_->Write(rocksdb::WriteOptions(), &(batch));
+        s = kv_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(batch), 0);
     }
     return s;
 }

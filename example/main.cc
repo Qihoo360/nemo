@@ -45,24 +45,24 @@ int main()
     log_info("Test Set OK return %s", s.ToString().c_str());
     log_info("");
 
-    /*
-     *  Test Set with TTL
-     */
-    log_info("======Test Set======");
-    s = n->Set("tSetKeyWithTTL", "tSetVal", 7);
-    log_info("Test Set with ttl return %s", s.ToString().c_str());
-
-    int64_t ttl;
-    for (int i = 0; i < 3; i++) {
-        sleep(3);
-        s = n->Get("tSetKeyWithTTL", &res);
-        log_info("          Set with ttl after %ds, return %s", (i+1)*3, s.ToString().c_str());
-        if (s.ok()) {
-            n->TTL("tSetKeyWithTTL", &ttl);
-            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
-        }
-    }
-    log_info("");
+//    /*
+//     *  Test Set with TTL
+//     */
+//    log_info("======Test Set======");
+//    s = n->Set("tSetKeyWithTTL", "tSetVal", 7);
+//    log_info("Test Set with ttl return %s", s.ToString().c_str());
+//
+//    int64_t ttl;
+//    for (int i = 0; i < 3; i++) {
+//        sleep(3);
+//        s = n->Get("tSetKeyWithTTL", &res);
+//        log_info("          Set with ttl after %ds, return %s", (i+1)*3, s.ToString().c_str());
+//        if (s.ok()) {
+//            n->TTL("tSetKeyWithTTL", &ttl);
+//            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
+//        }
+//    }
+//    log_info("");
 
     /*
      *  Test Get
@@ -87,80 +87,80 @@ int main()
     log_info("Test Setxx OK return %s, retval: %ld", s.ToString().c_str(), xx_ret);
     s = n->Get("a", &res);
     log_info("After setxx, Get return %s, result res = %s", s.ToString().c_str(), res.c_str());
-    /*
-     *  Test Expire 
-     */
-    int64_t e_ret;
-    log_info("======Test Expire======");
-    s = n->Expire("tSetKey", 7, &e_ret);
-    log_info("Test Expire with key=tSetKey in 7s, return %s", s.ToString().c_str());
-
-    for (int i = 0; i < 3; i++) {
-        sleep(3);
-        s = n->Get("tSetKey", &res);
-        log_info("          after %ds, return %s", (i+1)*3, s.ToString().c_str());
-        if (s.ok()) {
-            n->TTL("tSetKey", &ttl);
-            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
-        }
-    }
-    log_info("");
-
-
-    /*
-     *  Test Expireat
-     */
-    log_info("======Test Expireat======");
-    s = n->Set("tSetKey", "tSetVal");
-
-    std::time_t t = std::time(0);
-    s = n->Expireat("tSetKey", t + 8, &e_ret);
-    log_info("Test Expireat with key=tSetKey at timestamp=%ld in 8s, return %s", (t+8), s.ToString().c_str());
-
-    for (int i = 0; i < 3; i++) {
-        sleep(3);
-        s = n->Get("tSetKey", &res);
-        log_info("          after %ds, return %s", (i+1)*3, s.ToString().c_str());
-        if (s.ok()) {
-            n->TTL("tSetKey", &ttl);
-            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
-        }
-    }
-    log_info("");
-
-    s = n->Set("tSetKey", "tSetVal");
-    s = n->Expireat("tSetKey", 8, &e_ret);
-    log_info("Test Expireat with key=tSetKey at a passed timestamp=8, return %s", s.ToString().c_str());
-    s = n->Get("tSetKey", &res);
-    log_info("          Get a invalid key return %s, expect ok",  s.ToString().c_str());
-    if (s.IsNotFound()) {
-        n->TTL("tSetKey", &ttl);
-        log_info("          NotFound key's TTL is %ld, Get res:%s\n", ttl, res.c_str());
-    }
-    log_info("");
-
-    /*
-     *  Test Persist 
-     */
-    log_info("======Test Persist======");
-    s = n->Set("tSetKey", "tSetVal");
-    s = n->Expire("tSetKey", 7, &e_ret);
-    log_info("Test Persist with key=tSetKey in 7s, return %s", s.ToString().c_str());
-
-    for (int i = 0; i < 3; i++) {
-        sleep(3);
-        if (i == 1) {
-            s = n->Persist("tSetKey", &e_ret);
-            log_info(" Test Persist return %s", s.ToString().c_str());
-        }
-        s = n->Get("tSetKey", &res);
-        log_info("          after %ds, return %s", (i+1)*3, s.ToString().c_str());
-        if (s.ok()) {
-            n->TTL("tSetKey", &ttl);
-            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
-        }
-    }
-    log_info("");
+//    /*
+//     *  Test Expire 
+//     */
+//    int64_t e_ret;
+//    log_info("======Test Expire======");
+//    s = n->Expire("tSetKey", 7, &e_ret);
+//    log_info("Test Expire with key=tSetKey in 7s, return %s", s.ToString().c_str());
+//
+//    for (int i = 0; i < 3; i++) {
+//        sleep(3);
+//        s = n->Get("tSetKey", &res);
+//        log_info("          after %ds, return %s", (i+1)*3, s.ToString().c_str());
+//        if (s.ok()) {
+//            n->TTL("tSetKey", &ttl);
+//            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
+//        }
+//    }
+//    log_info("");
+//
+//
+//    /*
+//     *  Test Expireat
+//     */
+//    log_info("======Test Expireat======");
+//    s = n->Set("tSetKey", "tSetVal");
+//
+//    std::time_t t = std::time(0);
+//    s = n->Expireat("tSetKey", t + 8, &e_ret);
+//    log_info("Test Expireat with key=tSetKey at timestamp=%ld in 8s, return %s", (t+8), s.ToString().c_str());
+//
+//    for (int i = 0; i < 3; i++) {
+//        sleep(3);
+//        s = n->Get("tSetKey", &res);
+//        log_info("          after %ds, return %s", (i+1)*3, s.ToString().c_str());
+//        if (s.ok()) {
+//            n->TTL("tSetKey", &ttl);
+//            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
+//        }
+//    }
+//    log_info("");
+//
+//    s = n->Set("tSetKey", "tSetVal");
+//    s = n->Expireat("tSetKey", 8, &e_ret);
+//    log_info("Test Expireat with key=tSetKey at a passed timestamp=8, return %s", s.ToString().c_str());
+//    s = n->Get("tSetKey", &res);
+//    log_info("          Get a invalid key return %s, expect ok",  s.ToString().c_str());
+//    if (s.IsNotFound()) {
+//        n->TTL("tSetKey", &ttl);
+//        log_info("          NotFound key's TTL is %ld, Get res:%s\n", ttl, res.c_str());
+//    }
+//    log_info("");
+//
+//    /*
+//     *  Test Persist 
+//     */
+//    log_info("======Test Persist======");
+//    s = n->Set("tSetKey", "tSetVal");
+//    s = n->Expire("tSetKey", 7, &e_ret);
+//    log_info("Test Persist with key=tSetKey in 7s, return %s", s.ToString().c_str());
+//
+//    for (int i = 0; i < 3; i++) {
+//        sleep(3);
+//        if (i == 1) {
+//            s = n->Persist("tSetKey", &e_ret);
+//            log_info(" Test Persist return %s", s.ToString().c_str());
+//        }
+//        s = n->Get("tSetKey", &res);
+//        log_info("          after %ds, return %s", (i+1)*3, s.ToString().c_str());
+//        if (s.ok()) {
+//            n->TTL("tSetKey", &ttl);
+//            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
+//        }
+//    }
+//    log_info("");
     /*
      *  Test Del
      */
@@ -214,9 +214,9 @@ int main()
      */
     log_info("======Test MSet======");
     kvs.clear();
-    kvs.push_back({"tMSetKey1", "tMSetVal1"});
-    kvs.push_back({"tMSetKey2", "tMSetVal2"});
-    kvs.push_back({"tMSetKey3", "tMSetVal3"});
+    kvs.push_back({"tMSetKey1", "tMSetVal1mm"});
+    kvs.push_back({"tMSetKey2", "tMSetVal2mm"});
+    kvs.push_back({"tMSetKey3", "tMSetVal3mm"});
     s = n->MSet(kvs);
     log_info("Test MSet OK return %s", s.ToString().c_str());
 
