@@ -174,13 +174,21 @@ Status Nemo::Append(const std::string &key, const std::string &value, int64_t *n
     std::string old_val;
     MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &old_val);
+    std::string new_val;
     if (s.ok()) {
-        std::string new_val = old_val.append(value);
-        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val); 
-        *new_len = new_val.length();
+        new_val = old_val.append(value);
     } else if (s.IsNotFound()) {
-        s = kv_db_->Put(rocksdb::WriteOptions(), key, value); 
-        *new_len = value.length();
+        new_val = value;
+    } else {
+        return s;
+    }
+
+    int64_t ttl;
+    s = TTL(key, &ttl);
+    if (ttl) {
+        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+    } else {
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
     }
     return s;
 }
