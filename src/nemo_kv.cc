@@ -101,7 +101,7 @@ Status Nemo::Decrby(const std::string &key, const int64_t by, std::string &new_v
     MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
-        new_val = std::to_string(by);        
+        new_val = std::to_string(-by);        
     } else if (s.ok()) {
         int64_t ival;
         if (!StrToInt64(val.data(), val.size(), &ival)) {
@@ -128,7 +128,7 @@ Status Nemo::Incrbyfloat(const std::string &key, const double by, std::string &n
     MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
-        new_val = std::to_string(by);        
+        new_val = std::to_string(-by);        
     } else if (s.ok()) {
         double ival;
         if (!StrToDouble(val.data(), val.size(), &ival)) {
@@ -253,7 +253,7 @@ Status Nemo::Getrange(const std::string key, const int64_t start, const int64_t 
         int64_t size = val.length();
         int64_t start_t = start >= 0 ? start : size + start;
         int64_t end_t = end >= 0 ? end : size + end;
-        if (start_t > end_t || start_t > size -1 || end_t < 0) {
+        if (start_t > size - 1 || (start_t != 0 && start_t > end_t) || (start_t != 0 && end_t < 0)) {
             return Status::OK();
         }
         if (start_t < 0) {
@@ -261,6 +261,9 @@ Status Nemo::Getrange(const std::string key, const int64_t start, const int64_t 
         }
         if (end_t >= size) {
             end_t = size - 1;
+        }
+        if (start_t == 0 && end_t < 0) {
+            end_t = 0;
         }
         substr = val.substr(start_t, end_t-start_t+1);
     }
@@ -275,6 +278,9 @@ Status Nemo::Setrange(const std::string key, const int64_t offset, const std::st
     }
     Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.ok()) {
+        if (val.length() + offset > (1<<29)) {
+            return Status::Corruption("too big");
+        }
         if ((size_t)offset > val.length()) {
             val.resize(offset);
             new_val = val.append(value);
