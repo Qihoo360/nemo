@@ -1,4 +1,5 @@
 #include <ctime>
+#include <climits>
 
 #include "nemo.h"
 #include "nemo_iterator.h"
@@ -80,7 +81,10 @@ Status Nemo::Incrby(const std::string &key, const int64_t by, std::string &new_v
         int64_t ival;
         if (!StrToInt64(val.data(), val.size(), &ival)) {
             return Status::Corruption("value is not a integer");
-        } 
+        }
+        if ((by >= 0 && LLONG_MAX - by < ival) || (by < 0 && LLONG_MIN - by > ival)) {
+            return Status::InvalidArgument("Overflow");
+        }
         new_val = std::to_string(ival + by);
     } else {
         return Status::Corruption("Get error");
@@ -106,7 +110,10 @@ Status Nemo::Decrby(const std::string &key, const int64_t by, std::string &new_v
         int64_t ival;
         if (!StrToInt64(val.data(), val.size(), &ival)) {
             return Status::Corruption("value is not a integer");
-        } 
+        }
+        if ((by >= 0 && LLONG_MIN + by > ival) || (by < 0 || LLONG_MAX + by < ival)) {
+            return Status::InvalidArgument("Overflow");
+        }
         new_val = std::to_string(ival - by);
     } else {
         return Status::Corruption("Get error");

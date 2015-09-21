@@ -403,6 +403,9 @@ int main()
     s = n->Incrby("tIncrByKey", -2, res);
     log_info("Test Incrby OK return %s, 18 Incrby -2 val: %s", s.ToString().c_str(), res.c_str());
 
+    s = n->Incrby("tIncrByKey", LLONG_MAX, res);
+    log_info("Test Incrby OK return %s, Incrby LLONG_MAX, expect overflow", s.ToString().c_str());
+
     //Test NonNum key IncrBy
     s = n->Set("tIncrByKey", "NonNum");
     res = "";
@@ -575,6 +578,8 @@ int main()
     res = "";
     s = n->HIncrby("tHIncrByKey", "song", -2, res);
     log_info("Test HIncrby OK return %s, 18 HIncrby -2 val: %s", s.ToString().c_str(), res.c_str());
+    s = n->HIncrby("tHIncrByKey", "song", LLONG_MAX, res);
+    log_info("Test HIncrby OK return %s, HIncrby LLONG_MAX", s.ToString().c_str());
 
     //Test NonNum key HIncrBy
     s = n->HSet("tHIncrByKey", "song", "NonNum");
