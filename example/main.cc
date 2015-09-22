@@ -149,7 +149,6 @@ int main()
     skip_ret = ss_it->Skip(2);
     log_info ("test Internal Set Skip(2) when no keys, expect false, return %s", skip_ret ? "true" : "false");
 
-    za_res;
     s = n->SAdd("tSetKey", "tSetMember1", &za_res);
     s = n->SAdd("tSetKey", "tSetMember2", &za_res);
     s = n->SAdd("tSetKey", "tSetMember3", &za_res);
@@ -411,6 +410,27 @@ int main()
     res = "";
     s = n->Incrby("tIncrByKey", 6, res);
     log_info("Test Incrby OK return %s, NonNum Incrby 6 val: %s", s.ToString().c_str(), res.c_str());
+
+    /*
+     *  Test Incrby
+     */
+    log_info("======Test Decrby======");
+    s = n->Set("tIncrByKey", "12");
+    res = "";
+    s = n->Decrby("tIncrByKey", 6, res);
+    log_info("Test Decrby OK return %s, 12 Decrby 6 val: %s", s.ToString().c_str(), res.c_str());
+    res = "";
+    s = n->Decrby("tIncrByKey", -2, res);
+    log_info("Test Decrby OK return %s, 6 Decrby -2 val: %s", s.ToString().c_str(), res.c_str());
+
+    s = n->Decrby("tIncrByKey", LLONG_MIN, res);
+    log_info("Test Decrby OK return %s, Decrby LLONG_MIN, expect overflow", s.ToString().c_str());
+
+    //Test NonNum key IncrBy
+    s = n->Set("tIncrByKey", "NonNum");
+    res = "";
+    s = n->Decrby("tIncrByKey", 6, res);
+    log_info("Test Decrby OK return %s, NonNum Decrby 6 val: %s", s.ToString().c_str(), res.c_str());
 
     //just delete all key-value set before
     s = n->Del("tIncrByKey");

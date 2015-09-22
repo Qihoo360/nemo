@@ -111,7 +111,7 @@ Status Nemo::Decrby(const std::string &key, const int64_t by, std::string &new_v
         if (!StrToInt64(val.data(), val.size(), &ival)) {
             return Status::Corruption("value is not a integer");
         }
-        if ((by >= 0 && LLONG_MIN + by > ival) || (by < 0 || LLONG_MAX + by < ival)) {
+        if ((by >= 0 && LLONG_MIN + by > ival) || (by < 0 && LLONG_MAX + by < ival)) {
             return Status::InvalidArgument("Overflow");
         }
         new_val = std::to_string(ival - by);
