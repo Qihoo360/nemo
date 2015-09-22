@@ -283,6 +283,7 @@ Status Nemo::Setrange(const std::string key, const int64_t offset, const std::st
     if (offset < 0) {
         return Status::Corruption("offset < 0");
     }
+    MutexLock l(&mutex_kv_);
     Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.ok()) {
         if (val.length() + offset > (1<<29)) {
