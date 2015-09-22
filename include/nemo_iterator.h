@@ -20,6 +20,14 @@ public:
     rocksdb::Slice Key();
     rocksdb::Slice Val();
     rocksdb::ReadOptions Opt() { return options_; };
+
+    std::string PrevKey() {  return prev_key_; }
+    std::string PrevVal() {  return prev_val_; }
+    bool SetPrevKeyVal();
+
+    void RawNext() {    it_->Next(); }
+    void RawPrev() {    it_->Prev(); }
+    int GetDirection() {  return direction_; }
 private:
     rocksdb::Iterator *it_;
     std::string end_;
@@ -27,6 +35,8 @@ private:
     rocksdb::ReadOptions options_;
     bool is_first_;
     int direction_;
+    std::string prev_key_;
+    std::string prev_val_;
     //No Copying Allowed
     Iterator(Iterator&);
     void operator=(Iterator&);
@@ -38,7 +48,7 @@ public:
     ~KIterator();
     bool Next();
     bool Valid() { return it_->Valid(); };
-    bool Skip(uint64_t offset) { return it_->Skip(offset); };
+    bool Skip(int64_t offset);
     rocksdb::ReadOptions Opt() { return it_->Opt(); };
     std::string Key() { return key_; };
     std::string Val() { return val_; };
@@ -56,8 +66,8 @@ public:
     HIterator(Iterator *it, const rocksdb::Slice &key);
     ~HIterator();
     bool Next();
-    bool Valid() { return it_->Valid(); };
-    bool Skip(uint64_t offset) { return it_->Skip(offset); };
+    bool Valid();
+    bool Skip(int64_t offset);
     rocksdb::ReadOptions Opt() { return it_->Opt(); };
     std::string Key() { return key_; };
     std::string Field() { return field_; };
@@ -76,8 +86,8 @@ class ZIterator {
 public:
     ZIterator(Iterator *it, const rocksdb::Slice &key);
     ~ZIterator();
-    bool Valid() { return it_->Valid(); };
-    bool Skip(int64_t offset) { if (offset < 0) {return true;} else {return it_->Skip(offset);} };
+    bool Valid();
+    bool Skip(int64_t offset);
     bool Next();
     rocksdb::ReadOptions Opt() { return it_->Opt(); };
     std::string Key() { return key_; };
@@ -119,8 +129,8 @@ public:
     SIterator(Iterator *it, const rocksdb::Slice &key);
     ~SIterator();
     bool Next();
-    bool Valid() { return it_->Valid(); };
-    bool Skip(uint64_t offset) { return it_->Skip(offset); };
+    bool Valid();
+    bool Skip(int64_t offset);
     rocksdb::ReadOptions Opt() { return it_->Opt(); };
     std::string Key() { return key_; };
     std::string Member() { return member_; };
