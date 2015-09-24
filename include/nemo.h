@@ -25,7 +25,6 @@ public:
     };
 
     // =================KV=====================
-
     Status Set(const std::string &key, const std::string &val, const int32_t ttl = 0);
     Status Get(const std::string &key, std::string *val);
     Status Del(const std::string &key);
@@ -124,6 +123,8 @@ public:
     Status SRandMember(const std::string &key, std::vector<std::string> &members, const int count = 1);
     Status SMove(const std::string &source, const std::string &destination, const std::string &member, int64_t *res);
 
+    // ==============Server=====================
+    Status BGSave(const std::string &db_path = "");
 private:
 
     std::string db_path_;
@@ -139,6 +140,8 @@ private:
     pthread_mutex_t mutex_list_;
     pthread_mutex_t mutex_zset_;
     pthread_mutex_t mutex_set_;
+
+    bool save_flag_;
 
     int DoHSet(const std::string &key, const std::string &field, const std::string &val, rocksdb::WriteBatch &writebatch);
     int DoHDel(const std::string &key, const std::string &field, rocksdb::WriteBatch &writebatch);
@@ -159,6 +162,8 @@ private:
     Status SAddNoLock(const std::string &key, const std::string &member, int64_t *res);
     Status SRemNoLock(const std::string &key, const std::string &member, int64_t *res);
 
+    Status SaveDBWithTTL(const std::string &db_path, std::unique_ptr<rocksdb::DBWithTTL>& src_db);
+    Status SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &src_db);
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);
 

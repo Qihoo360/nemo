@@ -10,7 +10,7 @@
 namespace nemo {
 
 Nemo::Nemo(const std::string &db_path, const Options &options) :
-    db_path_(db_path)
+    db_path_(db_path), save_flag_(false)
 {
     pthread_mutex_init(&(mutex_kv_), NULL);
     pthread_mutex_init(&(mutex_hash_), NULL);

@@ -62,9 +62,6 @@ namespace DataType {
     static const char kZScore    = 'y';
     static const char kSet      = 's';
     static const char kSSize     = 'S';
-//    static const char ZSET      = 's'; // key => score
-//    static const char ZSCORE    = 'z'; // key|score => ""
-//    static const char ZSIZE     = 'Z';
 //    static const char QUEUE     = 'q';
 //    static const char QSIZE     = 'Q';
 }
