@@ -394,7 +394,7 @@ int main()
      *  Test Incrby
      */
     log_info("======Test Incrby======");
-    s = n->Set("tIncrByKey", "12");
+    s = n->Set("tIncrByKey", "012");
     res = "";
     s = n->Incrby("tIncrByKey", 6, res);
     log_info("Test Incrby OK return %s, 12 Incrby 6 val: %s", s.ToString().c_str(), res.c_str());
@@ -415,7 +415,7 @@ int main()
      *  Test Incrby
      */
     log_info("======Test Decrby======");
-    s = n->Set("tIncrByKey", "12");
+    s = n->Set("tIncrByKey", "012");
     res = "";
     s = n->Decrby("tIncrByKey", 6, res);
     log_info("Test Decrby OK return %s, 12 Decrby 6 val: %s", s.ToString().c_str(), res.c_str());
