@@ -42,8 +42,19 @@ int main()
     log_info("Origin LLen return %ld", llen);
     log_info("");
 
+    std::vector<const rocksdb::Snapshot*> snapshots;
+    s = n->BGSaveGetSnapshot(snapshots);
+    log_info("Get Snapshots return %s, expect size=5, result size=%lu", s.ToString().c_str(), snapshots.size());
+    for (int i = 0; i < snapshots.size(); i++) {
+        printf ("%d: seqnumber=%d\n", i, snapshots[i]->GetSequenceNumber());
+    }
 
-    s = n->BGSave();
+    s = n->Set("tSetKey1", "tSetVal1AfterSnapshot");
+    s = n->LPush("tLPushKey", "tLPushVal7AfterSnapshot", &llen);
+    s = n->HSet("tHSetKey", "member1", "value1AfterSnapshot");
+    s = n->BGSave(snapshots);
+
+
 
     Nemo *n1 = new Nemo("./dump/", options); 
      

@@ -124,7 +124,9 @@ public:
     Status SMove(const std::string &source, const std::string &destination, const std::string &member, int64_t *res);
 
     // ==============Server=====================
-    Status BGSave(const std::string &db_path = "");
+    Status BGSave(const std::vector<const rocksdb::Snapshot *> &snapshots, const std::string &db_path = ""); 
+    Status BGSaveGetSnapshot(std::vector<const rocksdb::Snapshot *> &snapshots);
+
 private:
 
     std::string db_path_;
@@ -162,8 +164,8 @@ private:
     Status SAddNoLock(const std::string &key, const std::string &member, int64_t *res);
     Status SRemNoLock(const std::string &key, const std::string &member, int64_t *res);
 
-    Status SaveDBWithTTL(const std::string &db_path, std::unique_ptr<rocksdb::DBWithTTL>& src_db);
-    Status SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &src_db);
+    Status SaveDBWithTTL(const std::string &db_path, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
+    Status SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &src_db, const rocksdb::Snapshot *snapshot);
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);
 
