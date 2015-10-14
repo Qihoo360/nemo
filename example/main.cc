@@ -3,6 +3,7 @@
 #include <string>
 #include <ctime>
 #include <inttypes.h>
+#include <limits>
 
 #include "nemo.h"
 #include "xdebug.h"
@@ -412,7 +413,7 @@ int main()
     log_info("Test Incrby OK return %s, NonNum Incrby 6 val: %s", s.ToString().c_str(), res.c_str());
 
     /*
-     *  Test Incrby
+     *  Test Decrby
      */
     log_info("======Test Decrby======");
     s = n->Set("tIncrByKey", "012");
@@ -435,6 +436,34 @@ int main()
     //just delete all key-value set before
     s = n->Del("tIncrByKey");
     log_info("");
+
+    /*
+     *  Test Incrbyfloat
+     */
+    log_info("======Test Incrbyfloat======");
+    s = n->Set("tIncrByKey", "012");
+    res = "";
+    s = n->Incrbyfloat("tIncrByKey", 6.0, res);
+    log_info("Test Incrbyfloat OK return %s, 12 Incrbyfloat 6.0 val: %s", s.ToString().c_str(), res.c_str());
+    res = "";
+    s = n->Incrbyfloat("tIncrByKey", -2.3, res);
+    log_info("Test Incrbyfloat OK return %s, 18 Incrbyfloat -2.3 val: %s", s.ToString().c_str(), res.c_str());
+
+    s = n->Incrbyfloat("tIncrByKey", std::numeric_limits<double>::max(), res);
+    s = n->Incrbyfloat("tIncrByKey", std::numeric_limits<double>::max(), res);
+    log_info("Test Incrbyfloat OK return %s, Incrbyfloat numric_limits max , expect overflow", s.ToString().c_str());
+
+    //Test NonNum key IncrBy
+    s = n->Set("tIncrByKey", "NonNum");
+    res = "";
+    s = n->Incrbyfloat("tIncrByKey", 6, res);
+    log_info("Test Incrbyfloat OK return %s, NonNum Incrbyfloat 6 expect value not float", s.ToString().c_str());
+
+    //just delete all key-value set before
+    s = n->Del("tIncrByKey");
+    log_info("");
+    //char ch;
+    //scanf ("%c", &ch);
     
     /*
      *  Test GetSet
@@ -626,12 +655,17 @@ int main()
     s = n->HIncrbyfloat("tHIncrByfloatKey", "nonExist", 5.0, res);
     log_info("Test HIncrbyfloat OK return %s, nonExist HIncrbyfloat 5.0 val: %s", s.ToString().c_str(), res.c_str());
 
+    s = n->HIncrbyfloat("tHIncrByfloatKey", "song", std::numeric_limits<double>::max(), res);
+    s = n->HIncrbyfloat("tHIncrByfloatKey", "song", std::numeric_limits<double>::max(), res);
+    log_info("Test HIncrbyfloat OK return %s, HIncrbyfloat max float, expect overflow", s.ToString().c_str());
+
     //Test NonNum key HIncrBy
     s = n->HSet("tHIncrByfloatKey", "song", "NonNum");
     res = "";
     s = n->HIncrby("tHIncrByfloatKey", "song", 6, res);
     log_info("Test HIncrbyfloat OK return %s, NonNum HIncrbyfloat 6 val: %s", s.ToString().c_str(), res.c_str());
     log_info("");
+    //scanf("%c", &ch);
 
     /*
      *  Test HMGet

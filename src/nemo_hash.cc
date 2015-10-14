@@ -1,3 +1,5 @@
+#include <climits>
+
 #include "nemo.h"
 #include "nemo_hash.h"
 #include "nemo_iterator.h"
@@ -309,7 +311,12 @@ Status Nemo::HIncrbyfloat(const std::string &key, const std::string &field, doub
         if (!StrToDouble(val.data(), val.size(), &dval)) {
             return Status::Corruption("value is not float");
         }
-        res  = std::to_string(dval + by);
+        
+        dval += by;
+        if (isnan(dval) || isinf(dval)) {
+            return Status::InvalidArgument("Overflow");
+        }
+        res  = std::to_string(dval);
     } else {
         return Status::Corruption("HIncrbyfloat error");
     }

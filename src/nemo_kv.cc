@@ -137,11 +137,16 @@ Status Nemo::Incrbyfloat(const std::string &key, const double by, std::string &n
     if (s.IsNotFound()) {
         new_val = std::to_string(-by);        
     } else if (s.ok()) {
-        double ival;
-        if (!StrToDouble(val.data(), val.size(), &ival)) {
+        double dval;
+        if (!StrToDouble(val.data(), val.size(), &dval)) {
             return Status::Corruption("value is not a float");
         } 
-        res = std::to_string(ival + by);
+
+        dval += by;
+        if (isnan(dval) || isinf(dval)) {
+            return Status::InvalidArgument("Overflow");
+        }
+        res = std::to_string(dval);
     } else {
         return Status::Corruption("Get error");
     }
