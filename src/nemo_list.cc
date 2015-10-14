@@ -183,7 +183,7 @@ Status Nemo::LPush(const std::string &key, const std::string &val, int64_t *llen
         EncodeListVal(val, 0, 0, en_val);
         batch.Put(EncodeListKey(key, 1), en_val);
         s = list_db_->Write(rocksdb::WriteOptions(), &batch);
-        *llen = len;
+        *llen = 1;
         return s;
     } else {
         return Status::Corruption("get listmeta error");
@@ -554,7 +554,7 @@ Status Nemo::RPush(const std::string &key, const std::string &val, int64_t *llen
         EncodeListVal(val, 0, 0, en_val);
         batch.Put(EncodeListKey(key, 1), en_val);
         s = list_db_->Write(rocksdb::WriteOptions(), &batch);
-        *llen = len;
+        *llen = 1;
         return s;
     } else {
         return Status::Corruption("get listmeta error");

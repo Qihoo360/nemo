@@ -764,12 +764,17 @@ int main()
     log_info("======Test LPush======");
     int64_t llen = 0;
     s = n->LPush("tLPushKey", "tLPushVal1", &llen);
+    log_info("Test LPush OK return %s, llen is %ld", s.ToString().c_str(), llen);
     s = n->LPush("tLPushKey", "tLPushVal2", &llen);
+    log_info("Test LPush OK return %s, llen is %ld", s.ToString().c_str(), llen);
     s = n->LPush("tLPushKey", "tLPushVal3", &llen);
+    log_info("Test LPush OK return %s, llen is %ld", s.ToString().c_str(), llen);
     s = n->LPush("tLPushKey", "tLPushVal4", &llen);
+    log_info("Test LPush OK return %s, llen is %ld", s.ToString().c_str(), llen);
     s = n->LPush("tLPushKey", "tLPushVal5", &llen);
+    log_info("Test LPush OK return %s, llen is %ld", s.ToString().c_str(), llen);
     s = n->LPush("tLPushKey", "tLPushVal6", &llen);
-    log_info("Test LPush OK return %s", s.ToString().c_str());
+    log_info("Test LPush OK return %s, llen is %ld", s.ToString().c_str(), llen);
     log_info("");
 
     /*
@@ -853,12 +858,17 @@ int main()
      */
     log_info("======Test RPush======");
     s = n->RPush("tLPushKey", "tLPushVal1", &llen);
+    log_info("Test RPush OK return %s, llen is %ld", s.ToString().c_str(), llen);
     s = n->RPush("tLPushKey", "tLPushVal2", &llen);
+    log_info("Test RPush OK return %s, llen is %ld", s.ToString().c_str(), llen);
     s = n->RPush("tLPushKey", "tLPushVal3", &llen);
+    log_info("Test RPush OK return %s, llen is %ld", s.ToString().c_str(), llen);
     s = n->RPush("tLPushKey", "tLPushVal4", &llen);
+    log_info("Test RPush OK return %s, llen is %ld", s.ToString().c_str(), llen);
     s = n->RPush("tLPushKey", "tLPushVal5", &llen);
+    log_info("Test RPush OK return %s, llen is %ld", s.ToString().c_str(), llen);
     s = n->RPush("tLPushKey", "tLPushVal6", &llen);
-    log_info("Test RPush OK return %s", s.ToString().c_str());
+    log_info("Test RPush OK return %s, llen is %ld", s.ToString().c_str(), llen);
     n->LLen("tLPushKey", &llen);
     log_info("After RPush LLen return %ld", llen);
     log_info("");
