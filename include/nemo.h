@@ -11,6 +11,7 @@
 
 namespace nemo {
 typedef rocksdb::Status Status;
+typedef std::vector<const rocksdb::Snapshot *> Snapshots;
 
 class Nemo
 {
@@ -124,8 +125,8 @@ public:
     Status SMove(const std::string &source, const std::string &destination, const std::string &member, int64_t *res);
 
     // ==============Server=====================
-    Status BGSave(const std::vector<const rocksdb::Snapshot *> &snapshots, const std::string &db_path = ""); 
-    Status BGSaveGetSnapshot(std::vector<const rocksdb::Snapshot *> &snapshots);
+    Status BGSave(Snapshots &snapshots, const std::string &db_path = ""); 
+    Status BGSaveGetSnapshot(Snapshots &snapshots);
 
 private:
 

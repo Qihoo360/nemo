@@ -113,7 +113,7 @@ Status Nemo::SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &sr
 //    return Stauts::OK();
 //}
 
-Status Nemo::BGSaveGetSnapshot(std::vector<const rocksdb::Snapshot *> &snapshots) {
+Status Nemo::BGSaveGetSnapshot(Snapshots &snapshots) {
     const rocksdb::Snapshot* psnap;
 
     psnap = kv_db_->GetSnapshot();
@@ -149,7 +149,7 @@ Status Nemo::BGSaveGetSnapshot(std::vector<const rocksdb::Snapshot *> &snapshots
     return Status::OK();
 }
 
-Status Nemo::BGSave(const std::vector<const rocksdb::Snapshot *> &snapshots, const std::string &db_path) {
+Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
     if (save_flag_) {
         return Status::Corruption("Already saving");
     }

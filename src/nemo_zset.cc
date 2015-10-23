@@ -414,7 +414,7 @@ Status Nemo::ZRank(const std::string &key, const std::string &member, int64_t *r
     int64_t count = 0;
     if (s.ok()) {
         ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1, true);
-        while (iter->Next() && iter->Member().compare(member) < 0) {
+        while (iter->Next() && iter->Member().compare(member) != 0) {
             count++;
         }
         if (iter->Member().compare(member) == 0) {
@@ -438,7 +438,7 @@ Status Nemo::ZRevrank(const std::string &key, const std::string &member, int64_t
     int64_t count = 0;
     if (s.ok()) {
         ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1, true);
-        while (iter->Next() && iter->Member().compare(member) < 0) {
+        while (iter->Next() && iter->Member().compare(member) != 0) {
         }
         if (iter->Member().compare(member) == 0) {
             count++;
