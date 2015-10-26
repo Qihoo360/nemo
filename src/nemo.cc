@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "nemo.h"
+#include "util.h"
 #include "xdebug.h"
 
 
@@ -21,7 +22,7 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
         db_path_.append("/");
     }
     if (opendir(db_path_.c_str()) == NULL) {
-        mkdir(db_path_.c_str(), 0755);
+        mkpath(db_path_.c_str(), 0755);
     }
     if (opendir((db_path_ + "kv").c_str()) == NULL) {
         mkdir((db_path_ + "kv").c_str(), 0755);

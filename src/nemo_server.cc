@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include <dirent.h>
 
 #include "nemo.h"
@@ -166,7 +167,7 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
         path.append("/");
     }
     if (opendir(path.c_str()) == NULL) {
-        mkdir(path.c_str(), 0755);
+        mkpath(path.c_str(), 0755);
     }
 
     Status s;

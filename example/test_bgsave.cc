@@ -12,7 +12,7 @@ using namespace nemo;
 int main()
 {
     nemo::Options options;
-    Nemo *n = new Nemo("./tmp/", options); 
+    Nemo *n = new Nemo("./test_dir1/dir2/dir3", options); 
     Status s;
 
     s = n->Set("tSetKey1", "tSetVal1");
