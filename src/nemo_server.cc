@@ -190,11 +190,17 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
     
     return Status::OK();
 }
-
-void Nemo::Compact(){
-    kv_db_ -> ComapctRange(NULL,NULL);
-    hash_db_ -> ComapctRange(NULL,NULL);
-    zset_db_ -> ComapctRange(NULL,NULL);
-    set_db_ -> ComapctRange(NULL,NULL);
-    list_db_ -> ComapctRange(NULL,NULL);
+Status Nemo::Compact(){
+    Status s;
+    s = kv_db_ -> CompactRange(NULL,NULL);
+    if (!s.ok()) return s;
+    s = hash_db_ -> CompactRange(NULL,NULL);
+    if (!s.ok()) return s;
+    s = zset_db_ -> CompactRange(NULL,NULL);
+    if (!s.ok()) return s;
+    s = set_db_ -> CompactRange(NULL,NULL);
+    if (!s.ok()) return s;
+    s = list_db_ -> CompactRange(NULL,NULL);
+    if (!s.ok()) return s;
+    return Status::OK();
 }

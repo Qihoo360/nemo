@@ -25,7 +25,7 @@ public:
         pthread_mutex_destroy(&(mutex_set_));
     };
 
-    void Comapct();
+    Status Compact();
     // =================KV=====================
     Status Set(const std::string &key, const std::string &val, const int32_t ttl = 0);
     Status Get(const std::string &key, std::string *val);
