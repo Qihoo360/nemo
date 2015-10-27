@@ -152,6 +152,7 @@ private:
     int IncrHLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
 
     Status ZAddNoLock(const std::string &key, const double score, const std::string &member, int64_t *res);
+    Status ZRemrangebyrankNoLock(const std::string &key, const int64_t start, const int64_t stop, int64_t* count);
     ZLexIterator* ZScanbylex(const std::string &key, const std::string &min, const std::string &max, uint64_t limit, bool use_snapshot = false);
     int DoZSet(const std::string &key, const double score, const std::string &member, rocksdb::WriteBatch &writebatch);
     int32_t L2R(const std::string &key, const int64_t index, const int64_t left, int64_t *priv, int64_t *cur, int64_t *next);

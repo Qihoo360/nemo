@@ -9,9 +9,16 @@
 
 namespace nemo {
 
-inline int64_t EncodeScore(const double score) {
-    return (int64_t)(score * 100000LL + 0.5) + ZSET_SCORE_SHIFT;
+inline uint64_t EncodeScore(const double score) {
+    int64_t iscore;
+    if (score < 0) {
+        iscore = (int64_t)(score * 100000LL - 0.5) + ZSET_SCORE_SHIFT;
+    } else {
+        iscore = (int64_t)(score * 100000LL + 0.5) + ZSET_SCORE_SHIFT;
+    }
+    return (uint64_t)(iscore);
 }
+
 inline double DecodeScore(const int64_t score) {
     return (double)(score - ZSET_SCORE_SHIFT) / 100000.0; 
 }
@@ -59,7 +66,7 @@ inline int DecodeZSizeKey(const rocksdb::Slice &slice, std::string *size) {
 
 inline std::string EncodeZScoreKey(const rocksdb::Slice &key, const rocksdb::Slice &member, const double score) {
     std::string buf;
-    int64_t new_score = EncodeScore(score);
+    uint64_t new_score = EncodeScore(score);
     buf.append(1, DataType::kZScore);
     buf.append(1, (uint8_t)key.size());
     buf.append(key.data(), key.size());
@@ -77,14 +84,14 @@ inline int DecodeZScoreKey(const rocksdb::Slice &slice, std::string *key, std::s
     if (decoder.ReadLenData(key) == -1) {
         return -1;
     }
-    int64_t iscore;
-    decoder.ReadInt64(&iscore);
+    uint64_t iscore;
+    decoder.ReadUInt64(&iscore);
     //iscore = be64toh(iscore);
     *score = DecodeScore(iscore);
     if (decoder.ReadData(member) == -1) {
         return -1;
     }
-    return 0;    
+    return 0;
 }
 
 }

@@ -288,9 +288,13 @@ Status Nemo::ZUnionStore(const std::string &destination, const int numkeys, cons
         delete iter;
     }
 
+
     int64_t add_ret;
+    int64_t rem_ret;
     std::map<std::string, double>::iterator it;
     Status status;
+
+    status = ZRemrangebyrankNoLock(destination, 0, -1, &rem_ret);
 
     for (it = mp_member_score.begin(); it != mp_member_score.end(); it++) {
         status = ZAddNoLock(destination, it->second, it->first, &add_ret);
@@ -317,7 +321,6 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
     std::string db_key;
     int64_t add_ret;
     std::map<std::string, double> mp_member_score;
-    std::map<std::string, double>::iterator it;
     double l_weight = 1;
     double r_weight = 1;
     double l_score;
@@ -360,14 +363,23 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
         }
 
         if (key_i >= numkeys) {
-            s = ZAddNoLock(destination, l_score, member, &add_ret);
-            if (!s.ok()) {
-              return s;
-            }
-            (*res)++;
+            mp_member_score[member] = l_score;
         }
     }
     delete iter;
+
+    int64_t rem_ret;
+    std::map<std::string, double>::iterator it;
+
+    s = ZRemrangebyrankNoLock(destination, 0, -1, &rem_ret);
+
+    for (it = mp_member_score.begin(); it != mp_member_score.end(); it++) {
+        s = ZAddNoLock(destination, l_score, member, &add_ret);
+        if (!s.ok()) {
+            return s;
+        }
+        (*res)++;
+    }
 
     return Status::OK();
 }
@@ -566,6 +578,60 @@ Status Nemo::ZRemrangebyrank(const std::string &key, const int64_t start, const 
     *count = 0;
     Status s;
     MutexLock l(&mutex_zset_);
+    int64_t t_size = ZCard(key);
+    if (t_size >= 0) {
+        int64_t t_start = start >= 0 ? start : t_size + start;
+        int64_t t_stop = stop >= 0 ? stop : t_size + stop;
+        if (t_start < 0) {
+            t_start = 0;
+        }
+        if (t_stop > t_size - 1) {
+            t_stop = t_size - 1;
+        }
+        if (t_start > t_stop || t_start > t_size - 1 || t_stop < 0) {
+            return Status::OK();
+        } else {
+            ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
+            if (iter == NULL) {
+                return Status::Corruption("zscan error");
+            }
+            int32_t n = 0;
+            while (n<t_start && iter->Next()) {
+                n++;
+            }
+            if (n<t_start) {
+                delete iter;
+                return Status::Corruption("ziterate error");
+            } else {
+                while (n<=t_stop && iter->Next()) {
+                    db_key = EncodeZSetKey(key, iter->Member());
+                    score_key = EncodeZScoreKey(key, iter->Member(), iter->Score());
+                    batch.Delete(db_key);
+                    batch.Delete(score_key);
+                    (*count)++;
+                    n++;
+                }
+                delete iter;
+                if (IncrZLen(key, -(*count), batch) == 0) {
+                    s = zset_db_->Write(rocksdb::WriteOptions(), &batch);
+                    return s;
+                } else {
+                    return Status::Corruption("incr zsize error");
+                }
+            }
+        }
+    } else {
+        return Status::Corruption("get zsize error");
+    }
+}
+
+Status Nemo::ZRemrangebyrankNoLock(const std::string &key, const int64_t start, const int64_t stop, int64_t* count) {
+    rocksdb::WriteBatch batch;
+    std::string score_key;
+    std::string size_key;
+    std::string db_key;
+    *count = 0;
+    Status s;
     int64_t t_size = ZCard(key);
     if (t_size >= 0) {
         int64_t t_start = start >= 0 ? start : t_size + start;
