@@ -128,6 +128,10 @@ public:
     // ==============Server=====================
     Status BGSave(Snapshots &snapshots, const std::string &db_path = ""); 
     Status BGSaveGetSnapshot(Snapshots &snapshots);
+    Status BGSaveReleaseSnapshot(Snapshots &snapshots);
+
+    Status GetKeyNum(std::vector<uint64_t> &nums);
+    Status ScanKeyNum(std::unique_ptr<rocksdb::DB> &db, const char kType, uint64_t &num);
 
 private:
 

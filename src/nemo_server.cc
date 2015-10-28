@@ -3,8 +3,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <string>
 
 #include "nemo.h"
+#include "nemo_const.h"
 #include "nemo_iterator.h"
 #include "util.h"
 #include "xdebug.h"
@@ -101,18 +103,17 @@ Status Nemo::SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &sr
     return Status::OK();
 }
 
-// not used
-//Status Nemo::BGSaveReleaseSnapshot(const std::vector<rocksdb::Snapshot *> snapshots) {
-//
-//    // Note the order which is decided by GetSnapshot
-//    kv_db_->ReleaseSnapshot(snapshots[0]);
-//    hash_db_->ReleaseSnapshot(snapshots[1]);
-//    zset_db_->ReleaseSnapshot(snapshots[2]);
-//    set_db_->ReleaseSnapshot(snapshots[3]);
-//    list_db_->ReleaseSnapshot(snapshots[4]);
-//
-//    return Stauts::OK();
-//}
+Status Nemo::BGSaveReleaseSnapshot(Snapshots &snapshots) {
+
+    // Note the order which is decided by GetSnapshot
+    kv_db_->ReleaseSnapshot(snapshots[0]);
+    hash_db_->ReleaseSnapshot(snapshots[1]);
+    zset_db_->ReleaseSnapshot(snapshots[2]);
+    set_db_->ReleaseSnapshot(snapshots[3]);
+    list_db_->ReleaseSnapshot(snapshots[4]);
+
+    return Status::OK();
+}
 
 Status Nemo::BGSaveGetSnapshot(Snapshots &snapshots) {
     const rocksdb::Snapshot* psnap;
@@ -187,9 +188,63 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
     if (!s.ok()) return s;
     
     save_flag_ = false;
+
+    BGSaveReleaseSnapshot(snapshots);
     
     return Status::OK();
 }
+
+Status Nemo::ScanKeyNum(std::unique_ptr<rocksdb::DB> &db, const char kType, uint64_t &num) {
+    rocksdb::ReadOptions iterate_options;
+
+    iterate_options.snapshot = db->GetSnapshot();
+    iterate_options.fill_cache = false;
+
+    rocksdb::Iterator *it = db->NewIterator(iterate_options);
+    std::string key_start = "a";
+    key_start[0] = kType;
+    it->Seek(key_start);
+
+    num = 0;
+    for (; it->Valid(); it->Next()) {
+      if (kType != it->key().ToString().at(0)) {
+        break;
+      }
+      num++;
+       //printf ("ScanDB key=(%s) value=(%s) val_size=%u num=%lu\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
+       //       it->value().ToString().size(), num);
+    }
+
+    db->ReleaseSnapshot(iterate_options.snapshot);
+    delete it;
+
+    return Status::OK();
+}
+
+Status Nemo::GetKeyNum(std::vector<uint64_t>& nums) {
+    uint64_t num;
+
+    // kv nums is estimated
+    if (! kv_db_->GetIntProperty("rocksdb.estimate-num-keys", &num)) {
+      return Status::Corruption("failed get key nums of kv_db");
+    }
+    nums.push_back(num);
+
+    ScanKeyNum(hash_db_, DataType::kHSize, num);
+    nums.push_back(num);
+
+    ScanKeyNum(list_db_,  DataType::kLMeta, num);
+    nums.push_back(num);
+
+    ScanKeyNum(zset_db_, DataType::kZSize, num);
+    nums.push_back(num);
+
+    ScanKeyNum(set_db_, DataType::kSSize, num);
+    nums.push_back(num);
+
+    return Status::OK();
+}
+
 Status Nemo::Compact(){
     Status s;
     s = kv_db_ -> CompactRange(NULL,NULL);
