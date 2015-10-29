@@ -31,5 +31,7 @@ output/
 *tags
 example/main
 example/tmp
+example/test*
+example/zset*
 tmp/
 test_rocksdb

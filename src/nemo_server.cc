@@ -103,17 +103,17 @@ Status Nemo::SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &sr
     return Status::OK();
 }
 
-Status Nemo::BGSaveReleaseSnapshot(Snapshots &snapshots) {
-
-    // Note the order which is decided by GetSnapshot
-    kv_db_->ReleaseSnapshot(snapshots[0]);
-    hash_db_->ReleaseSnapshot(snapshots[1]);
-    zset_db_->ReleaseSnapshot(snapshots[2]);
-    set_db_->ReleaseSnapshot(snapshots[3]);
-    list_db_->ReleaseSnapshot(snapshots[4]);
-
-    return Status::OK();
-}
+//Status Nemo::BGSaveReleaseSnapshot(Snapshots &snapshots) {
+//
+//    // Note the order which is decided by GetSnapshot
+//    kv_db_->ReleaseSnapshot(snapshots[0]);
+//    hash_db_->ReleaseSnapshot(snapshots[1]);
+//    zset_db_->ReleaseSnapshot(snapshots[2]);
+//    set_db_->ReleaseSnapshot(snapshots[3]);
+//    list_db_->ReleaseSnapshot(snapshots[4]);
+//
+//    return Status::OK();
+//}
 
 Status Nemo::BGSaveGetSnapshot(Snapshots &snapshots) {
     const rocksdb::Snapshot* psnap;
@@ -189,7 +189,7 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
     
     save_flag_ = false;
 
-    BGSaveReleaseSnapshot(snapshots);
+    //BGSaveReleaseSnapshot(snapshots);
     
     return Status::OK();
 }
