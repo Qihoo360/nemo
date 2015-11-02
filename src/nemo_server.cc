@@ -221,6 +221,24 @@ Status Nemo::ScanKeyNum(std::unique_ptr<rocksdb::DB> &db, const char kType, uint
     return Status::OK();
 }
 
+Status Nemo::GetSpecifyKeyNum(const std::string type, uint64_t &num) {
+    if (type == "kv") {
+      if (! kv_db_->GetIntProperty("rocksdb.estimate-num-keys", &num)) {
+        return Status::Corruption("failed get key nums of kv_db");
+      }
+    } else if (type == "hash") {
+      ScanKeyNum(hash_db_, DataType::kHSize, num);
+    } else if (type == "list") {
+      ScanKeyNum(list_db_,  DataType::kLMeta, num);
+    } else if (type == "zset") {
+      ScanKeyNum(zset_db_, DataType::kZSize, num);
+    } else if (type == "set") {
+      ScanKeyNum(set_db_, DataType::kSSize, num);
+    }
+
+    return Status::OK();
+}
+
 Status Nemo::GetKeyNum(std::vector<uint64_t>& nums) {
     uint64_t num;
 

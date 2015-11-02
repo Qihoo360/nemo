@@ -24,6 +24,22 @@ int main()
       printf (" i=%d %ld\n", i, nums[i]);
     }
 
+    uint64_t num;
+    n->GetSpecifyKeyNum("kv", num);
+    printf ("kv key num: %lu\n", num);
+
+    n->GetSpecifyKeyNum("hash", num);
+    printf ("hash key num: %lu\n", num);
+
+    n->GetSpecifyKeyNum("list", num);
+    printf ("list key num: %lu\n", num);
+
+    n->GetSpecifyKeyNum("zset", num);
+    printf ("zset key num: %lu\n", num);
+
+    n->GetSpecifyKeyNum("set", num);
+    printf ("set key num: %lu\n", num);
+
     delete n;
     return 0;
 }

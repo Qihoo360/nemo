@@ -131,6 +131,7 @@ public:
     //Status BGSaveReleaseSnapshot(Snapshots &snapshots);
 
     Status GetKeyNum(std::vector<uint64_t> &nums);
+    Status GetSpecifyKeyNum(const std::string type, uint64_t &num);
     Status ScanKeyNum(std::unique_ptr<rocksdb::DB> &db, const char kType, uint64_t &num);
 
 private:
