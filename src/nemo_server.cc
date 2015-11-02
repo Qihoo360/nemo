@@ -194,6 +194,27 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
     return Status::OK();
 }
 
+Status Nemo::ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t &num) {
+    rocksdb::ReadOptions iterate_options;
+
+    iterate_options.snapshot = db->GetSnapshot();
+    iterate_options.fill_cache = false;
+
+    rocksdb::Iterator *it = db->NewIterator(iterate_options);
+
+    num = 0;
+    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+        num++;
+       //printf ("ScanDB key=(%s) value=(%s) val_size=%u num=%lu\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
+       //       it->value().ToString().size(), num);
+    }
+
+    db->ReleaseSnapshot(iterate_options.snapshot);
+    delete it;
+
+    return Status::OK();
+}
+
 Status Nemo::ScanKeyNum(std::unique_ptr<rocksdb::DB> &db, const char kType, uint64_t &num) {
     rocksdb::ReadOptions iterate_options;
 
@@ -223,9 +244,7 @@ Status Nemo::ScanKeyNum(std::unique_ptr<rocksdb::DB> &db, const char kType, uint
 
 Status Nemo::GetSpecifyKeyNum(const std::string type, uint64_t &num) {
     if (type == "kv") {
-      if (! kv_db_->GetIntProperty("rocksdb.estimate-num-keys", &num)) {
-        return Status::Corruption("failed get key nums of kv_db");
-      }
+      ScanKeyNumWithTTL(kv_db_, num);
     } else if (type == "hash") {
       ScanKeyNum(hash_db_, DataType::kHSize, num);
     } else if (type == "list") {
@@ -242,10 +261,7 @@ Status Nemo::GetSpecifyKeyNum(const std::string type, uint64_t &num) {
 Status Nemo::GetKeyNum(std::vector<uint64_t>& nums) {
     uint64_t num;
 
-    // kv nums is estimated
-    if (! kv_db_->GetIntProperty("rocksdb.estimate-num-keys", &num)) {
-      return Status::Corruption("failed get key nums of kv_db");
-    }
+    ScanKeyNumWithTTL(kv_db_, num);
     nums.push_back(num);
 
     ScanKeyNum(hash_db_, DataType::kHSize, num);
