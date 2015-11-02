@@ -253,6 +253,8 @@ Status Nemo::GetSpecifyKeyNum(const std::string type, uint64_t &num) {
       ScanKeyNum(zset_db_, DataType::kZSize, num);
     } else if (type == "set") {
       ScanKeyNum(set_db_, DataType::kSSize, num);
+    } else {
+      return Status::InvalidArgument("");
     }
 
     return Status::OK();
