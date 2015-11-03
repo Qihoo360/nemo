@@ -17,6 +17,7 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
     pthread_mutex_init(&(mutex_hash_), NULL);
     pthread_mutex_init(&(mutex_list_), NULL);
     pthread_mutex_init(&(mutex_zset_), NULL);
+    pthread_mutex_init(&(mutex_set_), NULL);
 
     if (db_path_[db_path_.length() - 1] != '/') {
         db_path_.append("/");
@@ -39,8 +40,6 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
     if (opendir((db_path_ + "set").c_str()) == NULL) {
         mkdir((db_path_ + "set").c_str(), 0755);
     }
-
-
 
     open_options_.create_if_missing = true;
     open_options_.write_buffer_size = options.write_buffer_size;

@@ -40,6 +40,13 @@ int main()
     n->GetSpecifyKeyNum("set", num);
     printf ("set key num: %lu\n", num);
 
+    s = n->GetSpecifyKeyNum("invalid type", num);
+    printf ("test invalid type:  ");
+    if (!s.ok()) {
+        printf ("SUCCESS, expect !ok\n");
+    } else {
+        printf ("FAILED, return ok, should failed\n");
+    }
     delete n;
     return 0;
 }

@@ -10,7 +10,9 @@
 #include "nemo_options.h"
 
 namespace nemo {
+
 typedef rocksdb::Status Status;
+typedef const rocksdb::Snapshot Snapshot;
 typedef std::vector<const rocksdb::Snapshot *> Snapshots;
 
 class Nemo
@@ -128,6 +130,8 @@ public:
     // ==============Server=====================
     Status BGSave(Snapshots &snapshots, const std::string &db_path = ""); 
     Status BGSaveGetSnapshot(Snapshots &snapshots);
+    Status BGSaveSpecify(const std::string key_type, Snapshot* snapshot, const std::string &db_path = "");
+    Status BGSaveGetSpecifySnapshot(const std::string key_type, Snapshot *&snapshot);
     //Status BGSaveReleaseSnapshot(Snapshots &snapshots);
 
     Status GetKeyNum(std::vector<uint64_t> &nums);
