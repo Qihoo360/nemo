@@ -85,7 +85,6 @@ Status Nemo::SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &sr
     }
 
     //printf ("\nSaveDB seqnumber=%d\n", snapshot->GetSequenceNumber());
-    int64_t ttl;
     rocksdb::ReadOptions iterate_options;
     iterate_options.snapshot = snapshot;
     iterate_options.fill_cache = false;
@@ -185,42 +184,118 @@ Status Nemo::BGSaveGetSnapshot(Snapshots &snapshots) {
     return Status::OK();
 }
 
-Status Nemo::BGSaveSpecify(const std::string key_type, Snapshot* snapshot, const std::string &db_path) {
+struct SaveArgs {
+  void *p;
+  const std::string key_type;
+  Snapshot *snapshot;
 
-  std::string path = db_path;
-  if (path.empty()) {
-    path = DEFAULT_BG_PATH;
-  }
+  SaveArgs(void *_p, const std::string &_key_type, Snapshot* _snapshot)
+      : p(_p), key_type(_key_type), snapshot(_snapshot) {};
+};
 
-  if (path[path.length() - 1] != '/') {
-    path.append("/");
-  }
-  if (opendir(path.c_str()) == NULL) {
-    mkpath(path.c_str(), 0755);
-  }
 
-  Status s;
-  if (key_type == KV_DB) {
-    s = SaveDBWithTTL(path + KV_DB, kv_db_, snapshot);
-    if (!s.ok()) return s;
-  } else if (key_type == HASH_DB) {
-    s = SaveDB(path + HASH_DB, hash_db_, snapshot);
-    if (!s.ok()) return s;
-  } else if (key_type == ZSET_DB) {
-    s = SaveDB(path + ZSET_DB, zset_db_, snapshot);
-    if (!s.ok()) return s;
-  } else if (key_type == SET_DB) {
-    s = SaveDB(path + SET_DB, set_db_, snapshot);
-    if (!s.ok()) return s;
-  } else if (key_type == LIST_DB) {
-    s = SaveDB(path + LIST_DB, list_db_, snapshot);
-    if (!s.ok()) return s;
-  } else {
-    return Status::InvalidArgument("");
-  }
-  return Status::OK();
+void* call_BGSaveSpecify(void *arg) {
+    Nemo* p = (Nemo*)(((SaveArgs*)arg)->p);
+    Snapshot* snapshot = ((SaveArgs*)arg)->snapshot;
+    std::string key_type = ((SaveArgs*)arg)->key_type;
+
+    Status s = p->BGSaveSpecify(key_type, snapshot);
+
+    return nullptr;
 }
 
+Status Nemo::BGSaveSpecify(const std::string key_type, Snapshot* snapshot) {
+//void* Nemo::BGSaveSpecify(void *arg) {
+    Status s;
+
+    if (key_type == KV_DB) {
+      s = SaveDBWithTTL(dump_path_ + KV_DB, kv_db_, snapshot);
+      if (!s.ok()) return s;
+    } else if (key_type == HASH_DB) {
+      s = SaveDB(dump_path_ + HASH_DB, hash_db_, snapshot);
+      if (!s.ok()) return s;
+      //if (!s.ok()) return (void *)&s;
+    } else if (key_type == ZSET_DB) {
+      s = SaveDB(dump_path_ + ZSET_DB, zset_db_, snapshot);
+      if (!s.ok()) return s;
+      //if (!s.ok()) return (void *)&s;
+    } else if (key_type == SET_DB) {
+      s = SaveDB(dump_path_ + SET_DB, set_db_, snapshot);
+      if (!s.ok()) return s;
+      //if (!s.ok()) return (void *)&s;
+    } else if (key_type == LIST_DB) {
+      s = SaveDB(dump_path_ + LIST_DB, list_db_, snapshot);
+      if (!s.ok()) return s;
+      //if (!s.ok()) return (void *)&s;
+    } else {
+      return Status::InvalidArgument("");
+    }
+    return Status::OK();
+}
+
+
+Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
+
+    std::string path = db_path;
+    if (path.empty()) {
+        path = DEFAULT_BG_PATH;
+    }
+
+    if (path[path.length() - 1] != '/') {
+        path.append("/");
+    }
+    if (opendir(path.c_str()) == NULL) {
+        mkpath(path.c_str(), 0755);
+    }
+
+    dump_path_ = path;
+    Status s;
+
+    pthread_t tid[5];
+    SaveArgs *arg_kv = new SaveArgs(this, KV_DB, snapshots[0]);
+    if (pthread_create(&tid[0], NULL, &call_BGSaveSpecify, arg_kv) != 0) {
+        return Status::Corruption("pthead_create failed.");
+    }
+
+    SaveArgs *arg_hash = new SaveArgs(this, HASH_DB, snapshots[1]);
+    if (pthread_create(&tid[1], NULL, &call_BGSaveSpecify, arg_hash) != 0) {
+        return Status::Corruption("pthead_create failed.");
+    }
+
+    SaveArgs *arg_zset = new SaveArgs(this, ZSET_DB, snapshots[2]);
+    if (pthread_create(&tid[2], NULL, &call_BGSaveSpecify, arg_zset) != 0) {
+        return Status::Corruption("pthead_create failed.");
+    }
+
+    SaveArgs *arg_set = new SaveArgs(this, SET_DB, snapshots[3]);
+    if (pthread_create(&tid[3], NULL, &call_BGSaveSpecify, arg_set) != 0) {
+        return Status::Corruption("pthead_create failed.");
+    }
+
+    SaveArgs *arg_list = new SaveArgs(this, LIST_DB, snapshots[4]);
+    if (pthread_create(&tid[4], NULL, &call_BGSaveSpecify, arg_list) != 0) {
+        return Status::Corruption("pthead_create failed.");
+    }
+
+    int ret;
+    void *retval;
+    for (int i = 0; i < 5; i++) {
+      if ((ret = pthread_join(tid[i], &retval)) != 0) {
+          std::string msg = std::to_string(ret);
+          return Status::Corruption("pthead_join failed with " + msg);
+      }
+    }
+
+    delete arg_kv;
+    delete arg_hash;
+    delete arg_zset;
+    delete arg_set;
+    delete arg_list;
+
+    return Status::OK();
+}
+
+#if 0
 Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
     if (save_flag_) {
         return Status::Corruption("Already saving");
@@ -263,6 +338,7 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
     
     return Status::OK();
 }
+#endif
 
 Status Nemo::ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t &num) {
     rocksdb::ReadOptions iterate_options;

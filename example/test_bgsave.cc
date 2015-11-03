@@ -101,11 +101,30 @@ int main()
     /********
      * dump specify
      ********/
+    sleep(2);
+    log_info("================");
+    log_info("======Test Dump specify ======");
+    snapshots.clear();
+
+    s = n->Set("tSetKey1", "tSetVal1");
+    s = n->HSet("tHSetKey", "member1", "value1");
+
+    s = n->BGSaveGetSnapshot(snapshots);
+    log_info("Get Snapshots return %s, expect size=5, result size=%lu", s.ToString().c_str(), snapshots.size());
+    //for (int i = 0; i < snapshots.size(); i++) {
+    //    printf ("%d: seqnumber=%d\n", i, snapshots[i]->GetSequenceNumber());
+    //}
+
+    sleep(2);
+    s = n->Set("tSetKey1", "tSetVal1AfterSnapshot2");
+    s = n->LPush("tLPushKey", "tLPushVal7AfterSnapshot2", &llen);
+    s = n->HSet("tHSetKey", "member1", "value1AfterSnapshot2");
+    s = n->BGSave(snapshots, "./dumpspecify");
+
+#if 0
     Snapshot *snapshot;
     //const rocksdb::Snapshot *snapshot;
 
-    log_info("\n================");
-    log_info("======Test Dump specify ======");
     /**** kv ******/
     s = n->Set("tSetKey1", "tSetVal1");
 
@@ -127,7 +146,7 @@ int main()
     log_info("Get list SpecifySnapshot return %s", s.ToString().c_str());
     s = n->LPush("tLPushKey", "tLPushVal7AfterSnapshot2", &llen);
     s = n->BGSaveSpecify(LIST_DB, snapshot, "./dumpspecify");
-
+#endif
 
     Nemo *n2 = new Nemo("./dumpspecify/", options);
 

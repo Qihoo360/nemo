@@ -130,7 +130,7 @@ public:
     // ==============Server=====================
     Status BGSave(Snapshots &snapshots, const std::string &db_path = ""); 
     Status BGSaveGetSnapshot(Snapshots &snapshots);
-    Status BGSaveSpecify(const std::string key_type, Snapshot* snapshot, const std::string &db_path = "");
+    Status BGSaveSpecify(const std::string key_type, Snapshot* snapshot);
     Status BGSaveGetSpecifySnapshot(const std::string key_type, Snapshot *&snapshot);
     //Status BGSaveReleaseSnapshot(Snapshots &snapshots);
 
@@ -182,6 +182,7 @@ private:
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);
 
+    std::string dump_path_;
 };
 
 }
