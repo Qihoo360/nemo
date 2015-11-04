@@ -30,12 +30,9 @@ Status Nemo::SaveDBWithTTL(const std::string &db_path, std::unique_ptr<rocksdb::
     }
 
     //printf ("db_path=%s\n", db_path.c_str());
-    rocksdb::Options options;
-    options.create_if_missing = true;
-    //options.write_buffer_size = (1 << 27);
     
     rocksdb::DBWithTTL *dst_db;
-    rocksdb::Status s = rocksdb::DBWithTTL::Open(options, db_path, &dst_db);
+    rocksdb::Status s = rocksdb::DBWithTTL::Open(open_options_, db_path, &dst_db);
     if (!s.ok()) {
         log_err("save db %s, open error %s", db_path.c_str(), s.ToString().c_str());
         return s;
@@ -73,12 +70,9 @@ Status Nemo::SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &sr
     }
 
     //printf ("db_path=%s\n", db_path.c_str());
-    rocksdb::Options options;
-    options.create_if_missing = true;
-    //options.write_buffer_size = (1 << 27);
     
     rocksdb::DB* dst_db;
-    rocksdb::Status s = rocksdb::DB::Open(options, db_path, &dst_db);
+    rocksdb::Status s = rocksdb::DB::Open(open_options_, db_path, &dst_db);
     if (!s.ok()) {
         log_err("save db %s, open error %s", db_path.c_str(), s.ToString().c_str());
         return s;
