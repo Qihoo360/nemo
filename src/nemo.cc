@@ -43,6 +43,8 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
 
     open_options_.create_if_missing = true;
     open_options_.write_buffer_size = options.write_buffer_size;
+    open_options_.target_file_size_base = (uint64_t)options.target_file_size_base;
+    open_options_.target_file_size_multiplier = options.target_file_size_multiplier;
     
     rocksdb::DBWithTTL *db_ttl;
     rocksdb::Status s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "kv", &db_ttl);
