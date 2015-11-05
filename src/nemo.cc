@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <iostream>
+#include <algorithm>
 
 #include "nemo.h"
 #include "util.h"
@@ -22,29 +23,22 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
     if (db_path_[db_path_.length() - 1] != '/') {
         db_path_.append("/");
     }
-    if (opendir(db_path_.c_str()) == NULL) {
-        mkpath(db_path_.c_str(), 0755);
-    }
-    if (opendir((db_path_ + "kv").c_str()) == NULL) {
-        mkdir((db_path_ + "kv").c_str(), 0755);
-    }
-    if (opendir((db_path_ + "hash").c_str()) == NULL) {
-        mkdir((db_path_ + "hash").c_str(), 0755);
-    }
-    if (opendir((db_path_ + "list").c_str()) == NULL) {
-        mkdir((db_path_ + "list").c_str(), 0755);
-    }
-    if (opendir((db_path_ + "zset").c_str()) == NULL) {
-        mkdir((db_path_ + "zset").c_str(), 0755);
-    }
-    if (opendir((db_path_ + "set").c_str()) == NULL) {
-        mkdir((db_path_ + "set").c_str(), 0755);
-    }
+
+    mkpath(db_path_.c_str(), 0755);
+    mkpath((db_path_ + "kv").c_str(), 0755);
+    mkpath((db_path_ + "hash").c_str(), 0755);
+    mkpath((db_path_ + "list").c_str(), 0755);
+    mkpath((db_path_ + "zset").c_str(), 0755);
+    mkpath((db_path_ + "set").c_str(), 0755);
 
     open_options_.create_if_missing = true;
     open_options_.write_buffer_size = options.write_buffer_size;
-    open_options_.target_file_size_base = (uint64_t)options.target_file_size_base;
-    open_options_.target_file_size_multiplier = options.target_file_size_multiplier;
+    if (options.target_file_size_base > 0) {
+       open_options_.target_file_size_base = (uint64_t)options.target_file_size_base;
+    }
+    if (options.target_file_size_multiplier > 0) {
+        open_options_.target_file_size_multiplier = options.target_file_size_multiplier;
+    }
     
     rocksdb::DBWithTTL *db_ttl;
     rocksdb::Status s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "kv", &db_ttl);

@@ -20,6 +20,12 @@ class Nemo
 public:
     Nemo(const std::string &db_path, const Options &options);
     ~Nemo() {
+        delete kv_db_.get();
+        delete hash_db_.get();
+        delete list_db_.get();
+        delete zset_db_.get();
+        delete set_db_.get();
+
         pthread_mutex_destroy(&(mutex_kv_));
         pthread_mutex_destroy(&(mutex_hash_));
         pthread_mutex_destroy(&(mutex_list_));

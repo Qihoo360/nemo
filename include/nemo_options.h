@@ -10,7 +10,7 @@ struct Options {
     bool use_bloomfilter;
     int write_threads;
 
-    // defalut target_file_size_base and multiplier is the save as rocksdb
+    // default target_file_size_base and multiplier is the save as rocksdb
     int target_file_size_base;
     int target_file_size_multiplier;
 	
@@ -19,7 +19,7 @@ struct Options {
         max_open_files(200),
         use_bloomfilter(true),
         write_threads(71),
-        target_file_size_base(2),
+        target_file_size_base(2 * 1024 * 1024),
         target_file_size_multiplier(1) {}
 };
 
