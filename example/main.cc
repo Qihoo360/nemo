@@ -1619,5 +1619,7 @@ int main()
     log_info("");
 
 
+    delete n;
+
     return 0;
 }
