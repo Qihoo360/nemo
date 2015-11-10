@@ -16,6 +16,7 @@ static const std::string LIST_DB = "list";
 static const std::string ZSET_DB = "zset";
 static const std::string SET_DB = "set";
 
+const int KEY_MAX_LENGTH = 255;
 
 enum Position {
   BEFORE = 0,

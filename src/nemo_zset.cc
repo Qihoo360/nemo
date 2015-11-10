@@ -10,7 +10,10 @@ using namespace nemo;
 Status Nemo::ZAdd(const std::string &key, const double score, const std::string &member, int64_t *res) {
     Status s;
     if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX) {
-        return Status::Corruption("zset score overflow");
+       return Status::InvalidArgument("score overflow");
+    }
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
     }
 
     //std::string db_key = EncodeZSetKey(key, member);
@@ -385,6 +388,10 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
 }
 
 Status Nemo::ZRem(const std::string &key, const std::string &member, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     *res = 0;
     rocksdb::WriteBatch batch;

@@ -9,6 +9,10 @@
 using namespace nemo;
 
 Status Nemo::SAdd(const std::string &key, const std::string &member, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     MutexLock l(&mutex_set_);
     rocksdb::WriteBatch writebatch;
@@ -58,6 +62,10 @@ Status Nemo::SAddNoLock(const std::string &key, const std::string &member, int64
 }
 
 Status Nemo::SRem(const std::string &key, const std::string &member, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     MutexLock l(&mutex_set_);
     rocksdb::WriteBatch writebatch;

@@ -9,9 +9,14 @@
 using namespace nemo;
 
 Status Nemo::HSet(const std::string &key, const std::string &field, const std::string &val) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     MutexLock l(&mutex_hash_);
     rocksdb::WriteBatch writebatch;
+
     int ret = DoHSet(key, field, val, writebatch);
     if (ret > 0) {
         if (IncrHLen(key, ret, writebatch) == -1) {
@@ -36,12 +41,20 @@ Status Nemo::HSetNoLock(const std::string &key, const std::string &field, const 
 }
 
 Status Nemo::HGet(const std::string &key, const std::string &field, std::string *val) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     std::string dbkey = EncodeHashKey(key, field);
     Status s = hash_db_->Get(rocksdb::ReadOptions(), dbkey, val);
     return s;
 }
 
 Status Nemo::HDel(const std::string &key, const std::string &field) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     MutexLock l(&mutex_hash_);
     rocksdb::WriteBatch writebatch;
@@ -49,7 +62,7 @@ Status Nemo::HDel(const std::string &key, const std::string &field) {
     if (ret > 0) {
         if (IncrHLen(key, -ret, writebatch) == -1) {
             return Status::Corruption("incrlen error");
-        } 
+        }
         s = hash_db_->Write(rocksdb::WriteOptions(), &(writebatch));
         return s;
     } else if (ret == 0) {
@@ -171,8 +184,8 @@ Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
 //}
 
 Status Nemo::HMSet(const std::string &key, const std::vector<FV> &fvs) {
-    if (key.size() == 0) {
-        return Status::InvalidArgument("Invalid Argument");
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
     }
     Status s;
     std::vector<FV>::const_iterator it;
