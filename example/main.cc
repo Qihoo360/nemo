@@ -1619,6 +1619,40 @@ int main()
     log_info("");
 
 
+    /*
+     *  Test Keys
+     */
+    log_info("======Test Keys======");
+    s = n->Set("setkey", "setval1");
+    s = n->HSet("tHSetKey", "tHSetField1", "tSetVal1");
+    s = n->LPush("tLPushKey", "tLPushVal1", &llen);
+    s = n->ZAdd("tZSetKey", 100.0, "tHMember1", &za_res);
+    s = n->SAdd("abc", "member1", &sadd_res);
+
+    keys.clear();
+    s = n->Keys("*", keys);
+    log_info("Test Keys(\"*\") return %s, size=%ld", s.ToString().c_str(), keys.size());
+    int i = 0;
+    for (smit = keys.begin(); smit != keys.end(); smit++) {
+        log_info(" %d : %s", i++, smit->c_str());
+    }
+
+    keys.clear();
+    i = 0;
+    s = n->Keys("*key*", keys);
+    log_info("Test Keys(\"*key*\") return %s, size=%ld", s.ToString().c_str(), keys.size());
+    for (smit = keys.begin(); smit != keys.end(); smit++) {
+        log_info(" %d :  %s", i++, smit->c_str());
+    }
+
+    keys.clear();
+    i = 0;
+    s = n->Keys("t[HL]Set*", keys);
+    log_info("Test Keys(\"t[HL]Set*\") return %s, size=%ld", s.ToString().c_str(), keys.size());
+    for (smit = keys.begin(); smit != keys.end(); smit++) {
+        log_info(" %d :  %s", i++, smit->c_str());
+    }
+
     delete n;
 
     return 0;

@@ -431,3 +431,116 @@ Status Nemo::SetWithExpireAt(const std::string &key, const std::string &val, con
     }
     return s;
 }
+
+Status Nemo::GetSnapshot(Snapshots &snapshots) {
+    const rocksdb::Snapshot* psnap;
+
+    psnap = kv_db_->GetSnapshot();
+    if (psnap == nullptr) {
+      return Status::Corruption("GetSnapshot failed");
+    }
+    snapshots.push_back(psnap);
+
+    psnap = hash_db_->GetSnapshot();
+    if (psnap == nullptr) {
+      return Status::Corruption("GetSnapshot failed");
+    }
+    snapshots.push_back(psnap);
+
+    psnap = zset_db_->GetSnapshot();
+    if (psnap == nullptr) {
+      return Status::Corruption("GetSnapshot failed");
+    }
+    snapshots.push_back(psnap);
+
+    psnap = set_db_->GetSnapshot();
+    if (psnap == nullptr) {
+      return Status::Corruption("GetSnapshot failed");
+    }
+    snapshots.push_back(psnap);
+
+    psnap = list_db_->GetSnapshot();
+    if (psnap == nullptr) {
+      return Status::Corruption("GetSnapshot failed");
+    }
+    snapshots.push_back(psnap);
+
+    return Status::OK();
+}
+
+Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys) {
+    rocksdb::ReadOptions iterate_options;
+
+    iterate_options.snapshot = snapshot;
+    iterate_options.fill_cache = false;
+
+    rocksdb::Iterator *it = db->NewIterator(iterate_options);
+
+    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+      std::string key = it->key().ToString();
+      if (stringmatchlen(pattern.data(), pattern.size(), key.data(), key.size(), 0)) {
+          keys.push_back(key);
+      }
+       //printf ("ScanDB key=(%s) value=(%s) val_size=%u num=%lu\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
+       //       it->value().ToString().size(), num);
+    }
+
+    db->ReleaseSnapshot(iterate_options.snapshot);
+    delete it;
+
+    return Status::OK();
+}
+
+Status Nemo::ScanKeys(std::unique_ptr<rocksdb::DB> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys) {
+    rocksdb::ReadOptions iterate_options;
+
+    iterate_options.snapshot = snapshot;
+    iterate_options.fill_cache = false;
+
+    rocksdb::Iterator *it = db->NewIterator(iterate_options);
+
+    std::string key_start = "a";
+    key_start[0] = kType;
+    it->Seek(key_start);
+
+    for (; it->Valid(); it->Next()) {
+      if (kType != it->key().ToString().at(0)) {
+        break;
+      }
+      std::string key = it->key().ToString().substr(1);
+      if (stringmatchlen(pattern.data(), pattern.size(), key.data(), key.size(), 0)) {
+          keys.push_back(key);
+      }
+       //printf ("ScanDB key=(%s) value=(%s) val_size=%u num=%lu\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
+       //       it->value().ToString().size(), num);
+    }
+
+    db->ReleaseSnapshot(iterate_options.snapshot);
+    delete it;
+
+    return Status::OK();
+}
+
+Status Nemo::Keys(const std::string &pattern, std::vector<std::string>& keys) {
+    Status s;
+    std::vector<const rocksdb::Snapshot*> snapshots;
+
+    s = GetSnapshot(snapshots);
+    if (!s.ok()) return s;
+
+    s = ScanKeysWithTTL(kv_db_, snapshots[0], pattern, keys);
+    if (!s.ok()) return s;
+
+    s = ScanKeys(hash_db_, snapshots[1], DataType::kHSize, pattern, keys);
+    if (!s.ok()) return s;
+
+    s = ScanKeys(zset_db_, snapshots[2], DataType::kZSize, pattern, keys);
+    if (!s.ok()) return s;
+
+    s = ScanKeys(set_db_, snapshots[3], DataType::kSSize, pattern, keys);
+    if (!s.ok()) return s;
+
+    s = ScanKeys(list_db_, snapshots[4], DataType::kLMeta, pattern, keys);
+    if (!s.ok()) return s;
+
+}

@@ -63,6 +63,8 @@ public:
     Status Expire(const std::string &key, const int32_t seconds, int64_t *res);
     Status Expireat(const std::string &key, const int32_t timestamp, int64_t *res);
 
+    Status Keys(const std::string &pattern, std::vector<std::string>& keys);
+
     // used only for bada_kv
     Status SetWithExpireAt(const std::string &key, const std::string &val, const int32_t timestamp = 0);
 
@@ -167,6 +169,10 @@ private:
     pthread_mutex_t mutex_set_;
 
     bool save_flag_;
+
+    Status GetSnapshot(Snapshots &snapshots);
+    Status ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys);
+    Status ScanKeys(std::unique_ptr<rocksdb::DB> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys);
 
     int DoHSet(const std::string &key, const std::string &field, const std::string &val, rocksdb::WriteBatch &writebatch);
     int DoHDel(const std::string &key, const std::string &field, rocksdb::WriteBatch &writebatch);
