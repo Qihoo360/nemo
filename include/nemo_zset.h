@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "util.h"
 #include "nemo.h"
 #include "nemo_const.h"
 #include "decoder.h"

@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "util.h"
+
 class Decoder {
 public:
     Decoder(const char *p, int32_t size)
