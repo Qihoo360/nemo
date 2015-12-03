@@ -23,7 +23,7 @@ Status Nemo::HSet(const std::string &key, const std::string &field, const std::s
             return Status::Corruption("incrhlen error");
         }
     }
-    s = hash_db_->Write(rocksdb::WriteOptions(), &(writebatch));
+    s = hash_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 
@@ -36,7 +36,7 @@ Status Nemo::HSetNoLock(const std::string &key, const std::string &field, const 
             return Status::Corruption("incrhlen error");
         }
     }
-    s = hash_db_->Write(rocksdb::WriteOptions(), &(writebatch));
+    s = hash_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 
@@ -63,13 +63,89 @@ Status Nemo::HDel(const std::string &key, const std::string &field) {
         if (IncrHLen(key, -ret, writebatch) == -1) {
             return Status::Corruption("incrlen error");
         }
-        s = hash_db_->Write(rocksdb::WriteOptions(), &(writebatch));
+        s = hash_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
         return s;
     } else if (ret == 0) {
         return Status::NotFound(); 
     } else {
         return Status::Corruption("DoHDel error");
     }
+}
+
+Status Nemo::HDelKey(const std::string &key) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    Status s;
+    std::string val;
+    std::string size_key = EncodeHsizeKey(key);
+
+    s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+    if (!s.ok()) {
+        return s;
+    }
+
+    int64_t len = *(int64_t *)val.data();
+    if (len <= 0) {
+      return Status::NotFound("");
+    }
+
+    len = 0;
+    MutexLock l(&mutex_hash_);
+    
+    s = hash_db_->Merge(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+
+    return s;
+}
+
+Status Nemo::HExpire(const std::string &key, const int32_t seconds, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    Status s;
+    std::string val;
+
+    std::string size_key = EncodeHsizeKey(key);
+    s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+    if (s.IsNotFound()) {
+        *res = 0;
+    } else if (s.ok()) {
+      int64_t len = *(int64_t *)val.data();
+      if (len <= 0) {
+        return Status::NotFound("");
+      }
+
+      MutexLock l(&mutex_hash_);
+      if (seconds > 0) {
+            s = hash_db_->PutWithKeyTTL(rocksdb::WriteOptions(), size_key, val, seconds);
+        } else { 
+            s = HDelKey(key);
+        }
+        *res = 1;
+    }
+    return s;
+}
+
+Status Nemo::HTTL(const std::string &key, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    Status s;
+    std::string val;
+
+    std::string size_key = EncodeHsizeKey(key);
+    s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+    if (s.IsNotFound()) {
+        *res = -2;
+    } else if (s.ok()) {
+        int32_t ttl;
+        s = hash_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
+        *res = ttl;
+    }
+    return s;
 }
 
 bool Nemo::HExists(const std::string &key, const std::string &field) {
@@ -385,10 +461,13 @@ int Nemo::IncrHLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &wr
     }
     len += incr;
     std::string size_key = EncodeHsizeKey(key);
-    if (len == 0) {
-        writebatch.Delete(size_key);
-    } else {
-        writebatch.Put(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
-    }
+    writebatch.Put(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+
+   // if (len == 0) {
+   //     //writebatch.Delete(size_key);
+   //     writebatch.Merge(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+   // } else {
+   //     writebatch.Put(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+   // }
     return 0;
 }

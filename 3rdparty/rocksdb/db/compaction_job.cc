@@ -608,6 +608,13 @@ Status CompactionJob::ProcessKeyValueCompaction(int64_t* imm_micros,
       kMaxSequenceNumber;
   SequenceNumber visible_in_snapshot = kMaxSequenceNumber;
   ColumnFamilyData* cfd = compact_->compaction->column_family_data();
+
+  //@ADD Get DBImpl pointer
+  auto db_ = versions_->db_;
+
+  //@ADD DBImpl pointer to TtlMergeOperator
+  cfd->ioptions()->merge_operator->db_ = db_;
+
   MergeHelper merge(cfd->user_comparator(), cfd->ioptions()->merge_operator,
                     db_options_.info_log.get(),
                     cfd->ioptions()->min_partial_merge_operands,
@@ -621,6 +628,12 @@ Status CompactionJob::ProcessKeyValueCompaction(int64_t* imm_micros,
             context);
     compaction_filter = compaction_filter_from_factory.get();
   }
+
+  //@ADD DBImpl pointer to TtlCompactionFilter
+  compaction_filter->db_ = db_;
+  //compaction_filter->SetDB(db_);
+  //    versions_->GetColumnFamilySet()->GetColumnFamily(kDefaultColumnFamilyName);
+  //cfd->options()->compact
 
   TEST_SYNC_POINT("CompactionJob::Run():Inprogress");
 

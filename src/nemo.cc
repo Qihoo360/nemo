@@ -41,7 +41,7 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
     }
     
     rocksdb::DBWithTTL *db_ttl;
-    rocksdb::Status s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "kv", &db_ttl);
+    rocksdb::Status s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "kv", &db_ttl, rocksdb::kMetaPrefix_KV);
     if (!s.ok()) {
         log_err("open kv db %s error %s", db_path_.c_str(), s.ToString().c_str());
     } else {
@@ -49,37 +49,37 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
     }
     kv_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
 
-    rocksdb::DB* db;
+    //rocksdb::DB* db;
 
-    s = rocksdb::DB::Open(open_options_, db_path_ + "hash", &db);
+    s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "hash", &db_ttl, rocksdb::kMetaPrefix_HASH);
     if (!s.ok()) {
         log_err("open hash db %s error %s", db_path_.c_str(), s.ToString().c_str());
     } else {
         //log_info("open db success");
     }
-    hash_db_ = std::unique_ptr<rocksdb::DB>(db);
+    hash_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
     
-    s = rocksdb::DB::Open(open_options_, db_path_ + "list", &db);
+    s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "list", &db_ttl, rocksdb::kMetaPrefix_LIST);
     if (!s.ok()) {
         log_err("open list db %s error %s", db_path_.c_str(), s.ToString().c_str());
     } else {
         //log_info("open db success");
     }
-    list_db_ = std::unique_ptr<rocksdb::DB>(db);
+    list_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
 
-    s = rocksdb::DB::Open(open_options_, db_path_ + "zset", &db);
+    s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "zset", &db_ttl, rocksdb::kMetaPrefix_ZSET);
     if (!s.ok()) {
         log_err("open zset db %s error %s", db_path_.c_str(), s.ToString().c_str());
     } else {
         //log_info("open db success");
     }
-    zset_db_ = std::unique_ptr<rocksdb::DB>(db);
+    zset_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
 
-    s = rocksdb::DB::Open(open_options_, db_path_ + "set", &db);
+    s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "set", &db_ttl, rocksdb::kMetaPrefix_SET);
     if (!s.ok()) {
         log_err("open set db %s error %s", db_path_.c_str(), s.ToString().c_str());
     }
-    set_db_ = std::unique_ptr<rocksdb::DB>(db);
+    set_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
 }
 };
 

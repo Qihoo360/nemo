@@ -32,7 +32,7 @@ void ThreadStatusUtil::UnregisterThread() {
   }
 }
 
-void ThreadStatusUtil::SetColumnFamily(const ColumnFamilyData* cfd) {
+void ThreadStatusUtil::SetColumnFamily(ColumnFamilyData* cfd) {
   if (!MaybeInitThreadLocalUpdater(cfd->ioptions()->env)) {
     return;
   }
@@ -118,7 +118,7 @@ void ThreadStatusUtil::ResetThreadStatus() {
 }
 
 void ThreadStatusUtil::NewColumnFamilyInfo(
-    const DB* db, const ColumnFamilyData* cfd) {
+    const DB* db, ColumnFamilyData* cfd) {
   if (!MaybeInitThreadLocalUpdater(cfd->ioptions()->env)) {
     return;
   }

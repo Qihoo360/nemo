@@ -61,6 +61,12 @@ struct ColumnFamilyDescriptor {
 static const int kMajorVersion = __ROCKSDB_MAJOR__;
 static const int kMinorVersion = __ROCKSDB_MINOR__;
 
+static const char kMetaPrefix_KV = '\0';
+static const char kMetaPrefix_HASH = 'H';
+static const char kMetaPrefix_ZSET = 'Z';
+static const char kMetaPrefix_SET = 'S';
+static const char kMetaPrefix_LIST = 'L';
+
 // Abstract handle to particular state of a DB.
 // A Snapshot is an immutable object and can therefore be safely
 // accessed from multiple threads without any external synchronization.
@@ -585,6 +591,11 @@ class DB {
       ColumnFamilyMetaData* metadata) {
     GetColumnFamilyMetaData(DefaultColumnFamily(), metadata);
   }
+  
+  // Get Key Version 
+  virtual int32_t GetKeyVersion(const Slice& key) { return -1; }
+  char meta_prefix_;
+
 #endif  // ROCKSDB_LITE
 
   // Sets the globally unique ID created at database creation time by invoking

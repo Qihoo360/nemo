@@ -38,7 +38,7 @@ class ThreadStatusUtil {
   // specified column family.  This function should be called only
   // when the current thread does not hold db_mutex.
   static void NewColumnFamilyInfo(
-      const DB* db, const ColumnFamilyData* cfd);
+      const DB* db, ColumnFamilyData* cfd);
 
   // Erase the ConstantColumnFamilyInfo that is associated with the
   // specified ColumnFamilyData.  This function should be called only
@@ -52,7 +52,7 @@ class ThreadStatusUtil {
 
   // Update the thread status to indicate the current thread is doing
   // something related to the specified column family.
-  static void SetColumnFamily(const ColumnFamilyData* cfd);
+  static void SetColumnFamily(ColumnFamilyData* cfd);
 
   static void SetThreadOperation(ThreadStatus::OperationType type);
 

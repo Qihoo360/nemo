@@ -27,6 +27,8 @@
 #include <utility>
 #include <vector>
 
+//#include "db/db_impl.h"
+
 #include "db/dbformat.h"
 #include "db/version_builder.h"
 #include "db/version_edit.h"
@@ -40,6 +42,7 @@
 #include "db/write_controller.h"
 #include "rocksdb/env.h"
 #include "util/instrumented_mutex.h"
+
 
 namespace rocksdb {
 
@@ -60,6 +63,8 @@ class ColumnFamilyData;
 class ColumnFamilySet;
 class TableCache;
 class MergeIteratorBuilder;
+
+//class DBImpl;
 
 // Return the smallest index i such that file_level.files[i]->largest >= key.
 // Return file_level.num_files if there is no such file.
@@ -643,11 +648,14 @@ class VersionSet {
 
   static uint64_t GetNumLiveVersions(Version* dummy_versions);
 
+  //@ADD by flabby
+  DBImpl* db_;
  private:
   struct ManifestWriter;
 
   friend class Version;
   friend class DBImpl;
+
 
   struct LogReporter : public log::Reader::Reporter {
     Status* status;

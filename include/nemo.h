@@ -39,6 +39,12 @@ public:
     };
 
     Status Compact();
+    // =================String=====================
+    Status DelAll(const std::string &key);
+    Status HDelKey(const std::string &key);
+    Status HExpire(const std::string &key, const int32_t seconds, int64_t *res);
+    Status HTTL(const std::string &key, int64_t *res);
+
     // =================KV=====================
     Status Set(const std::string &key, const std::string &val, const int32_t ttl = 0);
     Status Get(const std::string &key, std::string *val);
@@ -157,10 +163,11 @@ private:
     std::string db_path_;
     rocksdb::Options open_options_;
     std::unique_ptr<rocksdb::DBWithTTL> kv_db_;
-    std::unique_ptr<rocksdb::DB> hash_db_;
-    std::unique_ptr<rocksdb::DB> list_db_;
-    std::unique_ptr<rocksdb::DB> zset_db_;
-    std::unique_ptr<rocksdb::DB> set_db_;
+    std::unique_ptr<rocksdb::DBWithTTL> hash_db_;
+    //std::unique_ptr<rocksdb::DB> hash_db_;
+    std::unique_ptr<rocksdb::DBWithTTL> list_db_;
+    std::unique_ptr<rocksdb::DBWithTTL> zset_db_;
+    std::unique_ptr<rocksdb::DBWithTTL> set_db_;
 
     pthread_mutex_t mutex_kv_;
     pthread_mutex_t mutex_hash_;
@@ -172,7 +179,7 @@ private:
 
     Status GetSnapshot(Snapshots &snapshots);
     Status ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys);
-    Status ScanKeys(std::unique_ptr<rocksdb::DB> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys);
+    Status ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys);
 
     int DoHSet(const std::string &key, const std::string &field, const std::string &val, rocksdb::WriteBatch &writebatch);
     int DoHDel(const std::string &key, const std::string &field, rocksdb::WriteBatch &writebatch);

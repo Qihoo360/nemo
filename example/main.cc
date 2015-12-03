@@ -196,32 +196,40 @@ int main()
     s = n->Get("tSetRangeKey", &sr_val);
     log_info("After Setrange, val = %s, new_len = %ld", sr_val.c_str(), sr_len);
     s = n->Del("tSetRangeKey");
+    log_info("");
+
     /*
      *  Test Set
      */
     log_info("======Test Set======");
     s = n->Set("tSetKey", "tSetVal");
     log_info("Test Set OK return %s", s.ToString().c_str());
+    int64_t ttl;
+    n->TTL("tSetKey", &ttl);
+    log_info("          Defalut set,  TTL is %ld\n", ttl);
     log_info("");
 
-//    /*
-//     *  Test Set with TTL
-//     */
-//    log_info("======Test Set======");
-//    s = n->Set("tSetKeyWithTTL", "tSetVal", 7);
-//    log_info("Test Set with ttl return %s", s.ToString().c_str());
-//
-//    int64_t ttl;
-//    for (int i = 0; i < 3; i++) {
-//        sleep(3);
-//        s = n->Get("tSetKeyWithTTL", &res);
-//        log_info("          Set with ttl after %ds, return %s", (i+1)*3, s.ToString().c_str());
-//        if (s.ok()) {
-//            n->TTL("tSetKeyWithTTL", &ttl);
-//            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
-//        }
-//    }
-//    log_info("");
+    /*
+     *  Test Set with TTL
+     */
+    log_info("======Test Set with ttl======");
+    s = n->Set("tSetKeyWithTTL", "tSetVal", 7);
+    log_info("Test Set with ttl return %s", s.ToString().c_str());
+
+    //int64_t ttl;
+    for (int i = 0; i < 4; i++) {
+        sleep(3);
+        s = n->Get("tSetKeyWithTTL", &res);
+        log_info("          Set with ttl after %ds, return %s", (i+1)*3, s.ToString().c_str());
+        if (s.ok()) {
+            s = n->TTL("tSetKeyWithTTL", &ttl);
+            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
+        }
+        s = n->TTL("tSetKeyWithTTL", &ttl);
+        log_info("          TTL return %s, ttl is %ld\n", s.ToString().c_str(), ttl);
+        log_info("");
+    }
+    log_info("");
 
     /*
      *  Test Get

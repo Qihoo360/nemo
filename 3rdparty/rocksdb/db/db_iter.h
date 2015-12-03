@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include "rocksdb/db.h"
 #include "db/dbformat.h"
+#include "db/db_impl.h"
 #include "util/arena.h"
 #include "util/autovector.h"
 
@@ -18,6 +19,7 @@ namespace rocksdb {
 
 class Arena;
 class DBIter;
+class DBImpl;
 
 // Return a new iterator that converts internal keys (yielded by
 // "*internal_iter") that were live at the specified "sequence" number
@@ -51,6 +53,10 @@ class ArenaWrappedDBIter : public Iterator {
   // Set the internal iterator wrapped inside the DB Iterator. Usually it is
   // a merging iterator.
   virtual void SetIterUnderDBIter(Iterator* iter);
+
+  // @ADD db pointer setter
+  virtual void SetDBUnderDBIter(DBImpl* db);
+
   virtual bool Valid() const override;
   virtual void SeekToFirst() override;
   virtual void SeekToLast() override;

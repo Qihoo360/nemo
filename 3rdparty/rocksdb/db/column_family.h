@@ -59,6 +59,10 @@ class ColumnFamilyHandleImpl : public ColumnFamilyHandle {
   virtual uint32_t GetID() const override;
   virtual const std::string& GetName() const override;
 
+  // @Add by flabby
+  // Add Getter of db_
+  DBImpl* GetDB() { return db_; }
+
  private:
   ColumnFamilyData* cfd_;
   DBImpl* db_;
@@ -193,11 +197,12 @@ class ColumnFamilyData {
   uint64_t GetLogNumber() const { return log_number_; }
 
   // !!! To be deprecated! Please don't not use this function anymore!
-  const Options* options() const { return &options_; }
+  Options* options() { return &options_; }
 
   // thread-safe
   const EnvOptions* soptions() const;
-  const ImmutableCFOptions* ioptions() const { return &ioptions_; }
+  //const ImmutableCFOptions* ioptions() const { return &ioptions_; }
+  ImmutableCFOptions* ioptions() { return &ioptions_; }
   // REQUIRES: DB mutex held
   // This returns the MutableCFOptions used by current SuperVersion
   // You shoul use this API to reference MutableCFOptions most of the time.
@@ -334,8 +339,8 @@ class ColumnFamilyData {
   std::vector<std::unique_ptr<IntTblPropCollectorFactory>>
       int_tbl_prop_collector_factories_;
 
-  const Options options_;
-  const ImmutableCFOptions ioptions_;
+  Options options_;
+  ImmutableCFOptions ioptions_;
   MutableCFOptions mutable_cf_options_;
 
   std::unique_ptr<TableCache> table_cache_;

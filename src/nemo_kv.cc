@@ -30,6 +30,12 @@ Status Nemo::Del(const std::string &key) {
     return s;
 }
 
+Status Nemo::DelAll(const std::string &key) {
+    Status s;
+    s = kv_db_->Delete(rocksdb::WriteOptions(), key);
+    return s;
+}
+
 Status Nemo::MSet(const std::vector<KV> &kvs) {
     Status s;
     std::vector<KV>::const_iterator it;
@@ -491,7 +497,7 @@ Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *
     return Status::OK();
 }
 
-Status Nemo::ScanKeys(std::unique_ptr<rocksdb::DB> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys) {
+Status Nemo::ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys) {
     rocksdb::ReadOptions iterate_options;
 
     iterate_options.snapshot = snapshot;

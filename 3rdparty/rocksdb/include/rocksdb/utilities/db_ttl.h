@@ -11,6 +11,8 @@
 
 #include "rocksdb/utilities/stackable_db.h"
 #include "rocksdb/db.h"
+//#include "db/db_impl.h"
+#include "rocksdb/merge_operator.h"
 
 namespace rocksdb {
 
@@ -50,14 +52,6 @@ class DBWithTTL : public StackableDB {
       const ColumnFamilyOptions& options, const std::string& column_family_name,
       ColumnFamilyHandle** handle, int ttl) = 0;
 
-  Status GetKeyTTL(const ReadOptions& options, const Slice& key, int32_t *ttl);
-
-  Status PutWithKeyTTL(const WriteOptions& options, const Slice& key, const Slice& val, int32_t ttl = 0);
-  Status WriteWithKeyTTL(const WriteOptions& opts, WriteBatch* updates, int32_t ttl);
-  Status PutWithExpiredTime(const WriteOptions& options, const Slice& key, const Slice& val, int32_t expired_time);
-  Status WriteWithExpiredTime(const WriteOptions& opts, WriteBatch* updates, int32_t expired_time);
-
-
   static Status Open(const Options& options, const std::string& dbname,
                      DBWithTTL** dbptr, int32_t ttl = 0,
                      bool read_only = false);
@@ -68,8 +62,59 @@ class DBWithTTL : public StackableDB {
                      DBWithTTL** dbptr, std::vector<int32_t> ttls,
                      bool read_only = false);
 
+
+  // add key ttl feature and key version
+  Status SanityCheckVersionAndTimestamp(const Slice &key, const Slice& value);
+  Status GetKeyTTL(const ReadOptions& options, const Slice& key, int32_t *ttl);
+
+  Status PutWithKeyTTL(const WriteOptions& options, const Slice& key, const Slice& val, int32_t ttl = 0);
+  Status WriteWithKeyTTL(const WriteOptions& opts, WriteBatch* updates, int32_t ttl = 0);
+  Status PutWithExpiredTime(const WriteOptions& options, const Slice& key, const Slice& val, int32_t expired_time);
+  Status WriteWithExpiredTime(const WriteOptions& opts, WriteBatch* updates, int32_t expired_time);
+
+  static Status Open(const Options& options, const std::string& dbname,
+                     DBWithTTL** dbptr,  const char meta_prefix, int32_t ttl = 0,
+                     bool read_only = false);
+  static Status Open(const DBOptions& db_options, const std::string& dbname,
+                     const std::vector<ColumnFamilyDescriptor>& column_families,
+                     std::vector<ColumnFamilyHandle*>* handles,
+                     DBWithTTL** dbptr, const char meta_prefix, std::vector<int32_t> ttls,
+                     bool read_only = false);
+
+  static const uint32_t kTSLength = sizeof(int32_t);  // size of timestamp
+  static const uint32_t kVersionLength = sizeof(int32_t);  // size of key version
+
+  //char meta_prefix_;
+
  protected:
+
   explicit DBWithTTL(DB* db) : StackableDB(db) {}
+};
+
+class TtlMergeOperator : public MergeOperator {
+
+ public:
+  explicit TtlMergeOperator() {}
+  explicit TtlMergeOperator(const std::shared_ptr<MergeOperator>& merge_op,
+                            Env* env)
+      : user_merge_op_(merge_op), env_(env) {
+    assert(merge_op);
+    assert(env);
+  }
+
+  virtual bool FullMerge(const Slice& key, const Slice* existing_value,
+                         const std::deque<std::string>& operands,
+                         std::string* new_value, Logger* logger) const override;
+
+  virtual bool PartialMergeMulti(const Slice& key,
+                                 const std::deque<Slice>& operand_list,
+                                 std::string* new_value, Logger* logger) const override;
+
+  virtual const char* Name() const override { return "Merge By TTL"; }
+
+ private:
+  std::shared_ptr<MergeOperator> user_merge_op_;
+  Env* env_;
 };
 
 }  // namespace rocksdb

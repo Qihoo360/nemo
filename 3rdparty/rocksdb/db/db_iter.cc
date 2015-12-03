@@ -90,6 +90,13 @@ class DBIter: public Iterator {
     assert(iter_ == nullptr);
     iter_ = iter;
   }
+
+  //@ADD set db pointer
+  virtual void SetDB(DBImpl* db) {
+    db_ = db;
+  }
+  DBImpl* db_;
+
   virtual bool Valid() const override { return valid_; }
   virtual Slice key() const override {
     assert(valid_);
@@ -235,9 +242,40 @@ void DBIter::FindNextUserEntryInternal(bool skipping) {
               PERF_COUNTER_ADD(internal_delete_skipped_count, 1);
               break;
             case kTypeValue:
+              {
+              std::string user_key(ikey.user_key.data(), ikey.user_key.size());
+              Slice val(iter_->value().data(), iter_->value().size());
+              std::string meta_val;
+
+              // Get meta key and value
+              std::string meta_key(1, db_->meta_prefix_);
+              int32_t len = *((uint8_t *)user_key.data() + 1);
+              meta_key.append(user_key.data() + 2, len);
+
+              Status st = db_->Get(ReadOptions(), db_->DefaultColumnFamily(), meta_key, &meta_val);
+              int32_t timestamp_value = DecodeFixed32(meta_val.data() + meta_val.size() - DBImpl::kTSLength);
+              if (timestamp_value != 0) {
+                Env* env = db_->GetEnv();
+                int64_t curtime;
+                if (env->GetCurrentTime(&curtime).ok() && timestamp_value < curtime) {
+                  break;
+                }
+              }
+
+              // check key version of hash, list, zset, set
+              if (db_->meta_prefix_ != kMetaPrefix_KV) {
+                int32_t meta_version = DecodeFixed32(meta_val.data() + meta_val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+                int32_t key_version = DecodeFixed32(val.data() + val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+                
+                if (key_version < meta_version) {
+                  break;
+                }
+              }
+
               valid_ = true;
               saved_key_.SetKey(ikey.user_key);
               return;
+              }
             case kTypeMerge:
               // By now, we are sure the current ikey is going to yield a value
               saved_key_.SetKey(ikey.user_key);
@@ -685,6 +723,10 @@ void ArenaWrappedDBIter::SetDBIter(DBIter* iter) { db_iter_ = iter; }
 
 void ArenaWrappedDBIter::SetIterUnderDBIter(Iterator* iter) {
   static_cast<DBIter*>(db_iter_)->SetIter(iter);
+}
+
+void ArenaWrappedDBIter::SetDBUnderDBIter(DBImpl* db) {
+  static_cast<DBIter*>(db_iter_)->SetDB(db);
 }
 
 inline bool ArenaWrappedDBIter::Valid() const { return db_iter_->Valid(); }

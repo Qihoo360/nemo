@@ -180,7 +180,8 @@ struct ColumnFamilyOptions {
   // thread-safe.
   //
   // Default: nullptr
-  const CompactionFilter* compaction_filter;
+  CompactionFilter* compaction_filter;
+  //const CompactionFilter* compaction_filter;
 
   // This is a factory that provides compaction filter objects which allow
   // an application to modify/delete a key-value during background compaction.

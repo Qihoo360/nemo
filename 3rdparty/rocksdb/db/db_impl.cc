@@ -280,6 +280,44 @@ void DBImpl::CancelAllBackgroundWork(bool wait) {
   mutex_.Unlock();
 }
 
+int32_t ReadLenData(const char *str, std::string *res = NULL) {
+  int32_t len = *((uint8_t *)str);
+  str += 1;
+  if (res) {
+    res->assign(str, len);
+  }
+  return len + 1;
+}
+
+// Get key version according to MetaKey;
+// Meta_key is meta_prefix + key, except for KV structure.
+// Note: The format is based on nemo
+// A return value of 0 means that KV do not have meta.
+int32_t DBImpl::GetKeyVersion(const Slice& key) {
+  // KV do not have meta_prefix
+  if (meta_prefix_ == kMetaPrefix_KV) {
+    return 0;
+  }
+
+  int32_t version = 0;
+  std::string value;
+
+  std::string meta_key(1, meta_prefix_);
+
+  if (meta_prefix_ == (key.data())[0]) { 
+     meta_key.assign(key.data(), key.size());
+  } else {
+    int32_t len = *((uint8_t *)key.data() + 1);
+    meta_key.append(key.data() + 2, len);
+  }
+
+  Status st = this->Get(ReadOptions(), DefaultColumnFamily(), meta_key, &value);
+  if (st.ok()) {
+      version = DecodeFixed32(value.data() + value.size() - kVersionLength - kTSLength);
+  }
+  return version;
+}
+
 DBImpl::~DBImpl() {
   EraseThreadStatusDbInfo();
   mutex_.Lock();
@@ -3010,6 +3048,9 @@ Iterator* DBImpl::NewIterator(const ReadOptions& read_options,
         NewInternalIterator(read_options, cfd, sv, db_iter->GetArena());
     db_iter->SetIterUnderDBIter(internal_iter);
 
+    //@ADD Set db pointer
+    db_iter->SetDBUnderDBIter(this);
+
     return db_iter;
   }
   // To stop compiler from complaining
@@ -4046,6 +4087,10 @@ Status DB::Open(const DBOptions& db_options, const std::string& dbname,
     impl->opened_successfully_ = true;
     Log(InfoLogLevel::INFO_LEVEL, impl->db_options_.info_log, "DB pointer %p",
         impl);
+
+    //@ADD by flabby
+    impl->versions_->db_ = impl;
+
     *dbptr = impl;
   } else {
     for (auto* h : *handles) {

@@ -13,10 +13,14 @@
 #include <string>
 #include <vector>
 
+#include "db/db_impl.h"
+
 namespace rocksdb {
 
 class Slice;
 class SliceTransform;
+
+class DBImpl;
 
 // Context information of a compaction run
 struct CompactionFilterContext {
@@ -73,6 +77,9 @@ class CompactionFilter {
   // Returns a name that identifies this compaction filter.
   // The name will be printed to LOG file on start up for diagnosis.
   virtual const char* Name() const = 0;
+
+  //virtual void SetDB(DBImpl* db) { db_ = db; }
+  DBImpl* db_;
 };
 
 // CompactionFilterV2 that buffers kv pairs sharing the same prefix and let

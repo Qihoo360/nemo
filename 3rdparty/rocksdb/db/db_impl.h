@@ -158,6 +158,15 @@ class DBImpl : public DB {
 
   virtual SequenceNumber GetLatestSequenceNumber() const override;
 
+  // DBWithTTL need meta_prefix
+  void SetMetaPrefix(const char ch)   { meta_prefix_ = ch; }
+  void GetMetaPrefix(char *ch)   { *ch = meta_prefix_; }
+  virtual int32_t GetKeyVersion(const Slice& key) override;
+
+  //char meta_prefix_;
+  static const uint32_t kTSLength = sizeof(int32_t);  // size of timestamp
+  static const uint32_t kVersionLength = sizeof(int32_t);  // size of key version
+
 #ifndef ROCKSDB_LITE
   virtual Status DisableFileDeletions() override;
   virtual Status EnableFileDeletions(bool force) override;
@@ -279,7 +288,9 @@ class DBImpl : public DB {
 
   void CancelAllBackgroundWork(bool wait);
 
+
  protected:
+
   Env* const env_;
   const std::string dbname_;
   unique_ptr<VersionSet> versions_;

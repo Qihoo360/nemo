@@ -6,6 +6,8 @@
 #ifndef MERGE_HELPER_H
 #define MERGE_HELPER_H
 
+#include "db/db_impl.h"
+
 #include "db/dbformat.h"
 #include "rocksdb/slice.h"
 #include <string>
@@ -99,6 +101,7 @@ class MergeHelper {
   }
   bool HasOperator() const { return user_merge_operator_ != nullptr; }
 
+  DBImpl* db_;
  private:
   const Comparator* user_comparator_;
   const MergeOperator* user_merge_operator_;
