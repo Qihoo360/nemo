@@ -44,6 +44,9 @@ public:
     Status HDelKey(const std::string &key);
     Status HExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status HTTL(const std::string &key, int64_t *res);
+    Status ZDelKey(const std::string &key);
+    Status ZExpire(const std::string &key, const int32_t seconds, int64_t *res);
+    Status ZTTL(const std::string &key, int64_t *res);
 
     // =================KV=====================
     Status Set(const std::string &key, const std::string &val, const int32_t ttl = 0);

@@ -117,13 +117,13 @@ Status Nemo::HExpire(const std::string &key, const int32_t seconds, int64_t *res
         return Status::NotFound("");
       }
 
-      MutexLock l(&mutex_hash_);
       if (seconds > 0) {
-            s = hash_db_->PutWithKeyTTL(rocksdb::WriteOptions(), size_key, val, seconds);
-        } else { 
-            s = HDelKey(key);
-        }
-        *res = 1;
+        MutexLock l(&mutex_hash_);
+        s = hash_db_->PutWithKeyTTL(rocksdb::WriteOptions(), size_key, val, seconds);
+      } else { 
+        s = HDelKey(key);
+      }
+      *res = 1;
     }
     return s;
 }

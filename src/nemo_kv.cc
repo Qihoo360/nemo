@@ -527,6 +527,8 @@ Status Nemo::ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapsho
     return Status::OK();
 }
 
+// String APIs
+
 Status Nemo::Keys(const std::string &pattern, std::vector<std::string>& keys) {
     Status s;
     std::vector<const rocksdb::Snapshot*> snapshots;

@@ -358,6 +358,8 @@ int main()
         log_info("Test Scan key: %s, value: %s", scan_iter->Key().c_str(), scan_iter->Val().c_str());
     }
 
+    delete scan_iter;
+
     //just delete all key-value set before
     s = n->MDel(keys, &mcount);
     log_info("");
