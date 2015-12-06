@@ -145,6 +145,11 @@ int main()
     }
     log_info("");
 
+    /*
+     *  Test HGetall
+     */
+    log_info("======Test Compact======");
+    n->Compact();
 
     /*
      *  Test Expire 

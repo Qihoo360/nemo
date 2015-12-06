@@ -28,7 +28,9 @@ void DBWithTTLImpl::SanitizeOptions(int32_t ttl, ColumnFamilyOptions* options,
 
   if (options->merge_operator) {
     options->merge_operator.reset(
-        new TtlMergeOperator(options->merge_operator, env));
+        new TtlMergeOperator());
+    //options->merge_operator.reset(
+    //    new TtlMergeOperator(options->merge_operator, env));
   } else {
     options->merge_operator = std::shared_ptr<TtlMergeOperator>(
         new TtlMergeOperator());
@@ -845,7 +847,6 @@ bool TtlCompactionFilter::Filter(int level, const Slice& key, const Slice& old_v
     }
     return false;
   }
-
 
 }  // namespace rocksdb
 #endif  // ROCKSDB_LITE
