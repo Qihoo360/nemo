@@ -206,19 +206,19 @@ Status Nemo::BGSaveSpecify(const std::string key_type, Snapshot* snapshot) {
       s = SaveDBWithTTL(dump_path_ + KV_DB, kv_db_, snapshot);
       if (!s.ok()) return s;
     } else if (key_type == HASH_DB) {
-      s = SaveDB(dump_path_ + HASH_DB, hash_db_, snapshot);
+      s = SaveDBWithTTL(dump_path_ + HASH_DB, hash_db_, snapshot);
       if (!s.ok()) return s;
       //if (!s.ok()) return (void *)&s;
     } else if (key_type == ZSET_DB) {
-      s = SaveDB(dump_path_ + ZSET_DB, zset_db_, snapshot);
+      s = SaveDBWithTTL(dump_path_ + ZSET_DB, zset_db_, snapshot);
       if (!s.ok()) return s;
       //if (!s.ok()) return (void *)&s;
     } else if (key_type == SET_DB) {
-      s = SaveDB(dump_path_ + SET_DB, set_db_, snapshot);
+      s = SaveDBWithTTL(dump_path_ + SET_DB, set_db_, snapshot);
       if (!s.ok()) return s;
       //if (!s.ok()) return (void *)&s;
     } else if (key_type == LIST_DB) {
-      s = SaveDB(dump_path_ + LIST_DB, list_db_, snapshot);
+      s = SaveDBWithTTL(dump_path_ + LIST_DB, list_db_, snapshot);
       if (!s.ok()) return s;
       //if (!s.ok()) return (void *)&s;
     } else {
@@ -355,7 +355,7 @@ Status Nemo::ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t
     return Status::OK();
 }
 
-Status Nemo::ScanKeyNum(std::unique_ptr<rocksdb::DB> &db, const char kType, uint64_t &num) {
+Status Nemo::ScanKeyNum(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kType, uint64_t &num) {
     rocksdb::ReadOptions iterate_options;
 
     iterate_options.snapshot = db->GetSnapshot();

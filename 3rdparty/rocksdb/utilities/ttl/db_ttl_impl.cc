@@ -748,15 +748,33 @@ bool TtlMergeOperator::FullMerge(const Slice& key, const Slice* existing_value,
     return false;
   }
 
-  // check key version
-  std::string last_operand = operands.back();
-  int32_t current_version = DecodeFixed32(last_operand.data() + last_operand.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+  std::string value;
+  std::deque<std::string>::const_iterator it = operands.begin();
 
-  char version_string[version_len];
-  EncodeFixed32(version_string, (int32_t)current_version + operands.size());
-  last_operand.replace(last_operand.size() - DBImpl::kVersionLength - DBImpl::kTSLength, version_len, version_string, version_len);
+  if (!existing_value) {
+    value.assign(it->data(), it->size());
+    it++;
+  } else {
+    value.assign(existing_value->data(), existing_value->size());
+  }
 
-  swap(*new_value, last_operand);
+  for (; it != operands.end(); it++) {
+    // increase a version when value is same
+    if (value.compare(*it) == 0) {
+      int32_t current_version = DecodeFixed32(value.data() + value.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+
+      char version_string[version_len];
+      EncodeFixed32(version_string, (int32_t)current_version + 1);
+      value.replace(value.size() - version_len - ts_len, version_len, version_string, version_len);
+    } else {
+      std::string ver_ts_str(value.data() + value.size() - version_len - ts_len, version_len + ts_len);
+
+      value.assign(it->data(), it->size());
+      value.replace(value.size() - version_len - ts_len, version_len + ts_len, ver_ts_str);
+    }
+  }
+
+  swap(*new_value, value);
   return true;
 }
 
@@ -764,30 +782,36 @@ bool TtlMergeOperator::PartialMergeMulti(const Slice& key,
                                                  const std::deque<Slice>& operand_list,
                                                  std::string* new_value, Logger* logger) const {
   // normal key, this section should not be reached
-  std::string last_operand(operand_list.back().ToString());
 
   //  if (db_->meta_prefix == kMetaPrefix_KV || (key.data())[0] != db_->meta_prefix_) {
   //    new_value->append(last_operand.data(), last_operand.size());
   //    return true;
   //  }
 
-  const uint32_t ts_len = DBImpl::kTSLength;
-  const int32_t version_len = DBImpl::kVersionLength;
-  std::deque<Slice> operands_without_ts;
+  std::deque<Slice>::iterator it = operands.begin();
 
-  if (last_operand.size() < ts_len + version_len) {
-    Log(InfoLogLevel::ERROR_LEVEL, logger,
-        "Error: Could not remove timestamp from value.");
-    return false;
+  std::string value(it->data(), it->size());
+  if (it != operands.size()) {
+    it++;
   }
 
-  int32_t current_version = DecodeFixed32(last_operand.data() + last_operand.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+  for (; it != operands.end(); it++) {
+    // increase a version when value is same
+    if (value.compare(std::string(it->data(), it->size())) == 0) {
+      int32_t current_version = DecodeFixed32(value.data() + value.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
 
-  char version_string[version_len];
-  EncodeFixed32(version_string, (int32_t)current_version + 2);
-  last_operand.replace(last_operand.size() - DBImpl::kVersionLength - DBImpl::kTSLength, version_len, version_string, version_len);
+      char version_string[version_len];
+      EncodeFixed32(version_string, (int32_t)current_version + 1);
+      value.replace(value.size() - version_len - ts_len, version_len, version_string, version_len);
+    } else {
+      std::string ver_ts_str(value.data() + value.size() - version_len - ts_len, version_len + ts_len);
 
-  new_value->append(last_operand.data(), last_operand.size());
+      value.assign(it->data(), it->size());
+      value.replace(value.size() - version_len - ts_len, version_len + ts_len, ver_ts_str);
+    }
+  }
+
+  swap(*new_value, value);
   return true;
 }
 

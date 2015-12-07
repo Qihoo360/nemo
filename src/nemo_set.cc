@@ -33,7 +33,7 @@ Status Nemo::SAdd(const std::string &key, const std::string &member, int64_t *re
         return Status::Corruption("sadd check member error");
     }
 
-    s = set_db_->Write(rocksdb::WriteOptions(), &(writebatch));
+    s = set_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 
@@ -57,7 +57,7 @@ Status Nemo::SAddNoLock(const std::string &key, const std::string &member, int64
         return Status::Corruption("sadd check member error");
     }
 
-    s = set_db_->Write(rocksdb::WriteOptions(), &(writebatch));
+    s = set_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 
@@ -80,7 +80,7 @@ Status Nemo::SRem(const std::string &key, const std::string &member, int64_t *re
             return Status::Corruption("incrSSize error");
         }
         writebatch.Delete(set_key);
-        s = set_db_->Write(rocksdb::WriteOptions(), &(writebatch));
+        s = set_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     } else if (s.IsNotFound()) {
         *res = 0;
     } else {
@@ -103,7 +103,7 @@ Status Nemo::SRemNoLock(const std::string &key, const std::string &member, int64
             return Status::Corruption("incrSSize error");
         }
         writebatch.Delete(set_key);
-        s = set_db_->Write(rocksdb::WriteOptions(), &(writebatch));
+        s = set_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     } else if (s.IsNotFound()) {
         *res = 0;
     } else {
@@ -511,7 +511,7 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
         }
         writebatch.Put(destination_key, rocksdb::Slice());
 
-        s = set_db_->Write(rocksdb::WriteOptions(), &(writebatch));
+        s = set_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     } else if (s.IsNotFound()) {
         *res = 0;
     } else {

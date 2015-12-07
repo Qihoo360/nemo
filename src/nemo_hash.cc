@@ -91,11 +91,15 @@ Status Nemo::HDelKey(const std::string &key) {
       return Status::NotFound("");
     }
 
-    len = 0;
     MutexLock l(&mutex_hash_);
     
-    s = hash_db_->Merge(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+    rocksdb::WriteBatch writebatch;
 
+    writebatch.Merge(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+    len = 0;
+    writebatch.Merge(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+
+    s = hash_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 
@@ -461,7 +465,7 @@ int Nemo::IncrHLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &wr
     }
     len += incr;
     std::string size_key = EncodeHsizeKey(key);
-    writebatch.Put(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+    writebatch.Merge(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
 
    // if (len == 0) {
    //     //writebatch.Delete(size_key);
