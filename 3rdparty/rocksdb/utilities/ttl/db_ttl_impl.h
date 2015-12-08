@@ -14,7 +14,7 @@
 #include "rocksdb/env.h"
 #include "rocksdb/options.h"
 #include "rocksdb/compaction_filter.h"
-//#include "rocksdb/merge_operator.h"
+#include "rocksdb/merge_operator.h"
 #include "rocksdb/utilities/utility_db.h"
 #include "rocksdb/utilities/db_ttl.h"
 
@@ -272,77 +272,115 @@ class TtlCompactionFilterFactory : public CompactionFilterFactory {
   std::shared_ptr<CompactionFilterFactory> user_comp_filter_factory_;
 };
 
-//class TtlMergeOperator : public MergeOperator {
-//
-// public:
-//  explicit TtlMergeOperator() {}
-//  explicit TtlMergeOperator(const std::shared_ptr<MergeOperator>& merge_op,
-//                            Env* env)
-//      : user_merge_op_(merge_op), env_(env) {
-//    assert(merge_op);
-//    assert(env);
-//  }
-//
-//  virtual bool FullMerge(const Slice& key, const Slice* existing_value,
-//                         const std::deque<std::string>& operands,
-//                         std::string* new_value, Logger* logger) const
-//      override {
-//    // normal key, this section should not be reached
-//    if (db_->meta_prefix_ == kMetaPrefix_KV || (key.data())[0] != db_->meta_prefix_) {
-//      *new_value = operands.back();
-//      return true;
-//    }
-//
-//    const int32_t ts_len = DBImpl::kTSLength;
-//    const int32_t version_len = DBImpl::kVersionLength;
-//    if (existing_value && existing_value->size() < ts_len + version_len) {
-//      Log(InfoLogLevel::ERROR_LEVEL, logger,
-//          "Error: Could not remove timestamp from existing value.");
-//      return false;
-//    }
-//
-//    // check key version
-//    std::string last_operand = operands.back();
-//    int32_t current_version = DecodeFixed32(last_operand.data() + last_operand.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
-//
-//    EncodeFixed32(last_operand.data() + last_operand.size() - DBImpl::kVersionLength - DBImpl::kTSLength, (int32_t)current_version + 1);
-//    swap(*new_value, last_operand);
-//    return true;
-//  }
-//
-//  virtual bool PartialMergeMulti(const Slice& key,
-//                                 const std::deque<Slice>& operand_list,
-//                                 std::string* new_value, Logger* logger) const
-//      override {
-//    // normal key, this section should not be reached
-//    auto last_operand = operand_list.back();
-//
-//    if (db_->meta_prefix == kMetaPrefix_KV || (key.data())[0] != db_->meta_prefix_) {
-//      new_value->append(last_operand.data(), last_operand.size());
-//      return true;
-//    }
-//
-//    const uint32_t ts_len = DBImpl::kTSLength;
-//    const int32_t version_len = DBImpl::kVersionLength;
-//    std::deque<Slice> operands_without_ts;
-//
-//    if (last_operand.size() < ts_len + version_len) {
-//      Log(InfoLogLevel::ERROR_LEVEL, logger,
-//          "Error: Could not remove timestamp from value.");
-//      return false;
-//    }
-//
-//    int32_t current_version = DecodeFixed32(last_operand.data() + last_operand.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
-//    EncodeFixed32(last_operand.data() + last_operand.size() - DBImpl::kVersionLength - DBImpl::kTSLength, (int32_t)current_version + 1);
-//    new_value->append(last_operand.data(), last_operand().size());
-//    return true;
-//  }
-//
-//  virtual const char* Name() const override { return "Merge By TTL"; }
-//
-// private:
-//  std::shared_ptr<MergeOperator> user_merge_op_;
-//  Env* env_;
-//};
+class TtlMergeOperator : public MergeOperator {
+
+ public:
+  explicit TtlMergeOperator(const std::shared_ptr<MergeOperator>& merge_op,
+                            Env* env)
+      : user_merge_op_(merge_op), env_(env) {
+    assert(merge_op);
+    assert(env);
+  }
+
+  virtual bool FullMerge(const Slice& key, const Slice* existing_value,
+                         const std::deque<std::string>& operands,
+                         std::string* new_value, Logger* logger) const
+      override {
+    const uint32_t ts_len = DBWithTTLImpl::kTSLength;
+    if (existing_value && existing_value->size() < ts_len) {
+      Log(InfoLogLevel::ERROR_LEVEL, logger,
+          "Error: Could not remove timestamp from existing value.");
+      return false;
+    }
+
+    // Extract time-stamp from each operand to be passed to user_merge_op_
+    std::deque<std::string> operands_without_ts;
+    for (const auto& operand : operands) {
+      if (operand.size() < ts_len) {
+        Log(InfoLogLevel::ERROR_LEVEL, logger,
+            "Error: Could not remove timestamp from operand value.");
+        return false;
+      }
+      operands_without_ts.push_back(operand.substr(0, operand.size() - ts_len));
+    }
+
+    // Apply the user merge operator (store result in *new_value)
+    bool good = true;
+    if (existing_value) {
+      Slice existing_value_without_ts(existing_value->data(),
+                                      existing_value->size() - ts_len);
+      good = user_merge_op_->FullMerge(key, &existing_value_without_ts,
+                                       operands_without_ts, new_value, logger);
+    } else {
+      good = user_merge_op_->FullMerge(key, nullptr, operands_without_ts,
+                                       new_value, logger);
+    }
+
+    // Return false if the user merge operator returned false
+    if (!good) {
+      return false;
+    }
+
+    // Augment the *new_value with the ttl time-stamp
+    int64_t curtime;
+    if (!env_->GetCurrentTime(&curtime).ok()) {
+      Log(InfoLogLevel::ERROR_LEVEL, logger,
+          "Error: Could not get current time to be attached internally "
+          "to the new value.");
+      return false;
+    } else {
+      char ts_string[ts_len];
+      EncodeFixed32(ts_string, (int32_t)curtime);
+      new_value->append(ts_string, ts_len);
+      return true;
+    }
+  }
+
+  virtual bool PartialMergeMulti(const Slice& key,
+                                 const std::deque<Slice>& operand_list,
+                                 std::string* new_value, Logger* logger) const
+      override {
+    const uint32_t ts_len = DBWithTTLImpl::kTSLength;
+    std::deque<Slice> operands_without_ts;
+
+    for (const auto& operand : operand_list) {
+      if (operand.size() < ts_len) {
+        Log(InfoLogLevel::ERROR_LEVEL, logger,
+            "Error: Could not remove timestamp from value.");
+        return false;
+      }
+
+      operands_without_ts.push_back(
+          Slice(operand.data(), operand.size() - ts_len));
+    }
+
+    // Apply the user partial-merge operator (store result in *new_value)
+    assert(new_value);
+    if (!user_merge_op_->PartialMergeMulti(key, operands_without_ts, new_value,
+                                           logger)) {
+      return false;
+    }
+
+    // Augment the *new_value with the ttl time-stamp
+    int64_t curtime;
+    if (!env_->GetCurrentTime(&curtime).ok()) {
+      Log(InfoLogLevel::ERROR_LEVEL, logger,
+          "Error: Could not get current time to be attached internally "
+          "to the new value.");
+      return false;
+    } else {
+      char ts_string[ts_len];
+      EncodeFixed32(ts_string, (int32_t)curtime);
+      new_value->append(ts_string, ts_len);
+      return true;
+    }
+  }
+
+  virtual const char* Name() const override { return "Merge By TTL"; }
+
+ private:
+  std::shared_ptr<MergeOperator> user_merge_op_;
+  Env* env_;
+};
 }
 #endif  // ROCKSDB_LITE

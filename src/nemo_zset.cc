@@ -772,7 +772,7 @@ Status Nemo::ZDelKey(const std::string &key) {
     len = 0;
     MutexLock l(&mutex_hash_);
     
-    s = zset_db_->Merge(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+    s = zset_db_->PutWithKeyVersion(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
 
     return s;
 }
@@ -815,7 +815,7 @@ Status Nemo::ZTTL(const std::string &key, int64_t *res) {
     std::string val;
 
     std::string size_key = EncodeZSizeKey(key);
-    s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+    s = zset_db_->Get(rocksdb::ReadOptions(), size_key, &val);
     if (s.IsNotFound()) {
         *res = -2;
     } else if (s.ok()) {

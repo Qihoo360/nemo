@@ -28,12 +28,7 @@ void DBWithTTLImpl::SanitizeOptions(int32_t ttl, ColumnFamilyOptions* options,
 
   if (options->merge_operator) {
     options->merge_operator.reset(
-        new TtlMergeOperator());
-    //options->merge_operator.reset(
-    //    new TtlMergeOperator(options->merge_operator, env));
-  } else {
-    options->merge_operator = std::shared_ptr<TtlMergeOperator>(
-        new TtlMergeOperator());
+        new TtlMergeOperator(options->merge_operator, env));
   }
 }
 
@@ -213,6 +208,39 @@ int32_t DBWithTTLImpl::GetTTLFromNow(const Slice& value, int32_t ttl, Env* env) 
 
   int32_t ttl_from_now = ttl - (curtime - timestamp_value);
   return ttl_from_now >= 0 ? ttl_from_now : 0;
+}
+
+Status DBWithTTL::GetVersion(const Slice& key, int32_t *version) {
+    // KV structure and data key of Hash, list, zset, set don't have version
+    *version = 0;
+    if (db_->meta_prefix_ == kMetaPrefix_KV || db_->meta_prefix_ != (key.data())[0]) { 
+      return Status::NotFound("Not meta key");
+    }
+
+    std::string value;
+    Status st = db_->Get(ReadOptions(), db_->DefaultColumnFamily(), key, &value);
+    if (!st.ok()) {
+        return st;
+    }
+
+    if (value.size() < kVersionLength + kTSLength) {
+      return Status::Corruption("Error: value's length less than version and timestamp's\n");
+    }
+
+    int32_t timestamp_value = DecodeFixed32(value.data() + value.size() - kTSLength);
+
+    int64_t curtime;
+    Env* env = db_->GetEnv();
+    // Treat the data as fresh if could not get current time
+    if (env->GetCurrentTime(&curtime).ok()) {
+      if (timestamp_value != 0 && timestamp_value < curtime) { // 0 means fresh
+        return Status::NotFound("Is stale\n");
+      }
+    }
+
+    *version = DecodeFixed32(value.data() + value.size() - kTSLength - kVersionLength);
+
+    return Status::OK();
 }
 
 // Get TTL, -1 means live forever
@@ -474,6 +502,14 @@ Status DBWithTTL::PutWithKeyTTL(const WriteOptions& options, const Slice& key, c
   return DBWithTTL::WriteWithKeyTTL(options, &batch, ttl);
 }
 
+Status DBWithTTL::PutWithKeyVersion(const WriteOptions& options, const Slice& key, const Slice& val) {
+  int32_t version = 0;
+  GetVersion(key, &version);
+  WriteBatch batch;
+  batch.Put(db_->DefaultColumnFamily(), key, val);
+  return DBWithTTL::WriteWithKeyVersion(options, &batch, version + 1);
+}
+
 Status DBWithTTL::PutWithExpiredTime(const WriteOptions& options, const Slice& key, const Slice& val, int32_t expired_time) {
   //int32_t version = db_->GetKeyVersion(key);
   WriteBatch batch;
@@ -724,95 +760,64 @@ Status DBWithTTL::WriteWithExpiredTime(const WriteOptions& opts, WriteBatch* upd
   }
 }
 
+Status DBWithTTL::WriteWithKeyVersion(const WriteOptions& opts, WriteBatch* updates, int32_t version) {
+  class Handler : public WriteBatch::Handler {
+   public:
+    DBImpl* db_;
+    WriteBatch updates_ttl;
+    Status batch_rewrite_status;
+
+    explicit Handler(Env* env, int32_t version, DB* db)
+        : db_(reinterpret_cast<DBImpl*>(db)), env_(env), version_(version) {}
+
+    virtual Status PutCF(uint32_t column_family_id, const Slice& key,
+                         const Slice& value) {
+      std::string value_with_ver_ts;
+      Status st = DBWithTTLImpl::AppendVersionAndKeyTTL(value, &value_with_ver_ts, env_, version_, 0);
+      if (!st.ok()) {
+        batch_rewrite_status = st;
+      } else {
+        WriteBatchInternal::Put(&updates_ttl, column_family_id, key,
+                                value_with_ver_ts);
+      }
+      return Status::OK();
+    }
+    virtual Status MergeCF(uint32_t column_family_id, const Slice& key,
+                           const Slice& value) {
+      std::string value_with_ver_ts;
+      Status st = DBWithTTLImpl::AppendVersionAndKeyTTL(value, &value_with_ver_ts, env_, version_, 0);
+      if (!st.ok()) {
+        batch_rewrite_status = st;
+      } else {
+        WriteBatchInternal::Merge(&updates_ttl, column_family_id, key,
+                                  value_with_ver_ts);
+      }
+      return Status::OK();
+    }
+    virtual Status DeleteCF(uint32_t column_family_id, const Slice& key) {
+      WriteBatchInternal::Delete(&updates_ttl, column_family_id, key);
+      return Status::OK();
+    }
+    virtual void LogData(const Slice& blob) { updates_ttl.PutLogData(blob); }
+
+   private:
+    Env* env_;
+    int32_t version_;
+  };
+  //@ADD assign the db pointer
+  Handler handler(GetEnv(), version, db_);
+
+  updates->Iterate(&handler);
+  if (!handler.batch_rewrite_status.ok()) {
+    return handler.batch_rewrite_status;
+  } else {
+    return db_->Write(opts, &(handler.updates_ttl));
+  }
+}
+
 Iterator* DBWithTTLImpl::NewIterator(const ReadOptions& opts,
                                      ColumnFamilyHandle* column_family) {
   return new TtlIterator(db_->NewIterator(opts, column_family), db_);
-}
-
-// We do not need to check when existing_value is null
-bool TtlMergeOperator::FullMerge(const Slice& key, const Slice* existing_value,
-                                         const std::deque<std::string>& operands,
-                                         std::string* new_value, Logger* logger) const {
-  // normal key, this section should not be reached
- // if (db_->meta_prefix_ == kMetaPrefix_KV || (key.data())[0] != db_->meta_prefix_) {
- //   *new_value = operands.back();
- //   return true;
- // }
-
-  const int32_t ts_len = DBImpl::kTSLength;
-  const int32_t version_len = DBImpl::kVersionLength;
-
-  if (existing_value && existing_value->size() < ts_len + version_len) {
-    Log(InfoLogLevel::ERROR_LEVEL, logger,
-        "Error: Could not remove timestamp from existing value.");
-    return false;
-  }
-
-  std::string value;
-  std::deque<std::string>::const_iterator it = operands.begin();
-
-  if (!existing_value) {
-    value.assign(it->data(), it->size());
-    it++;
-  } else {
-    value.assign(existing_value->data(), existing_value->size());
-  }
-
-  for (; it != operands.end(); it++) {
-    // increase a version when value is same
-    if (value.compare(*it) == 0) {
-      int32_t current_version = DecodeFixed32(value.data() + value.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
-
-      char version_string[version_len];
-      EncodeFixed32(version_string, (int32_t)current_version + 1);
-      value.replace(value.size() - version_len - ts_len, version_len, version_string, version_len);
-    } else {
-      std::string ver_ts_str(value.data() + value.size() - version_len - ts_len, version_len + ts_len);
-
-      value.assign(it->data(), it->size());
-      value.replace(value.size() - version_len - ts_len, version_len + ts_len, ver_ts_str);
-    }
-  }
-
-  swap(*new_value, value);
-  return true;
-}
-
-bool TtlMergeOperator::PartialMergeMulti(const Slice& key,
-                                                 const std::deque<Slice>& operand_list,
-                                                 std::string* new_value, Logger* logger) const {
-  // normal key, this section should not be reached
-
-  //  if (db_->meta_prefix == kMetaPrefix_KV || (key.data())[0] != db_->meta_prefix_) {
-  //    new_value->append(last_operand.data(), last_operand.size());
-  //    return true;
-  //  }
-
-  std::deque<Slice>::iterator it = operands.begin();
-
-  std::string value(it->data(), it->size());
-  if (it != operands.size()) {
-    it++;
-  }
-
-  for (; it != operands.end(); it++) {
-    // increase a version when value is same
-    if (value.compare(std::string(it->data(), it->size())) == 0) {
-      int32_t current_version = DecodeFixed32(value.data() + value.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
-
-      char version_string[version_len];
-      EncodeFixed32(version_string, (int32_t)current_version + 1);
-      value.replace(value.size() - version_len - ts_len, version_len, version_string, version_len);
-    } else {
-      std::string ver_ts_str(value.data() + value.size() - version_len - ts_len, version_len + ts_len);
-
-      value.assign(it->data(), it->size());
-      value.replace(value.size() - version_len - ts_len, version_len + ts_len, ver_ts_str);
-    }
-  }
-
-  swap(*new_value, value);
-  return true;
 }
 
 bool TtlCompactionFilter::Filter(int level, const Slice& key, const Slice& old_val,

@@ -613,7 +613,7 @@ Status CompactionJob::ProcessKeyValueCompaction(int64_t* imm_micros,
   auto db_ = versions_->db_;
 
   //@ADD DBImpl pointer to TtlMergeOperator
-  cfd->ioptions()->merge_operator->db_ = db_;
+  //cfd->ioptions()->merge_operator->db_ = db_;
 
   MergeHelper merge(cfd->user_comparator(), cfd->ioptions()->merge_operator,
                     db_options_.info_log.get(),

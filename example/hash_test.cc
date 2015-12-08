@@ -151,6 +151,15 @@ int main()
     log_info("======Test Compact======");
     n->Compact();
 
+    log_info("   ====== HGetall after compact======");
+    fvs.clear();
+    s = n->HGetall("tHSetKey", fvs);
+    log_info("Test HGetall OK return %s", s.ToString().c_str());
+    for (fv_iter = fvs.begin(); fv_iter != fvs.end(); fv_iter++) {
+      log_info("Test HGetall, field: %s, val: %s", fv_iter->field.c_str(), fv_iter->val.c_str());
+    }
+    log_info("");
+
     /*
      *  Test Expire 
      */

@@ -12,7 +12,6 @@
 #include "rocksdb/utilities/stackable_db.h"
 #include "rocksdb/db.h"
 //#include "db/db_impl.h"
-#include "rocksdb/merge_operator.h"
 
 namespace rocksdb {
 
@@ -66,9 +65,12 @@ class DBWithTTL : public StackableDB {
   // add key ttl feature and key version
   Status SanityCheckVersionAndTimestamp(const Slice &key, const Slice& value);
   Status GetKeyTTL(const ReadOptions& options, const Slice& key, int32_t *ttl);
+  Status GetVersion(const Slice& key, int32_t *version);
 
   Status PutWithKeyTTL(const WriteOptions& options, const Slice& key, const Slice& val, int32_t ttl = 0);
+  Status PutWithKeyVersion(const WriteOptions& options, const Slice& key, const Slice& val);
   Status WriteWithKeyTTL(const WriteOptions& opts, WriteBatch* updates, int32_t ttl = 0);
+  Status WriteWithKeyVersion(const WriteOptions& opts, WriteBatch* updates, int32_t version = 0);
   Status PutWithExpiredTime(const WriteOptions& options, const Slice& key, const Slice& val, int32_t expired_time);
   Status WriteWithExpiredTime(const WriteOptions& opts, WriteBatch* updates, int32_t expired_time);
 
@@ -89,32 +91,6 @@ class DBWithTTL : public StackableDB {
  protected:
 
   explicit DBWithTTL(DB* db) : StackableDB(db) {}
-};
-
-class TtlMergeOperator : public MergeOperator {
-
- public:
-  explicit TtlMergeOperator() {}
-  explicit TtlMergeOperator(const std::shared_ptr<MergeOperator>& merge_op,
-                            Env* env)
-      : user_merge_op_(merge_op), env_(env) {
-    assert(merge_op);
-    assert(env);
-  }
-
-  virtual bool FullMerge(const Slice& key, const Slice* existing_value,
-                         const std::deque<std::string>& operands,
-                         std::string* new_value, Logger* logger) const override;
-
-  virtual bool PartialMergeMulti(const Slice& key,
-                                 const std::deque<Slice>& operand_list,
-                                 std::string* new_value, Logger* logger) const override;
-
-  virtual const char* Name() const override { return "Merge By TTL"; }
-
- private:
-  std::shared_ptr<MergeOperator> user_merge_op_;
-  Env* env_;
 };
 
 }  // namespace rocksdb

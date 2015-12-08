@@ -91,15 +91,10 @@ Status Nemo::HDelKey(const std::string &key) {
       return Status::NotFound("");
     }
 
-    MutexLock l(&mutex_hash_);
-    
-    rocksdb::WriteBatch writebatch;
-
-    writebatch.Merge(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
     len = 0;
-    writebatch.Merge(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+    MutexLock l(&mutex_hash_);
+    s = hash_db_->PutWithKeyVersion(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
 
-    s = hash_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 
@@ -189,7 +184,6 @@ Status Nemo::HKeys(const std::string &key, std::vector<std::string> &fields) {
     hash_db_->ReleaseSnapshot(iterate_options.snapshot);
     delete it;
     return Status::OK();
-
 }
 
 int64_t Nemo::HLen(const std::string &key) {
@@ -465,7 +459,7 @@ int Nemo::IncrHLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &wr
     }
     len += incr;
     std::string size_key = EncodeHsizeKey(key);
-    writebatch.Merge(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+    writebatch.Put(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
 
    // if (len == 0) {
    //     //writebatch.Delete(size_key);
