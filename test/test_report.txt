@@ -1,0 +1,147 @@
+============================KVTEST START===========================
+============================KVTEST START===========================
+========TestSet========
+[success] (nemo_kv_test.cc:38)key长度正常，value长度正常
+[success] (nemo_kv_test.cc:54)key长度最短，value长度正常
+[success] (nemo_kv_test.cc:69)key长度正常， value长度最短
+[success] (nemo_kv_test.cc:84)key长度最长， value长度正常
+[success] (nemo_kv_test.cc:99)key长度正常， value长度最长
+[success] (nemo_kv_test.cc:113)key长度最长， value长度最长
+[success] (nemo_kv_test.cc:127)key长度最长， value长度最长
+[success] (nemo_kv_test.cc:142)测试ttl默认是否为0
+[success] (nemo_kv_test.cc:159)测试ttl: ttl有值(ttl=2),是否到点过期
+[success] (nemo_kv_test.cc:169)测试ttl：ttl为负数(ttl=-1), 有效期是否无限
+
+========TestGet========
+[success] (nemo_kv_test.cc:191)key存在，value不为空
+[success] (nemo_kv_test.cc:206)key存在， value为空
+[success] (nemo_kv_test.cc:219)key不存在
+
+========TestDel========
+[success] (nemo_kv_test.cc:242)key存在
+[success] (nemo_kv_test.cc:250)key不存在
+
+========TestMSet========
+[success] (nemo_kv_test.cc:268)测试kvs没有元素的情况
+[success] (nemo_kv_test.cc:307)测试kvs元素的数量正常的情况：num = 5
+[  FAIL ] (nemo_kv_test.cc:346)测试kvs元素的数量最大的情况：num = 100
+
+========TestMDel========
+[success] (nemo_kv_test.cc:362)测试keys全都不存在的时候
+[success] (nemo_kv_test.cc:387)测试有keys存在，有keys不存在的情况
+[success] (nemo_kv_test.cc:412)测试删除最大数量的keys的时候：num = 300
+
+========TestIncrby========
+[success] (nemo_kv_test.cc:437)测试正常情况：原来value=42, incrby=92, newValue=134
+[success] (nemo_kv_test.cc:450)key存在的情况：incrby=92, newVal=92
+[success] (nemo_kv_test.cc:467)val不全是数字：原来value=100ABGV, incrby=92, newValue=0
+[success] (nemo_kv_test.cc:481)val值超出范围：原来val=92233720368547758071, incrby=92, newValue=0
+[success] (nemo_kv_test.cc:496)incrby超出范围：原来val=-16, incrby=-9223372036854775808, newValue=0
+[success] (nemo_kv_test.cc:512)val只有一个加号： 原来val=+, incrby=1, newValue=0
+[success] (nemo_kv_test.cc:527)val只有一个减号： 原来val=-, incrby=1, newValue=0
+[success] (nemo_kv_test.cc:543)val是多个0的情况：原来val=0000, incrby=4, newValue=4
+[  FAIL ] (nemo_kv_test.cc:560)val有加号的情况： 原来val=+10, incrby=2, newValue=0
+
+========TestDecrby========
+[success] (nemo_kv_test.cc:580)测试正常情况：原来value=-114, decrby=230, newValue=-344
+[success] (nemo_kv_test.cc:593)key不存在的情况：原来value=-114, decrby=230, newVal=-230
+[success] (nemo_kv_test.cc:607)val不全是数字： 原来value=100ABGV, decrby=230, newVal=0
+[success] (nemo_kv_test.cc:621)原来val超范围： 原来value=-9223372036854775807, decrby=230, newVal=0
+[success] (nemo_kv_test.cc:636)decrby超出范围： 原来value=-100, decrby=9223372036854775807, newVal=0
+[success] (nemo_kv_test.cc:652)val只有一个加号： 原来val=+, incrby=1, newValue=0
+[success] (nemo_kv_test.cc:667)val只有一个减号： 原来val=-, incrby=1, newValue=0
+[success] (nemo_kv_test.cc:683)val是多个0的情况：原来val=0000, incrby=4, newValue=-4
+[  FAIL ] (nemo_kv_test.cc:700)val有加号的情况： 原来val=+10, incrby=2, newValue=0
+
+========TestIncrbyfloat========
+[success] (nemo_kv_test.cc:724)测试正常情况：原来value=12.020000, incrbyDouble=31.000000, newValue=43.020000
+[  FAIL ] (nemo_kv_test.cc:743)key不存在的情况：incrbyDouble=31.000000, newValue=0.000000
+[success] (nemo_kv_test.cc:757)有非数字的val： 原来value=12.0dfm, incrbyDouble=31.000000, newValue=0.000000
+[success] (nemo_kv_test.cc:774)原val带加号：原来value=+12.43, incrbyDouble=31.000000, newValue=43.430000
+[success] (nemo_kv_test.cc:791)原val带减号：原来value=-2.23, incrbyDouble=31.000000, newValue=28.770000
+[success] (nemo_kv_test.cc:808)所加数字无限大：原来value=12.01, incrbyDouble=1.0/0, newValue=inf
+[success] (nemo_kv_test.cc:825)结果小数位全为0：原来value=7.55, incrbyDouble=2.450000, newValue=10
+
+========TestGetSet========
+[success] (nemo_kv_test.cc:850)测试原来key存在的情况
+[success] (nemo_kv_test.cc:861)测试原来key不存在情况
+
+========TestAppend========
+[success] (nemo_kv_test.cc:890)正常情况：key存在
+[success] (nemo_kv_test.cc:909)key不存在
+
+========TestSetnx========
+[success] (nemo_kv_test.cc:934)测试原来的key存在
+[success] (nemo_kv_test.cc:954)测试原来的key不存在
+[success] (nemo_kv_test.cc:972)测试ttl默认值：有效期是否无限
+[success] (nemo_kv_test.cc:988)测试ttl>0：ttl=2，是否按时过期
+[success] (nemo_kv_test.cc:1004)测试ttl<=0：ttl=-1，有效期是否无限
+
+========TestSetxx========
+[success] (nemo_kv_test.cc:1030)测试原来的key存在的情况
+[success] (nemo_kv_test.cc:1046)测试原来的key不存在的情况
+[success] (nemo_kv_test.cc:1063)测试ttl默认值：有效期是否无限
+[success] (nemo_kv_test.cc:1080)测试ttl>0：ttl=2，是否按时过期
+[success] (nemo_kv_test.cc:1097)测试ttl<=0：ttl=-1，有效期是否无限
+
+========TestMSetnx========
+[success] (nemo_kv_test.cc:1130)测试全部的key都不存在的情况
+[success] (nemo_kv_test.cc:1156)测试有key存在的情况
+
+========TestGetrange========
+[success] (nemo_kv_test.cc:1178)0<=start_t <= end_t < size的情况
+[success] (nemo_kv_test.cc:1189)原来key不存在
+[success] (nemo_kv_test.cc:1203)val为空
+[success] (nemo_kv_test.cc:1218)start_t<=0;end_t正常取值的情况
+[success] (nemo_kv_test.cc:1231)start_t正常取值; end_t<=0的情况
+[success] (nemo_kv_test.cc:1244)start_t<=0; end_t >= 字符串长度的情况
+[success] (nemo_kv_test.cc:1255)start_t正常取值; end_t >=字符串长度
+[success] (nemo_kv_test.cc:1267)start_t>=字符串长度， end_t正常取值
+
+========TestSetrange========
+[success] (nemo_kv_test.cc:1294)key存在;0<=offset<原来字符串长度;0<=offset+插入字符串长度 <=原字符串长度
+[success] (nemo_kv_test.cc:1314)0<=offset<原来字符串长度;原来字符串长度<offset+插入字符串长度
+[success] (nemo_kv_test.cc:1324)offset > 原来字符串长度
+[success] (nemo_kv_test.cc:1335)offset + 插入字符串长度>512M
+[success] (nemo_kv_test.cc:1346)offset < 0
+[success] (nemo_kv_test.cc:1362)原来key不存在
+
+========TestStrlen========
+[success] (nemo_kv_test.cc:1380)原来的key存在
+[success] (nemo_kv_test.cc:1391)原来的key不存在
+
+========TestScan========
+========keys from nemo_scan_test10000 to nemo_scan_test10099========
+[success] (nemo_kv_test.cc:1452)start和end都在keys范围内：start=nemo_scan_test10000, end=nemo_scan_test10099, limit=-1
+[success] (nemo_kv_test.cc:1481)start和end都不在keys范围内，但是包括住keys：start=nemo_scan_test, end=nemo_scan_test10100, limit=-1
+[success] (nemo_kv_test.cc:1510)start在keys范围内，end在keys范围外： start=nemo_scan_test10029, end=nemo_scan_test10200, limit=-1
+[success] (nemo_kv_test.cc:1538)start在keys外，end在keys内部： start=nemo_scan_test, end=nemo_scan_test10016, limits=-1
+[success] (nemo_kv_test.cc:1553)start，end都在keys外，且和keys没有交集： start=nemo_scan_test10110, end=nemo_scan_test10120, limits=-1
+[success] (nemo_kv_test.cc:1607)测试limit： limit=10
+
+========TestTTL========
+[success] (nemo_kv_test.cc:1627)key存在，且是持久的，res=-1
+[success] (nemo_kv_test.cc:1638)key存在；ttl!=0: ttl=10, res=7
+[success] (nemo_kv_test.cc:1648)原来的key不存在
+
+========TestPersist========
+[success] (nemo_kv_test.cc:1668)key存在，原来是持久的： ttl=-1
+[success] (nemo_kv_test.cc:1680)key存在，不持久且未过期， ttl=-1
+[success] (nemo_kv_test.cc:1690)key不存在
+
+========TestExpire========
+[success] (nemo_kv_test.cc:1711)key存在, seconds>0：seconds=50, ttl=50
+[success] (nemo_kv_test.cc:1722)key存在，seconds<=0： seconds=-1
+[success] (nemo_kv_test.cc:1732)key不存在情况
+
+========TestExpireat========
+[success] (nemo_kv_test.cc:1765)key存在，timestamp>当前时间，是否按时过期
+[success] (nemo_kv_test.cc:1788)key存在，timestamp<当前时间,是否删除成功
+[success] (nemo_kv_test.cc:1799)key不存在
+[success] (nemo_kv_test.cc:1831)timestamp>当前时间，是否按期过期
+[success] (nemo_kv_test.cc:1853)timestamp<当前时间, 数据是否不写入
+[success] (nemo_kv_test.cc:1875)timestamp<=0,数据有效期是否无限, timestamp=0, ttl=-1
+============================KVTEST END===========================
+============================KVTEST END===========================
+
+
