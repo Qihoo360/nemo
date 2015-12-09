@@ -122,11 +122,13 @@ int Nemo::IncrSSize(const std::string &key, int64_t incr, rocksdb::WriteBatch &w
     std::string size_key = EncodeSSizeKey(key);
 
     len += incr;
-    if (len == 0) {
-        writebatch.Delete(size_key);
-    } else {
-        writebatch.Put(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
-    }
+    writebatch.Put(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+
+   // if (len == 0) {
+   //     writebatch.Delete(size_key);
+   // } else {
+   //     writebatch.Put(size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+   // }
     return 0;
 }
 
@@ -516,6 +518,81 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
         *res = 0;
     } else {
         return Status::Corruption("srem check member error");
+    }
+    return s;
+}
+
+Status Nemo::SDelKey(const std::string &key) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    Status s;
+    std::string val;
+    std::string size_key = EncodeSSizeKey(key);
+
+    s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+    if (!s.ok()) {
+        return s;
+    }
+
+    int64_t len = *(int64_t *)val.data();
+    if (len <= 0) {
+      return Status::NotFound("");
+    }
+
+    len = 0;
+    MutexLock l(&mutex_set_);
+    s = set_db_->PutWithKeyVersion(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+
+    return s;
+}
+
+Status Nemo::SExpire(const std::string &key, const int32_t seconds, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    Status s;
+    std::string val;
+
+    std::string size_key = EncodeSSizeKey(key);
+    s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+    if (s.IsNotFound()) {
+        *res = 0;
+    } else if (s.ok()) {
+      int64_t len = *(int64_t *)val.data();
+      if (len <= 0) {
+        return Status::NotFound("");
+      }
+
+      if (seconds > 0) {
+        MutexLock l(&mutex_set_);
+        s = set_db_->PutWithKeyTTL(rocksdb::WriteOptions(), size_key, val, seconds);
+      } else { 
+        s = SDelKey(key);
+      }
+      *res = 1;
+    }
+    return s;
+}
+
+Status Nemo::STTL(const std::string &key, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    Status s;
+    std::string val;
+
+    std::string size_key = EncodeSSizeKey(key);
+    s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+    if (s.IsNotFound()) {
+        *res = -2;
+    } else if (s.ok()) {
+        int32_t ttl;
+        s = set_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
+        *res = ttl;
     }
     return s;
 }

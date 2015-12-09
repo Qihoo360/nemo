@@ -40,18 +40,29 @@ public:
 
     Status Compact();
     // =================String=====================
-    Status DelAll(const std::string &key);
+    Status Del(const std::string &key);
+    Status Expire(const std::string &key, const int32_t seconds, int64_t *res);
+    Status TTL(const std::string &key, int64_t *res);
+
+    Status KDel(const std::string &key);
+    Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
+    Status KTTL(const std::string &key, int64_t *res);
     Status HDelKey(const std::string &key);
     Status HExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status HTTL(const std::string &key, int64_t *res);
     Status ZDelKey(const std::string &key);
     Status ZExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status ZTTL(const std::string &key, int64_t *res);
+    Status SDelKey(const std::string &key);
+    Status SExpire(const std::string &key, const int32_t seconds, int64_t *res);
+    Status STTL(const std::string &key, int64_t *res);
+    Status LDelKey(const std::string &key);
+    Status LExpire(const std::string &key, const int32_t seconds, int64_t *res);
+    Status LTTL(const std::string &key, int64_t *res);
 
     // =================KV=====================
     Status Set(const std::string &key, const std::string &val, const int32_t ttl = 0);
     Status Get(const std::string &key, std::string *val);
-    Status Del(const std::string &key);
     Status MSet(const std::vector<KV> &kvs);
     Status MDel(const std::vector<std::string> &keys, int64_t* count);
     Status MGet(const std::vector<std::string> &keys, std::vector<KVS> &kvss);
@@ -67,9 +78,7 @@ public:
     Status Setrange(const std::string key, const int64_t offset, const std::string &value, int64_t *len);
     Status Strlen(const std::string &key, int64_t *len);
     KIterator* Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
-    Status TTL(const std::string &key, int64_t *res);
     Status Persist(const std::string &key, int64_t *res);
-    Status Expire(const std::string &key, const int32_t seconds, int64_t *res);
     Status Expireat(const std::string &key, const int32_t timestamp, int64_t *res);
 
     Status Keys(const std::string &pattern, std::vector<std::string>& keys);

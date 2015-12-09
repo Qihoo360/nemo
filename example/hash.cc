@@ -45,24 +45,7 @@ int main()
       s = n->HSet("tHSetKey", "field1", "value1");
       s = n->HSet("tHSetKey", "field2", "value2");
       s = n->HSet("tHSetKey", "field3", "value3");
-      s = n->HSet("tHSetKey", "field4", "value4");
-      s = n->HSet("tHSetKey", "field5", "value5");
       log_info("Test HSet OK return %s", s.ToString().c_str());
-      log_info("");
-
-      /*
-       *  Test HGet
-       */
-      log_info("======Test HGet======");
-      s = n->HSet("tHGetKey", "song", "tGetVal");
-      res = "";
-      s = n->HGet("tHGetKey", "song", &res);
-      log_info("Test HGet OK return %s, result tHGetVal = %s", s.ToString().c_str(), res.c_str());
-      res = "";
-      s = n->HGet("tHGetNotFoundKey", "song", &res);
-      log_info("Test Get NotFound return %s, result NULL = %s", s.ToString().c_str(), res.c_str());
-      s = n->HGet("tHGetKey", "non-field", &res);
-      log_info("Test Get NotFound return %s, result NULL = %s", s.ToString().c_str(), res.c_str());
       log_info("");
 
       /*
@@ -79,34 +62,6 @@ int main()
       log_info("");
 
       /*
-       *  Test HScan
-       */
-      log_info("======Test HScan 0 with Next======");
-
-      HIterator *hit = n->HScan("tHSetKey", "", "", -1);
-      if (hit == NULL) {
-        log_info("HScan error!");
-      }
-      while (hit->Next()) {
-        log_info("HScan key: %s, field: %s, value: %s", hit->Key().c_str(), hit->Field().c_str(), hit->Val().c_str());
-      }
-      log_info("");
-      delete hit;
-
-      //   log_info("======Test HScan 1 with Valid======");
-
-      //   hit = n->HScan("tHSetKey", "field2", "field5", -1);
-      //   if (hit == NULL) {
-      //       log_info("HScan error!");
-      //   }
-      //   while (hit->Valid()) {
-      //       log_info("HScan key: %s, field: %s, value: %s", hit->Key().c_str(), hit->Field().c_str(), hit->Val().c_str());
-      //       bool next_ret = hit->Next();
-      //       log_info("  After hit->Next HScan key: %s, field: %s, value: %s", hit->Key().c_str(), hit->Field().c_str(), hit->Val().c_str());
-      //   }
-      //   log_info("");
-
-      /*
        *  Test HDelKey
        */
       log_info("======Test HDelKey======");
@@ -114,7 +69,7 @@ int main()
       s = n->HDelKey("tHSetKey");
       log_info("Test HDelKey return %s", s.ToString().c_str());
 
-      hit = n->HScan("tHSetKey", "", "", -1);
+      HIterator *hit = n->HScan("tHSetKey", "", "", -1);
       if (hit == NULL) {
         log_info("HScan error!");
       }
@@ -149,15 +104,6 @@ int main()
      */
     log_info("======Test Compact======");
     n->Compact();
-
-    log_info("   ====== HGetall after compact======");
-    fvs.clear();
-    s = n->HGetall("tHSetKey", fvs);
-    log_info("Test HGetall OK return %s", s.ToString().c_str());
-    for (fv_iter = fvs.begin(); fv_iter != fvs.end(); fv_iter++) {
-      log_info("Test HGetall, field: %s, val: %s", fv_iter->field.c_str(), fv_iter->val.c_str());
-    }
-    log_info("");
 
     /*
      *  Test Expire 
