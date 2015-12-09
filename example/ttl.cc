@@ -34,6 +34,41 @@ int main()
     int64_t sadd_res;
 
     /*
+     *  Test MDel
+     */
+    log_info("======Test MDel======");
+    s = n->Set("key", "setval1");
+    s = n->HSet("key", "hashfield", "tSetVal1");
+    s = n->LPush("key", "tLPushVal1", &llen);
+    s = n->ZAdd("key", 100.0, "zsetMember1", &za_res);
+    s = n->SAdd("key", "member1", &sadd_res);
+
+    /*
+     *  Test MDel
+     */
+    log_info("======Test MDel======");
+    int64_t mcount;
+
+    keys.push_back("key");
+    s = n->MDel(keys, &mcount);
+    log_info("Test MDel OK return %s", s.ToString().c_str());
+
+    s = n->HGet("key", "hashfield", &res);
+    log_info("        return %s", s.ToString().c_str());
+
+    int64_t ret;
+    double score;
+    s = n->ZScore("key", "zsetMember1", &score);
+    log_info("          ZScore return %s", s.ToString().c_str());
+
+    ret = n->SIsMember("key", "member1");
+    log_info("          SIsMember return %d, [true|false]", ret);
+
+    s = n->LIndex("key", 0, &res);
+    log_info("          LIndex(0) return %s, val is %s", s.ToString().c_str(), res.c_str());
+    log_info("");
+
+    /*
      *  Test TTL
      */
     log_info("======Test TTL======");
@@ -126,14 +161,15 @@ int main()
 
     s = n->Expireat("key", 8, &e_ret);
     log_info("\nTest Expireat with key=key at a passed timestamp=8, return %s", s.ToString().c_str());
+
     s = n->HGet("key", "hashfield", &res);
     log_info("        return %s", s.ToString().c_str());
 
-    double score;
+    //double score;
     s = n->ZScore("key", "zsetMember1", &score);
     log_info("          ZScore return %s", s.ToString().c_str());
 
-    int ret = n->SIsMember("key", "member1");
+    ret = n->SIsMember("key", "member1");
     log_info("          SIsMember return %d, [true|false]", ret);
 
     s = n->LIndex("key", 0, &res);

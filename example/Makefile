@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -Wall -DDEBUG -g -O0 -std=c++11 -D__XDEBUG__
 
-OBJECT = main test_bgsave zset test_server test_mset hash hash_test kv_test zset_test set_test list_test ttl
+OBJECT = main test_bgsave zset test_server hash hash_test kv_test zset_test set_test list_test ttl
 
 LIB_PATH = -L../output/lib/
 

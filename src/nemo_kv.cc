@@ -554,7 +554,7 @@ Status Nemo::MDel(const std::vector<std::string> &keys, int64_t* count) {
     std::vector<std::string>::const_iterator it;
     rocksdb::WriteBatch batch;
     for (it = keys.begin(); it != keys.end(); it++) {
-        s = DelOne(*it);
+        s = Del(*it);
         //s = kv_db_->Get(rocksdb::ReadOptions(), *it, &val);
         if (s.ok()) {
             (*count)++;
@@ -563,7 +563,7 @@ Status Nemo::MDel(const std::vector<std::string> &keys, int64_t* count) {
     return s;
 }
 
-Status Nemo::DelOne(const std::string &key) {
+Status Nemo::Del(const std::string &key) {
     int cnt = 0;
     Status s;
     

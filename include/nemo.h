@@ -47,7 +47,6 @@ public:
     Status Persist(const std::string &key, int64_t *res);
     Status Expireat(const std::string &key, const int32_t timestamp, int64_t *res);
 
-    Status DelOne(const std::string &key);
     Status KDel(const std::string &key);
     Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status KTTL(const std::string &key, int64_t *res);

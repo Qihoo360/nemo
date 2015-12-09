@@ -7,7 +7,7 @@ CXXFLAGS = -Wall -DDEBUG -g -O0 -std=c++11 -D__XDEBUG__
 #CXXFLAGS = -g -Wall -Wextra -std=c++11
 OBJECT = nemo_all_test nemo_kv_test nemo_hash_test nemo_list_test nemo_set_test nemo_zset_test
 
-LIB_PATH = -L../output/lib/ -L./gtest/lib/\
+LIB_PATH = -L../output/lib/ -L./gtest_1.7.0/lib/\
 
 LIBS = -lpthread \
 	   -lnemo \
@@ -19,7 +19,7 @@ LIBS = -lpthread \
 	   -lgtest_main 
 
 
-INCLUDE_PATH = -I../output/include/ -I./include -I./gtest/include
+INCLUDE_PATH = -I../output/include/ -I./include -I./gtest_1.7.0/include
 
 OBJS = main.o nemo_zset_test.o nemo_set_test.o nemo_list_test.o nemo_hash_test.o nemo_kv_test.o
 
