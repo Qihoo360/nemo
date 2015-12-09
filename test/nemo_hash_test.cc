@@ -741,7 +741,7 @@ TEST_F(NemoHashTest, TestHScan)
 
 	s_.OK();//key非空；start和end非空，且都在keys范围内（start>end）
 	startInt = GetRandomUint_(1, totalFieldsNum);
-	endInt = GetRandomUint_(0, startInt);
+	endInt = GetRandomUint_(0, startInt-1);
 	start = key + "_" + itoa(numPre+startInt);
 	end = key + "_" + itoa(numPre+endInt);
 	HScanLoopProcess(startInt, limit, "key非空；start和end非空，且都在keys范围内（start>end）");
