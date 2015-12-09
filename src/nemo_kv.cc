@@ -42,7 +42,7 @@ Status Nemo::MSet(const std::vector<KV> &kvs) {
     return s;
 }
 
-Status Nemo::MDel(const std::vector<std::string> &keys, int64_t* count) {
+Status Nemo::KMDel(const std::vector<std::string> &keys, int64_t* count) {
     *count = 0;
     Status s;
     std::string val;
@@ -55,9 +55,8 @@ Status Nemo::MDel(const std::vector<std::string> &keys, int64_t* count) {
             batch.Delete(*it); 
         }
     }
-    s = kv_db_->Write(rocksdb::WriteOptions(), &(batch));
+    s = kv_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(batch));
     return s;
-
 }
 
 Status Nemo::MGet(const std::vector<std::string> &keys, std::vector<KVS> &kvss) {
@@ -548,7 +547,23 @@ Status Nemo::Keys(const std::string &pattern, std::vector<std::string>& keys) {
 
 }
 
-Status Nemo::Del(const std::string &key) {
+Status Nemo::MDel(const std::vector<std::string> &keys, int64_t* count) {
+    *count = 0;
+    Status s;
+    std::string val;
+    std::vector<std::string>::const_iterator it;
+    rocksdb::WriteBatch batch;
+    for (it = keys.begin(); it != keys.end(); it++) {
+        s = DelOne(*it);
+        //s = kv_db_->Get(rocksdb::ReadOptions(), *it, &val);
+        if (s.ok()) {
+            (*count)++;
+        }
+    }
+    return s;
+}
+
+Status Nemo::DelOne(const std::string &key) {
     int cnt = 0;
     Status s;
     
