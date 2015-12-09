@@ -385,7 +385,7 @@ Status Nemo::KTTL(const std::string &key, int64_t *res) {
     return s;
 }
 
-Status Nemo::Persist(const std::string &key, int64_t *res) {
+Status Nemo::KPersist(const std::string &key, int64_t *res) {
     Status s;
     std::string val;
 
@@ -402,7 +402,7 @@ Status Nemo::Persist(const std::string &key, int64_t *res) {
     return s;
 }
 
-Status Nemo::Expireat(const std::string &key, const int32_t timestamp, int64_t *res) {
+Status Nemo::KExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
     Status s;
     std::string val;
 
@@ -599,7 +599,7 @@ Status Nemo::Expire(const std::string &key, const int32_t seconds, int64_t *res)
     if (s.ok()) { cnt++; }
     else if (!s.IsNotFound()) { return s; }
 
-    return Status::OK();
+    return s;
 }
 
 Status Nemo::TTL(const std::string &key, int64_t *res) {
@@ -621,4 +621,58 @@ Status Nemo::TTL(const std::string &key, int64_t *res) {
     if (s.ok()) return s;
 
     return s; 
+}
+
+Status Nemo::Persist(const std::string &key, int64_t *res) {
+    int cnt = 0;
+    Status s;
+    
+    s = KPersist(key, res);
+    if (s.ok()) { cnt++; }
+    else if (!s.IsNotFound()) { return s; }
+
+    s = HPersist(key, res);
+    if (s.ok()) { cnt++; }
+    else if (!s.IsNotFound()) { return s; }
+
+    s = ZPersist(key, res);
+    if (s.ok()) { cnt++; }
+    else if (!s.IsNotFound()) { return s; }
+
+    s = SPersist(key, res);
+    if (s.ok()) { cnt++; }
+    else if (!s.IsNotFound()) { return s; }
+
+    s = LPersist(key, res);
+    if (s.ok()) { cnt++; }
+    else if (!s.IsNotFound()) { return s; }
+
+    return s;
+}
+
+Status Nemo::Expireat(const std::string &key, const int32_t timestamp, int64_t *res) {
+    int cnt = 0;
+    Status s;
+    
+    s = KExpireat(key, timestamp, res);
+    if (s.ok()) { cnt++; }
+    else if (!s.IsNotFound()) { return s; }
+
+    s = HExpireat(key, timestamp, res);
+    if (s.ok()) { cnt++; }
+    else if (!s.IsNotFound()) { return s; }
+
+    s = ZExpireat(key, timestamp, res);
+    if (s.ok()) { cnt++; }
+    else if (!s.IsNotFound()) { return s; }
+
+    s = SExpireat(key, timestamp, res);
+    if (s.ok()) { cnt++; }
+    else if (!s.IsNotFound()) { return s; }
+
+    s = LExpireat(key, timestamp, res);
+    if (s.ok()) { cnt++; }
+    else if (!s.IsNotFound()) { return s; }
+
+    return s;
 }

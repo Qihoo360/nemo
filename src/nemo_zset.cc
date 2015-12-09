@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <climits>
+#include <ctime>
 
 #include "nemo.h"
 #include "nemo_zset.h"
@@ -826,6 +828,60 @@ Status Nemo::ZTTL(const std::string &key, int64_t *res) {
     return s;
 }
 
+Status Nemo::ZPersist(const std::string &key, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    Status s;
+    std::string val;
+
+    *res = 0;
+    std::string size_key = EncodeZSizeKey(key);
+    s = zset_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+
+    if (s.ok()) {
+        int32_t ttl;
+        s = zset_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
+        if (ttl >= 0) {
+            MutexLock l(&mutex_zset_);
+            s = zset_db_->Put(rocksdb::WriteOptions(), size_key, val);
+            *res = 1;
+        }
+    }
+    return s;
+}
+
+Status Nemo::ZExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    Status s;
+    std::string val;
+
+    std::string size_key = EncodeZSizeKey(key);
+    s = zset_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+    if (s.IsNotFound()) {
+        *res = 0;
+    } else if (s.ok()) {
+      int64_t len = *(int64_t *)val.data();
+      if (len <= 0) {
+        return Status::NotFound("empty zset");
+      }
+
+      std::time_t cur = std::time(0);
+      if (timestamp <= cur) {
+        s = ZDelKey(key);
+      } else {
+        MutexLock l(&mutex_zset_);
+        s = zset_db_->PutWithExpiredTime(rocksdb::WriteOptions(), size_key, val, timestamp);
+      }
+      *res = 1;
+    }
+    return s;
+}
+
 int Nemo::IncrZLen(const std::string &key, int64_t by, rocksdb::WriteBatch &writebatch) {
     Status s;
     std::string size_key = EncodeZSizeKey(key);
@@ -845,3 +901,5 @@ int Nemo::IncrZLen(const std::string &key, int64_t by, rocksdb::WriteBatch &writ
  //   }
     return 0;
 }
+
+

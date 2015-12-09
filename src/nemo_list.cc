@@ -1,3 +1,5 @@
+#include <ctime>
+
 #include "nemo.h"
 #include "nemo_list.h"
 #include "util.h"
@@ -86,6 +88,9 @@ Status Nemo::LIndex(const std::string &key, const int64_t index, std::string *va
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
     if (s.ok()) {
         if (ParseMeta(meta, len, left, right, cur_seq) == 0) {
+            if (len <= 0) {
+                return Status::NotFound("not found the key");
+            }
             if ( index >= len || -index > len ) {
                 return Status::Corruption("index out of range");
             }
@@ -122,6 +127,10 @@ Status Nemo::LLen(const std::string &key, int64_t *llen) {
             return Status::Corruption("list meta error");
         }
         *llen = *((int64_t *)(meta.data()));
+
+        if (*llen <= 0) {
+            return Status::NotFound("not found the key");
+        }
     } else {
         *llen = 0;
     }
@@ -386,6 +395,9 @@ Status Nemo::LSet(const std::string &key, const int64_t index, const std::string
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
     if (s.ok()) {
         if (ParseMeta(meta, len, left, right, cur_seq) == 0) {
+            if (len <= 0) {
+                return Status::NotFound("not found key");
+            }
             if ( index >= len || -index > len ) {
                 return Status::Corruption("index out of range");
             }
@@ -1094,6 +1106,76 @@ Status Nemo::LTTL(const std::string &key, int64_t *res) {
         int32_t ttl;
         s = list_db_->GetKeyTTL(rocksdb::ReadOptions(), meta_key, &ttl);
         *res = ttl;
+    }
+
+    return s;
+}
+
+Status Nemo::LPersist(const std::string &key, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    int64_t len;
+    int64_t left;
+    int64_t right;
+    int64_t cur_seq;
+    Status s;
+    std::string meta;
+    std::string meta_key = EncodeLMetaKey(key);
+
+    s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
+
+    if (s.ok()) {
+        if (ParseMeta(meta, len, left, right, cur_seq) != 0) {
+            return Status::NotFound("not found key");
+        }
+        if (len <= 0) {
+            return Status::NotFound("not found key");
+        }
+
+        int32_t ttl;
+        s = list_db_->GetKeyTTL(rocksdb::ReadOptions(), meta_key, &ttl);
+        if (ttl >= 0) {
+            MutexLock l(&mutex_list_);
+            s = list_db_->Put(rocksdb::WriteOptions(), meta_key, meta);
+            *res = 1;
+        }
+    }
+    return s;
+}
+
+Status Nemo::LExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    int64_t len;
+    int64_t left;
+    int64_t right;
+    int64_t cur_seq;
+    Status s;
+    std::string meta;
+    std::string meta_key = EncodeLMetaKey(key);
+
+    s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
+    if (s.IsNotFound()) {
+        *res = 0;
+    } else if (s.ok()) {
+        if (ParseMeta(meta, len, left, right, cur_seq) != 0) {
+            return Status::NotFound("not found key");
+        }
+        if (len == 0) {
+            return Status::NotFound("not found key");
+        }
+
+      std::time_t cur = std::time(0);
+      if (timestamp <= cur) {
+            s = LDelKey(key);
+        } else { 
+            MutexLock l(&mutex_list_);
+            s = list_db_->PutWithExpiredTime(rocksdb::WriteOptions(), meta_key, meta, timestamp);
+        }
     }
 
     return s;

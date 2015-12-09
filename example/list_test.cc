@@ -375,6 +375,68 @@ int main()
         log_info("");
     }
 
+    /*
+     *  Test Expireat
+     */
+    log_info("======Test LExpireat======");
+    s = n->LPush("tLPushKey", "tLPushVal1", &llen);
+
+    std::time_t t = std::time(0);
+    s = n->LExpireat("tLPushKey", t + 8, &e_ret);
+    log_info("Test Expireat with key=tLPushKey at timestamp=%ld in 8s, return %s", (t+8), s.ToString().c_str());
+
+    for (int i = 0; i < 3; i++) {
+        sleep(3);
+        std::string val;
+        s = n->LIndex("tLPushKey", 0, &val);
+        log_info("          after %ds, LIndex(0) return %s, val is %s", (i+1)*3, s.ToString().c_str(), val.c_str());
+        if (s.ok()) {
+            s = n->LTTL("tLPushKey", &ttl);
+            log_info("          new LTTL return %s, ttl is %ld\n",
+                     s.ToString().c_str(), ttl);
+        }
+    }
+
+    log_info("");
+
+    s = n->LPush("tLPushKey", "tLPushVal1", &llen);
+    s = n->LExpireat("tLPushKey", 8, &e_ret);
+    log_info("Test LExpireat with key=tLPushKey at a passed timestamp=8, return %s", s.ToString().c_str());
+
+    std::string val;
+    s = n->LIndex("tLPushKey", 0, &val);
+    log_info("          LIndex (0) a invalid key return %s, expect ok",  s.ToString().c_str());
+    if (s.IsNotFound()) {
+        n->LTTL("tLPushKey", &ttl);
+        log_info("          NotFound key's TTL is %ld\n", ttl);
+    }
+    log_info("");
+
+    /*
+     *  Test Persist 
+     */
+    log_info("======Test LPersist======");
+    s = n->LPush("tLPushKey", "tLPushVal1", &llen);
+    s = n->LExpire("tLPushKey", 7, &e_ret);
+    log_info("Test LPersist with key=tLPushKey in 7s, return %s", s.ToString().c_str());
+
+    for (int i = 0; i < 3; i++) {
+        sleep(3);
+        if (i == 1) {
+            s = n->LPersist("tLPushKey", &e_ret);
+            log_info(" Test LPersist return %s", s.ToString().c_str());
+        }
+        std::string val;
+        s = n->LIndex("tLPushKey", 0, &val);
+        log_info("          after %ds, LIndex(0) return %s, val is %s", (i+1)*3, s.ToString().c_str(), val.c_str());
+        if (s.ok()) {
+            s = n->LTTL("tLPushKey", &ttl);
+            log_info("          new LTTL return %s, ttl is %ld\n",
+                     s.ToString().c_str(), ttl);
+        }
+    }
+    log_info("");
+
     delete n;
 
     return 0;

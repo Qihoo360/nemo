@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <ctime>
 
 #include "nemo.h"
 #include "nemo_set.h"
@@ -596,3 +597,58 @@ Status Nemo::STTL(const std::string &key, int64_t *res) {
     }
     return s;
 }
+
+Status Nemo::SPersist(const std::string &key, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    Status s;
+    std::string val;
+
+    *res = 0;
+    std::string size_key = EncodeSSizeKey(key);
+    s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+
+    if (s.ok()) {
+        int32_t ttl;
+        s = set_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
+        if (ttl >= 0) {
+            MutexLock l(&mutex_set_);
+            s = set_db_->Put(rocksdb::WriteOptions(), size_key, val);
+            *res = 1;
+        }
+    }
+    return s;
+}
+
+Status Nemo::SExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    Status s;
+    std::string val;
+
+    std::string size_key = EncodeSSizeKey(key);
+    s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+    if (s.IsNotFound()) {
+        *res = 0;
+    } else if (s.ok()) {
+      int64_t len = *(int64_t *)val.data();
+      if (len <= 0) {
+        return Status::NotFound("");
+      }
+
+      std::time_t cur = std::time(0);
+      if (timestamp <= cur) {
+        s = SDelKey(key);
+      } else {
+        MutexLock l(&mutex_set_);
+        s = set_db_->PutWithExpiredTime(rocksdb::WriteOptions(), size_key, val, timestamp);
+      }
+      *res = 1;
+    }
+    return s;
+}
+

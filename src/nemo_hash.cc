@@ -1,4 +1,5 @@
 #include <climits>
+#include <ctime>
 
 #include "nemo.h"
 #include "nemo_hash.h"
@@ -157,6 +158,60 @@ bool Nemo::HExists(const std::string &key, const std::string &field) {
     } else {
         return false;
     }
+}
+
+Status Nemo::HPersist(const std::string &key, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    Status s;
+    std::string val;
+
+    *res = 0;
+    std::string size_key = EncodeHsizeKey(key);
+    s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+
+    if (s.ok()) {
+        int32_t ttl;
+        s = hash_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
+        if (ttl >= 0) {
+            MutexLock l(&mutex_hash_);
+            s = hash_db_->Put(rocksdb::WriteOptions(), size_key, val);
+            *res = 1;
+        }
+    }
+    return s;
+}
+
+Status Nemo::HExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
+    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
+    Status s;
+    std::string val;
+
+    std::string size_key = EncodeHsizeKey(key);
+    s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+    if (s.IsNotFound()) {
+        *res = 0;
+    } else if (s.ok()) {
+      int64_t len = *(int64_t *)val.data();
+      if (len <= 0) {
+        return Status::NotFound("");
+      }
+
+      std::time_t cur = std::time(0);
+      if (timestamp <= cur) {
+        s = HDelKey(key);
+      } else {
+        MutexLock l(&mutex_hash_);
+        s = hash_db_->PutWithExpiredTime(rocksdb::WriteOptions(), size_key, val, timestamp);
+      }
+      *res = 1;
+    }
+    return s;
 }
 
 Status Nemo::HKeys(const std::string &key, std::vector<std::string> &fields) {

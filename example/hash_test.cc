@@ -166,6 +166,7 @@ int main()
     int64_t ttl;
 
     log_info("======Test HExpire======");
+    s = n->HSet("tHSetKey", "field11", "value11");
     s = n->HExpire("tHSetKey", 7, &e_ret);
     log_info("Test HExpire with key=tHSetKey in 7s, return %s", s.ToString().c_str());
 
@@ -176,6 +177,61 @@ int main()
         if (s.ok()) {
             n->HTTL("tHSetKey", &ttl);
             log_info("          new TTL is %ld, HGet field11 res:%s\n", ttl, res.c_str());
+        }
+    }
+    log_info("");
+
+    /*
+     *  Test Expireat
+     */
+    log_info("======Test HExpireat======");
+    s = n->HSet("tHSetKey", "field12", "value11");
+
+    std::time_t t = std::time(0);
+    s = n->HExpireat("tHSetKey", t + 8, &e_ret);
+    log_info("Test Expireat with key=tHSetKey at timestamp=%ld in 8s, return %s", (t+8), s.ToString().c_str());
+
+    for (int i = 0; i < 3; i++) {
+        sleep(3);
+        s = n->HGet("tHSetKey", "field12", &res);
+        log_info("          after %ds, return %s", (i+1)*3, s.ToString().c_str());
+        if (s.ok()) {
+            n->HTTL("tHSetKey", &ttl);
+            log_info("          new TTL is %ld, HGet field12 res:%s\n", ttl, res.c_str());
+        }
+    }
+    log_info("");
+
+    s = n->HSet("tHSetKey", "field12", "value11");
+    s = n->HExpireat("tHSetKey", 8, &e_ret);
+    log_info("Test HExpireat with key=tHSetKey at a passed timestamp=8, return %s", s.ToString().c_str());
+    s = n->HGet("tHSetKey", "field12", &res);
+    log_info("          Get a invalid key return %s, expect ok",  s.ToString().c_str());
+    if (s.IsNotFound()) {
+        n->TTL("tHSetKey", &ttl);
+        log_info("          NotFound key's TTL is %ld, HGet res:%s\n", ttl, res.c_str());
+    }
+    log_info("");
+
+    /*
+     *  Test Persist 
+     */
+    log_info("======Test HPersist======");
+    s = n->HSet("tHSetKey", "field12", "value11");
+    s = n->HExpire("tHSetKey", 7, &e_ret);
+    log_info("Test Persist with key=tHSetKey in 7s, return %s", s.ToString().c_str());
+
+    for (int i = 0; i < 3; i++) {
+        sleep(3);
+        if (i == 1) {
+            s = n->HPersist("tHSetKey", &e_ret);
+            log_info(" Test HPersist return %s", s.ToString().c_str());
+        }
+        s = n->HGet("tHSetKey", "field12", &res);
+        log_info("          after %ds, return %s", (i+1)*3, s.ToString().c_str());
+        if (s.ok()) {
+            n->HTTL("tHSetKey", &ttl);
+            log_info("          new TTL is %ld, HGet field12 res:%s\n", ttl, res.c_str());
         }
     }
     log_info("");

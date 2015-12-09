@@ -412,6 +412,62 @@ int main()
       }
       log_info("");
     }
+
+    /*
+     *  Test Expireat
+     */
+    log_info("======Test SExpireat======");
+    s = n->SAdd("tSetKey", "field12", &sadd_res);
+    //s = n->SAdd("setKey", "member1", &sadd_res);
+
+    std::time_t t = std::time(0);
+    s = n->SExpireat("tSetKey", t + 8, &e_ret);
+    log_info("Test Expireat with key=tSetKey at timestamp=%ld in 8s, return %s", (t+8), s.ToString().c_str());
+
+    for (int i = 0; i < 3; i++) {
+        sleep(3);
+        int ret = n->SIsMember("tSetKey", "field12");
+        log_info("          after %ds, SIsMember return %d, [true|false]", (i+1)*3, ret);
+        if (ret) {
+            s = n->STTL("tSetKey", &ttl);
+            log_info("          new STTL return %s, ttl is %ld\n", s.ToString().c_str(), ttl);
+        }
+    }
+    log_info("");
+
+    s = n->SAdd("tSetKey", "field12", &sadd_res);
+    s = n->SExpireat("tSetKey", 8, &e_ret);
+    log_info("Test ZExpireat with key=tSetKey at a passed timestamp=8, return %s", s.ToString().c_str());
+    int ret = n->SIsMember("tSetKey", "field12");
+    log_info("      Get a invalid key return %d, [1|0] expect false", ret);
+    if (s.IsNotFound()) {
+        n->STTL("tSetKey", &ttl);
+        log_info("          NotFound key's TTL is %ld\n", ttl);
+    }
+    log_info("");
+
+    /*
+     *  Test Persist 
+     */
+    log_info("======Test SPersist======");
+    s = n->SAdd("tSetKey", "field12", &sadd_res);
+    s = n->SExpire("tSetKey", 7, &e_ret);
+    log_info("Test SPersist with key=tSetKey in 7s, return %s", s.ToString().c_str());
+
+    for (int i = 0; i < 3; i++) {
+        sleep(3);
+        if (i == 1) {
+            s = n->SPersist("tSetKey", &e_ret);
+            log_info(" Test SPersist return %s", s.ToString().c_str());
+        }
+        int ret = n->SIsMember("tSetKey", "field12");
+        log_info("          after %ds, SIsMember return %d, [true|false]", (i+1)*3, ret);
+        if (ret) {
+            s = n->STTL("tSetKey", &ttl);
+            log_info("          new STTL return %s, ttl is %ld\n", s.ToString().c_str(), ttl);
+        }
+    }
+    log_info("");
     delete n;
 
     return 0;
