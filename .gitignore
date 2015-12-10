@@ -33,5 +33,10 @@ example/main
 example/tmp
 example/test*
 example/zset*
+example/hash*
+example/kv*
+example/set*
+example/list*
+example/ttl*
 tmp/
 test_rocksdb
