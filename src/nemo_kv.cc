@@ -614,6 +614,8 @@ Status Nemo::Expire(const std::string &key, const int32_t seconds, int64_t *res)
     if (s.ok()) { cnt++; }
     else if (!s.IsNotFound()) { return s; }
 
+    if (cnt) { *res = 1; }
+
     return s;
 }
 

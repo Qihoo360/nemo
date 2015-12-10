@@ -146,6 +146,10 @@ int StrToUint32(const char *s, size_t slen, uint32_t *val) {
 
 int StrToDouble(const char *s, size_t slen, double *dval) {
     char *pEnd;
+    std::string t(s, slen);
+    if (t.find(" ") != std::string::npos) {
+        return 0;
+    }
     double d = strtod(s, &pEnd);
     if (pEnd != s + slen) 
         return 0;
