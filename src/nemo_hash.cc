@@ -368,7 +368,7 @@ Status Nemo::HSetnx(const std::string &key, const std::string &field, const std:
                 return Status::Corruption("incrhlen error");
             }
         }
-        s = hash_db_->Write(rocksdb::WriteOptions(), &(writebatch));
+        s = hash_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
         return s;
     } else if(s.ok()) {
         return Status::Corruption("Already Exist");
