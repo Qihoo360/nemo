@@ -50,8 +50,8 @@ int main()
         s = n->Get("tSetKeyWithTTL", &res);
         log_info("          Set with ttl after %ds, return %s", (i+1)*3, s.ToString().c_str());
         if (s.ok()) {
-            n->TTL("tSetKeyWithTTL", &ttl);
-            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
+            s = n->TTL("tSetKeyWithTTL", &ttl);
+            log_info("          new TTL return %s, ttl is %ld, Get res:%s\n", s.ToString().c_str(), ttl, res.c_str());
         }
     }
     log_info("");

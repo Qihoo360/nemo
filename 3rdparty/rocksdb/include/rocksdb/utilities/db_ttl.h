@@ -86,7 +86,7 @@ class DBWithTTL : public StackableDB {
   static const uint32_t kTSLength = sizeof(int32_t);  // size of timestamp
   static const uint32_t kVersionLength = sizeof(int32_t);  // size of key version
 
-  //char meta_prefix_;
+  char meta_prefix_;
 
  protected:
 

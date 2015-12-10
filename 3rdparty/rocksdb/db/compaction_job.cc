@@ -631,6 +631,7 @@ Status CompactionJob::ProcessKeyValueCompaction(int64_t* imm_micros,
 
   //@ADD DBImpl pointer to TtlCompactionFilter
   compaction_filter->db_ = db_;
+  //printf ("compaction_filter meta_prefix=%c\n\n", db_->meta_prefix_);
   //compaction_filter->SetDB(db_);
   //    versions_->GetColumnFamilySet()->GetColumnFamily(kDefaultColumnFamilyName);
   //cfd->options()->compact

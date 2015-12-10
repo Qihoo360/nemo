@@ -107,27 +107,29 @@ class DBWithTTLImpl : public DBWithTTL {
 class TtlIterator : public Iterator {
 
  public:
-  explicit TtlIterator(Iterator* iter, DB* db) : iter_(iter), db_(db) { assert(iter_); }
+  explicit TtlIterator(Iterator* iter, DB* db) : iter_(iter), db_(reinterpret_cast<DBImpl*>(db)) { assert(iter_); }
 
   ~TtlIterator() { delete iter_; }
 
   bool Valid() const override {
-    //bool ret = iter_->Valid();
-    //if (ret) {
-    if (iter_->Valid()) {
-      // check key version
-      if (db_->meta_prefix_ != kMetaPrefix_KV) {
-        int32_t fresh_version = db_->GetKeyVersion(iter_->key());
-        Slice val = iter_->value();
-        int32_t key_version = DecodeFixed32(val.data() + val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
-        if (key_version >= fresh_version) {
-          return true;
-        }
-      } else {
-        return true;
-      }
-    }
-    return false;
+    return iter_->Valid();
+
+  //  //bool ret = iter_->Valid();
+  //  //if (ret) {
+  //  if (iter_->Valid()) {
+  //    // check key version
+  //    if (db_->meta_prefix_ != kMetaPrefix_KV) {
+  //      int32_t fresh_version = db_->GetKeyVersion(iter_->key());
+  //      Slice val = iter_->value();
+  //      int32_t key_version = DecodeFixed32(val.data() + val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+  //      if (key_version >= fresh_version) {
+  //        return true;
+  //      }
+  //    } else {
+  //      return true;
+  //    }
+  //  }
+  //  return false;
   }
 
   void SeekToFirst() override { iter_->SeekToFirst(); }
@@ -159,7 +161,7 @@ class TtlIterator : public Iterator {
 
  private:
   Iterator* iter_;
-  DB* db_;
+  DBImpl* db_;
 };
 
 class TtlCompactionFilter : public CompactionFilter {

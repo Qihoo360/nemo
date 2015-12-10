@@ -242,6 +242,7 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname)
       refitting_level_(false),
       opened_successfully_(false),
       notifying_events_(0) {
+  meta_prefix_ = db_options_.meta_prefix;
   env_->GetAbsolutePath(dbname, &db_absolute_path_);
 
   // Reserve ten files or so for other uses and give the rest to TableCache.
@@ -255,6 +256,9 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname)
   versions_.reset(new VersionSet(dbname_, &db_options_, env_options_,
                                  table_cache_.get(), &write_buffer_,
                                  &write_controller_));
+  //@ADD by flabby
+  versions_->db_ = this;
+
   column_family_memtables_.reset(new ColumnFamilyMemTablesImpl(
       versions_->GetColumnFamilySet(), &flush_scheduler_));
 
@@ -4089,7 +4093,7 @@ Status DB::Open(const DBOptions& db_options, const std::string& dbname,
         impl);
 
     //@ADD by flabby
-    impl->versions_->db_ = impl;
+    //impl->versions_->db_ = impl;
 
     *dbptr = impl;
   } else {

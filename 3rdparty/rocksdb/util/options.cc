@@ -260,6 +260,7 @@ ColumnFamilyOptions::ColumnFamilyOptions(const Options& options)
 
 DBOptions::DBOptions()
     : create_if_missing(false),
+      meta_prefix('\0'),
       create_missing_column_families(false),
       error_if_exists(false),
       paranoid_checks(true),
@@ -306,6 +307,7 @@ DBOptions::DBOptions()
 
 DBOptions::DBOptions(const Options& options)
     : create_if_missing(options.create_if_missing),
+      meta_prefix(options.meta_prefix),
       create_missing_column_families(options.create_missing_column_families),
       error_if_exists(options.error_if_exists),
       paranoid_checks(options.paranoid_checks),
