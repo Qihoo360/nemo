@@ -70,18 +70,19 @@ class DBWithTTL : public StackableDB {
   Status PutWithKeyTTL(const WriteOptions& options, const Slice& key, const Slice& val, int32_t ttl = 0);
   Status PutWithKeyVersion(const WriteOptions& options, const Slice& key, const Slice& val);
   Status WriteWithKeyTTL(const WriteOptions& opts, WriteBatch* updates, int32_t ttl = 0);
+  Status WriteWithOldKeyTTL(const WriteOptions& opts, WriteBatch* updates);
   Status WriteWithKeyVersion(const WriteOptions& opts, WriteBatch* updates, int32_t version = 0);
   Status PutWithExpiredTime(const WriteOptions& options, const Slice& key, const Slice& val, int32_t expired_time);
   Status WriteWithExpiredTime(const WriteOptions& opts, WriteBatch* updates, int32_t expired_time);
 
-  static Status Open(const Options& options, const std::string& dbname,
-                     DBWithTTL** dbptr,  const char meta_prefix, int32_t ttl = 0,
-                     bool read_only = false);
-  static Status Open(const DBOptions& db_options, const std::string& dbname,
-                     const std::vector<ColumnFamilyDescriptor>& column_families,
-                     std::vector<ColumnFamilyHandle*>* handles,
-                     DBWithTTL** dbptr, const char meta_prefix, std::vector<int32_t> ttls,
-                     bool read_only = false);
+//  static Status Open(const Options& options, const std::string& dbname,
+//                     DBWithTTL** dbptr,  const char meta_prefix, int32_t ttl = 0,
+//                     bool read_only = false);
+//  static Status Open(const DBOptions& db_options, const std::string& dbname,
+//                     const std::vector<ColumnFamilyDescriptor>& column_families,
+//                     std::vector<ColumnFamilyHandle*>* handles,
+//                     DBWithTTL** dbptr, const char meta_prefix, std::vector<int32_t> ttls,
+//                     bool read_only = false);
 
   static const uint32_t kTSLength = sizeof(int32_t);  // size of timestamp
   static const uint32_t kVersionLength = sizeof(int32_t);  // size of key version

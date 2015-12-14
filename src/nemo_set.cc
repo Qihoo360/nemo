@@ -504,17 +504,22 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
 
     if (s.ok()) {
         *res = 1;
-        if (IncrSSize(source, -1, writebatch) < 0) {
+        if (source != desination) {
+          if (IncrSSize(source, -1, writebatch) < 0) {
             return Status::Corruption("incrSSize error");
-        }
-        writebatch.Delete(source_key);
+          }
+          writebatch.Delete(source_key);
 
-        if (IncrSSize(destination, 1, writebatch) < 0) {
-            return Status::Corruption("incrSSize error");
-        }
-        writebatch.Put(destination_key, rocksdb::Slice());
+          s = set_db_->Get(rocksdb::ReadOptions(), destination, &val);
+          if (s.IsNotFound()) {
+            if (IncrSSize(destination, 1, writebatch) < 0) {
+              return Status::Corruption("incrSSize error");
+            }
+          }
+          writebatch.Put(destination_key, rocksdb::Slice());
 
-        s = set_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+          s = set_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+        }
     } else if (s.IsNotFound()) {
         *res = 0;
     } else {

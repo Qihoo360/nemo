@@ -24,7 +24,7 @@ Status Nemo::HSet(const std::string &key, const std::string &field, const std::s
             return Status::Corruption("incrhlen error");
         }
     }
-    s = hash_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+    s = hash_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 

@@ -593,7 +593,7 @@ class DB {
   }
   
   // Get Key Version 
-  virtual int32_t GetKeyVersion(const Slice& key) { return -1; }
+  virtual void GetKeyVersionAndTS(const Slice& key, int32_t *version, int32_t *timestamp) { }
   virtual char GetMetaPrefix() const { return '\0'; }
   //char meta_prefix_;
 
