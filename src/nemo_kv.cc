@@ -481,8 +481,8 @@ Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *
       if (stringmatchlen(pattern.data(), pattern.size(), key.data(), key.size(), 0)) {
           keys.push_back(key);
       }
-       printf ("ScanDB key=(%s) value=(%s) val_size=%u\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
-              it->value().ToString().size());
+  //     printf ("ScanDB key=(%s) value=(%s) val_size=%u\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
+   //           it->value().ToString().size());
     }
 
     db->ReleaseSnapshot(iterate_options.snapshot);
@@ -511,8 +511,8 @@ Status Nemo::ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapsho
       if (stringmatchlen(pattern.data(), pattern.size(), key.data(), key.size(), 0)) {
           keys.push_back(key);
       }
-       printf ("ScanDB key=(%s) value=(%s) val_size=%u\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
-              it->value().ToString().size());
+//       printf ("ScanDB key=(%s) value=(%s) val_size=%u\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
+ //             it->value().ToString().size());
     }
 
     db->ReleaseSnapshot(iterate_options.snapshot);

@@ -56,9 +56,9 @@ int main()
     int64_t llen, za_res, sadd_res;
     log_info("======Test Keys======");
     s = n->Set("key", "setval1");
-    s = n->HSet("key", "tHSetField1", "tSetVal1");
+    s = n->HSet("key", "hashfield", "tSetVal1");
     s = n->LPush("key", "tLPushVal1", &llen);
-    s = n->ZAdd("key", 100.0, "tHMember1", &za_res);
+    s = n->ZAdd("key", 100.0, "zsetMember1", &za_res);
     s = n->SAdd("key", "member1", &sadd_res);
 
 
@@ -72,21 +72,21 @@ int main()
         log_info(" %d : %s", i++, smit->c_str());
     }
 
-//    keys.clear();
-//    i = 0;
-//    s = n->Keys("*key*", keys);
-//    log_info("Test Keys(\"*key*\") return %s, size=%ld", s.ToString().c_str(), keys.size());
-//    for (smit = keys.begin(); smit != keys.end(); smit++) {
-//        log_info(" %d :  %s", i++, smit->c_str());
-//    }
-//
-//    keys.clear();
-//    i = 0;
-//    s = n->Keys("t[HL]Set*", keys);
-//    log_info("Test Keys(\"t[HL]Set*\") return %s, size=%ld", s.ToString().c_str(), keys.size());
-//    for (smit = keys.begin(); smit != keys.end(); smit++) {
-//        log_info(" %d :  %s", i++, smit->c_str());
-//    }
+    keys.clear();
+    i = 0;
+    s = n->Keys("*key*", keys);
+    log_info("Test Keys(\"*key*\") return %s, size=%ld", s.ToString().c_str(), keys.size());
+    for (smit = keys.begin(); smit != keys.end(); smit++) {
+        log_info(" %d :  %s", i++, smit->c_str());
+    }
+
+    keys.clear();
+    i = 0;
+    s = n->Keys("t[HL]Set*", keys);
+    log_info("Test Keys(\"t[HL]Set*\") return %s, size=%ld", s.ToString().c_str(), keys.size());
+    for (smit = keys.begin(); smit != keys.end(); smit++) {
+        log_info(" %d :  %s", i++, smit->c_str());
+    }
 
 
     int64_t e_ret, ttl;
@@ -122,12 +122,12 @@ int main()
     }
 
     keys.clear();
+    i = 0;
     s = n->Keys("*", keys);
     log_info("Test Keys(\"*\") return %s, size=%ld", s.ToString().c_str(), keys.size());
     for (smit = keys.begin(); smit != keys.end(); smit++) {
         log_info(" %d : %s", i++, smit->c_str());
     }
-
 
     delete n;
     return 0;

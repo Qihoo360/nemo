@@ -243,12 +243,13 @@ void DBIter::FindNextUserEntryInternal(bool skipping) {
               break;
             case kTypeValue:
               {
-              std::string user_key(ikey.user_key.data(), ikey.user_key.size());
+              skipping = true; 
+              saved_key_.SetKey(ikey.user_key);
+              //std::string user_key(ikey.user_key.data(), ikey.user_key.size());
               Slice val(iter_->value().data(), iter_->value().size());
 
               // KV structure only check timestamp;
-              // Multi structures' meta need check timestamp;
-              if (db_->meta_prefix_ == kMetaPrefix_KV || db_->meta_prefix_ == user_key[0]) {
+              if (db_->meta_prefix_ == kMetaPrefix_KV) {
                 int32_t timestamp_value = DecodeFixed32(val.data() + val.size() - DBImpl::kTSLength);
                 if (timestamp_value != 0) {
                   Env* env = db_->GetEnv();
@@ -257,37 +258,61 @@ void DBIter::FindNextUserEntryInternal(bool skipping) {
                     break;
                   }
                 }
-              }
-
-              // Mutli Structures check version here
-
-              // meta_value begin with an 0 of int64, means the key was empty  
-              if (user_key[0] == db_->meta_prefix_) {
-                if ( *((int64_t *)val.data()) <= 0) {
-                  break;
-                }
+                valid_ = true;
+                saved_key_.SetKey(ikey.user_key);
+                return;
               } else {
-                std::string meta_val;
+                // Multi structures' meta need check timestamp;
+                // Mutli Structures check version here
+                if ((ikey.user_key.data())[0] == db_->meta_prefix_) {
+                  int32_t timestamp_value = DecodeFixed32(val.data() + val.size() - DBImpl::kTSLength);
+                  if (timestamp_value != 0) {
+                    Env* env = db_->GetEnv();
+                    int64_t curtime;
+                    if (env->GetCurrentTime(&curtime).ok() && timestamp_value < curtime) {
+                      break;
+                    }
+                  }
 
-                // Get meta key and value
-                std::string meta_key(1, db_->meta_prefix_);
-                int32_t len = *((uint8_t *)user_key.data() + 1);
-                meta_key.append(user_key.data() + 2, len);
+                  // meta_value begin with an 0 of int64, means the key was empty  
+                  if ( *((int64_t *)val.data()) <= 0) {
+                    break;
+                  }
+                } else {
+                  std::string meta_val;
 
-                Status st = db_->Get(ReadOptions(), db_->DefaultColumnFamily(), meta_key, &meta_val);
+                  // Get meta_key and meta_value
+                  int32_t len = *((uint8_t *)ikey.user_key.data() + 1);
+                  std::string meta_key(1, db_->meta_prefix_);
+                  meta_key.append(ikey.user_key.data() + 2, len);
 
-                // check key version of hash, list, zset, set
-                int32_t meta_version = DecodeFixed32(meta_val.data() + meta_val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
-                int32_t key_version = DecodeFixed32(val.data() + val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+                  Status st = db_->Get(ReadOptions(), db_->DefaultColumnFamily(), meta_key, &meta_val);
+                  if (!st.ok()) {
+                    break;
+                  }
 
-                if (key_version < meta_version) {
-                  break;
+                  int32_t timestamp_value = DecodeFixed32(meta_val.data() + meta_val.size() - DBImpl::kTSLength);
+                  if (timestamp_value != 0) {
+                    Env* env = db_->GetEnv();
+                    int64_t curtime;
+                    if (env->GetCurrentTime(&curtime).ok() && timestamp_value < curtime) {
+                      break;
+                    }
+                  }
+
+                  // check key version of hash, list, zset, set
+                  int32_t meta_version = DecodeFixed32(meta_val.data() + meta_val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+                  int32_t key_version = DecodeFixed32(val.data() + val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+
+                  if (key_version < meta_version) {
+                    break;
+                  }
                 }
-              }
 
-              valid_ = true;
-              saved_key_.SetKey(ikey.user_key);
-              return;
+                valid_ = true;
+                saved_key_.SetKey(ikey.user_key);
+                return;
+              }
               }
             case kTypeMerge:
               // By now, we are sure the current ikey is going to yield a value
