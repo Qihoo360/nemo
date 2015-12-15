@@ -464,7 +464,7 @@ Status Nemo::ZRevrank(const std::string &key, const std::string &member, int64_t
         while (iter->Next() && iter->Member().compare(member) != 0) {
         }
         if (iter->Member().compare(member) == 0) {
-            count++;
+            //count++;
             while (iter->Next()) {
                 count++;
             }

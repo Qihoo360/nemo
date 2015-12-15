@@ -408,8 +408,8 @@ TEST_F(NemoHashTest, TestHMSet)
 	s_.OK();//KeyЮЊПе
 	key = "";
 	s_ = n_->HMSet(key, fvs);
-	CHECK_STATUS(Invalid);
-	if(s_.IsInvalidArgument())
+	CHECK_STATUS(OK);
+	if(s_.ok())
 		log_success("KeyЮЊПе");
 	else
 		log_fail("KeyЮЊПе");

@@ -510,7 +510,7 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
           }
           writebatch.Delete(source_key);
 
-          s = set_db_->Get(rocksdb::ReadOptions(), destination, &val);
+          s = set_db_->Get(rocksdb::ReadOptions(), destination_key, &val);
           if (s.IsNotFound()) {
             if (IncrSSize(destination, 1, writebatch) < 0) {
               return Status::Corruption("incrSSize error");
