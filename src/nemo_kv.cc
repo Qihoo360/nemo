@@ -554,6 +554,7 @@ Status Nemo::Keys(const std::string &pattern, std::vector<std::string>& keys) {
 
 }
 
+// Note: return Status::OK()
 Status Nemo::MDel(const std::vector<std::string> &keys, int64_t* count) {
     *count = 0;
     Status s;
@@ -570,13 +571,16 @@ Status Nemo::MDel(const std::vector<std::string> &keys, int64_t* count) {
           return s;
         }
     }
-    if (*count > 0) {
-      return Status::OK();
-    } else {
-      return s;
-    }
+
+    return Status::OK();
+ //   if (*count > 0) {
+ //     return Status::OK();
+ //   } else {
+ //     return s;
+ //   }
 }
 
+// Note: return only Status::OK(), not Status::NotFound()
 Status Nemo::Del(const std::string &key, int64_t *count) {
     int ok_cnt = 0;
     int64_t del_cnt = 0;
@@ -608,10 +612,8 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
       } else {
         *count = 0;
       }
-      return Status::OK();
-    } else {
-      return Status::NotFound("");
     }
+    return Status::OK();
 }
 
 Status Nemo::Expire(const std::string &key, const int32_t seconds, int64_t *res) {

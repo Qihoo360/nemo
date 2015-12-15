@@ -411,6 +411,7 @@ TEST_F(NemoKVTest, MDel)
 		numTemp -= loopNum;
 	}
 	s_ = n_->MDel(keys, &deleteCount);
+
 	CHECK_STATUS(OK);
 	if(s_.ok())
 		log_success("测试删除最大数量的keys的时候：num = %d", maxMDelNum_);
@@ -445,6 +446,7 @@ TEST_F(NemoKVTest, TestIncrby)
 	s_.OK();//测试key不存在的情况
     int64_t del_ret;
 	s_ = n_->Del(key, &del_ret);
+
 	CHECK_STATUS(OK);
 	if(!(s_.ok()))
 		return;

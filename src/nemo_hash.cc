@@ -10,7 +10,7 @@
 using namespace nemo;
 
 Status Nemo::HSet(const std::string &key, const std::string &field, const std::string &val) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -42,7 +42,7 @@ Status Nemo::HSetNoLock(const std::string &key, const std::string &field, const 
 }
 
 Status Nemo::HGet(const std::string &key, const std::string &field, std::string *val) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -52,7 +52,7 @@ Status Nemo::HGet(const std::string &key, const std::string &field, std::string 
 }
 
 Status Nemo::HDel(const std::string &key, const std::string &field) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -74,7 +74,7 @@ Status Nemo::HDel(const std::string &key, const std::string &field) {
 }
 
 Status Nemo::HDelKey(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -102,7 +102,7 @@ Status Nemo::HDelKey(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::HExpire(const std::string &key, const int32_t seconds, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -132,7 +132,7 @@ Status Nemo::HExpire(const std::string &key, const int32_t seconds, int64_t *res
 }
 
 Status Nemo::HTTL(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -164,7 +164,7 @@ bool Nemo::HExists(const std::string &key, const std::string &field) {
 }
 
 Status Nemo::HPersist(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -188,7 +188,7 @@ Status Nemo::HPersist(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::HExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -317,7 +317,7 @@ Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
 //}
 
 Status Nemo::HMSet(const std::string &key, const std::vector<FV> &fvs) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
     Status s;

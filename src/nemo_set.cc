@@ -10,7 +10,7 @@
 using namespace nemo;
 
 Status Nemo::SAdd(const std::string &key, const std::string &member, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -63,7 +63,7 @@ Status Nemo::SAddNoLock(const std::string &key, const std::string &member, int64
 }
 
 Status Nemo::SRem(const std::string &key, const std::string &member, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -529,7 +529,7 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
 }
 
 Status Nemo::SDelKey(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -558,7 +558,7 @@ Status Nemo::SDelKey(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::SExpire(const std::string &key, const int32_t seconds, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -588,7 +588,7 @@ Status Nemo::SExpire(const std::string &key, const int32_t seconds, int64_t *res
 }
 
 Status Nemo::STTL(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -608,7 +608,7 @@ Status Nemo::STTL(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::SPersist(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -632,7 +632,7 @@ Status Nemo::SPersist(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::SExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 

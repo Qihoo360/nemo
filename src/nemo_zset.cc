@@ -14,7 +14,7 @@ Status Nemo::ZAdd(const std::string &key, const double score, const std::string 
     if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX) {
        return Status::InvalidArgument("score overflow");
     }
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -392,7 +392,7 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
 }
 
 Status Nemo::ZRem(const std::string &key, const std::string &member, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -754,7 +754,7 @@ int Nemo::DoZSet(const std::string &key, const double score, const std::string &
 }
 
 Status Nemo::ZDelKey(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -783,7 +783,7 @@ Status Nemo::ZDelKey(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::ZExpire(const std::string &key, const int32_t seconds, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -813,7 +813,7 @@ Status Nemo::ZExpire(const std::string &key, const int32_t seconds, int64_t *res
 }
 
 Status Nemo::ZTTL(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -833,7 +833,7 @@ Status Nemo::ZTTL(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::ZPersist(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -857,7 +857,7 @@ Status Nemo::ZPersist(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::ZExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 

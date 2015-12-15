@@ -1010,7 +1010,7 @@ Status Nemo::LRem(const std::string &key, const int64_t count, const std::string
 }
 
 Status Nemo::LDelKey(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1049,7 +1049,7 @@ Status Nemo::LDelKey(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::LExpire(const std::string &key, const int32_t seconds, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1085,7 +1085,7 @@ Status Nemo::LExpire(const std::string &key, const int32_t seconds, int64_t *res
 }
 
 Status Nemo::LTTL(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1116,7 +1116,7 @@ Status Nemo::LTTL(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::LPersist(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1150,7 +1150,7 @@ Status Nemo::LPersist(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::LExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
