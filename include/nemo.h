@@ -141,12 +141,12 @@ public:
     Status ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
     Status ZUnionStore(const std::string &destination, const int numkeys, const std::vector<std::string> &keys, const std::vector<double> &weights, Aggregate agg, int64_t *res);
     Status ZInterStore(const std::string &destination, const int numkeys, const std::vector<std::string> &keys, const std::vector<double> &weights, Aggregate agg, int64_t *res);
-    Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms, int64_t offset = 0, bool is_lo = false, bool is_ro = false);
+    Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms, bool is_lo = false, bool is_ro = false);
     Status ZRem(const std::string &key, const std::string &member, int64_t *res);
     Status ZRank(const std::string &key, const std::string &member, int64_t *rank);
     Status ZRevrank(const std::string &key, const std::string &member, int64_t *rank);
     Status ZScore(const std::string &key, const std::string &member, double *score);
-    Status ZRangebylex(const std::string &key, const std::string &min, const std::string &max, std::vector<std::string> &members, int64_t offset = 0);
+    Status ZRangebylex(const std::string &key, const std::string &min, const std::string &max, std::vector<std::string> &members);
     Status ZLexcount(const std::string &key, const std::string &min, const std::string &max, int64_t* count);
     Status ZRemrangebylex(const std::string &key, const std::string &min, const std::string &max, bool is_lo, bool is_ro, int64_t* count);
     Status ZRemrangebyrank(const std::string &key, const int64_t start, const int64_t stop, int64_t* count);

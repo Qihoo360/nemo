@@ -249,12 +249,11 @@ Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t s
     }
 }
 
-Status Nemo::ZRangebyscore(const std::string &key, const double mn, const double mx, std::vector<SM> &sms, int64_t offset, bool is_lo, bool is_ro) {
+Status Nemo::ZRangebyscore(const std::string &key, const double mn, const double mx, std::vector<SM> &sms, bool is_lo, bool is_ro) {
     double start = is_lo ? mn + eps : mn;
     double stop = is_ro ? mx - eps : mx;
 //    MutexLock l(&mutex_zset_);
     ZIterator *iter = ZScan(key, start, stop, -1, true);
-    iter->Skip(offset);
     while(iter->Next()) {
         sms.push_back({iter->Score(), iter->Member()});
     }
@@ -381,7 +380,7 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
     s = ZRemrangebyrankNoLock(destination, 0, -1, &rem_ret);
 
     for (it = mp_member_score.begin(); it != mp_member_score.end(); it++) {
-        s = ZAddNoLock(destination, l_score, member, &add_ret);
+        s = ZAddNoLock(destination, it->second, it->first, &add_ret);
         if (!s.ok()) {
             return s;
         }
@@ -464,7 +463,6 @@ Status Nemo::ZRevrank(const std::string &key, const std::string &member, int64_t
         while (iter->Next() && iter->Member().compare(member) != 0) {
         }
         if (iter->Member().compare(member) == 0) {
-            //count++;
             while (iter->Next()) {
                 count++;
             }
@@ -489,10 +487,9 @@ Status Nemo::ZScore(const std::string &key, const std::string &member, double *s
     return s;
 }
 
-Status Nemo::ZRangebylex(const std::string &key, const std::string &min, const std::string &max, std::vector<std::string> &members, int64_t offset) {
+Status Nemo::ZRangebylex(const std::string &key, const std::string &min, const std::string &max, std::vector<std::string> &members) {
 //    MutexLock l(&mutex_zset_);
     ZLexIterator *iter = ZScanbylex(key, min, max, -1, true);
-    iter->Skip(offset);
     while (iter->Next()) {
         members.push_back(iter->Member());
     }
