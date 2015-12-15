@@ -50,10 +50,18 @@ Status Nemo::SaveDBWithTTL(const std::string &db_path, std::unique_ptr<rocksdb::
         //printf ("SaveDBWithTTL key=(%s) value=(%s) val_size=%u, ttl=%ld\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
          //       it->value().ToString().size(), ttl);
         if (s.ok()) {
+        //    if (ttl == -1) {
+        //        s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString());
+        //    } else if (ttl > 0) {
+        //        s = dst_db->PutWithKeyTTL(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString(), ttl);
+        //    }
+            std::string val = it->value().ToString();
+            int32_t zero = 0;
+            val.append(reinterpret_cast<char*>(&zero), 4);
             if (ttl == -1) {
-                s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString());
+                s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), val);
             } else if (ttl > 0) {
-                s = dst_db->PutWithKeyTTL(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString(), ttl);
+                s = dst_db->PutWithKeyTTL(rocksdb::WriteOptions(), it->key().ToString(), val, ttl);
             }
         }
     }
@@ -84,11 +92,23 @@ Status Nemo::SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &sr
     iterate_options.fill_cache = false;
     
     rocksdb::Iterator* it = src_db->NewIterator(iterate_options);
+    int32_t count = 0;
     for (it->SeekToFirst(); it->Valid(); it->Next()) {
-       // printf ("SaveDB key=(%s) value=(%s) val_size=%u\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
+        // printf ("SaveDB key=(%s) value=(%s) val_size=%u\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
         //        it->value().ToString().size());
 
-        s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString());
+        //s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString());
+    std::string val = it->value().ToString();
+    if (it->key().data()[0] == DataType::kZSize) {
+        int64_t valInt;
+        sscanf(val.c_str(), "%lld", &valInt);
+        val.assign(reinterpret_cast<char*>(&valInt), sizeof(int64_t));
+    }
+    int64_t zero = 0L;
+    val.append(reinterpret_cast<char*>(&zero), 8);
+    s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), val);
+    //std::cout << "count: " << ++count << std::endl;
+    //std::cout << "key: " << it->key().ToString() << ", val: " << it->value().ToString() << std::endl;
     }
     delete it;
     src_db->ReleaseSnapshot(iterate_options.snapshot);
