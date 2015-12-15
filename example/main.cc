@@ -1125,7 +1125,7 @@ int main()
     s = n->ZAdd("zk1", 1.8, "m8", &zadd_res);
     s = n->ZAdd("zk1", 1.9, "m9", &zadd_res);
     sms.clear();
-    s = n->ZRangebyscore("zk1", 1, 1.5, sms, 0, true, true);
+    s = n->ZRangebyscore("zk1", 1, 1.5, sms, true, true);
 //    s = n->ZRangebyscore("tZAddKey", ZSET_SCORE_MIN, ZSET_SCORE_MAX, sms);
     std::vector<SM>::iterator it_sm;
     for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
