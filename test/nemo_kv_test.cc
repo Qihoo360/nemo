@@ -208,7 +208,8 @@ TEST_F(NemoKVTest, TestGet)
 		log_fail("key存在， value为空");
 
 	s_.OK();//删掉key
-	s_ = n_->Del(key);
+    int64_t del_ret;
+	s_ = n_->Del(key, &del_ret);
 	EXPECT_STREQ("OK", s_.ToString().c_str());
 	if(s_.ok())
 	{
@@ -234,7 +235,8 @@ TEST_F(NemoKVTest, TestDel)
 		return;
 
 	s_.OK();//测试正常删除
-	s_ = n_->Del(key);
+    int64_t del_ret;
+	s_ = n_->Del(key, &del_ret);
 	EXPECT_STREQ("OK", s_.ToString().c_str());
 	if(!(s_.ok()))
 		return;
@@ -244,7 +246,7 @@ TEST_F(NemoKVTest, TestDel)
 		log_fail("key存在");
 
 	s_.OK();//测试key不存在
-	s_ = n_->Del(key);
+	s_ = n_->Del(key, &del_ret);
 	EXPECT_STREQ("OK", s_.ToString().c_str());	
 	if(s_.ok())
 		log_success("key不存在");
@@ -376,7 +378,9 @@ TEST_F(NemoKVTest, MDel)
 	CHECK_STATUS(OK);
 	if(!(s_.ok()))
 		return;
-	s_ = n_->Del(key);
+
+    int64_t del_ret;
+	s_ = n_->Del(key, &del_ret);
 	CHECK_STATUS(OK);
 	if(!(s_.ok()))
 		return;
@@ -439,7 +443,8 @@ TEST_F(NemoKVTest, TestIncrby)
 		log_fail("测试正常情况：原来value=%d, incrby=%lld, newValue=%d", atoi(val.c_str()), incrVal, atoi(newVal.c_str()));
 
 	s_.OK();//测试key不存在的情况
-	s_ = n_->Del(key);
+    int64_t del_ret;
+	s_ = n_->Del(key, &del_ret);
 	CHECK_STATUS(OK);
 	if(!(s_.ok()))
 		return;
@@ -582,7 +587,8 @@ TEST_F(NemoKVTest, TestDecrby)
 		log_fail("测试正常情况：原来value=%s, decrby=%lld, newValue=%d", val.c_str(), decrby, atoi(newVal.c_str()));
 
 	s_.OK();//测试没有key的情况下
-	s_ = n_->Del(key);
+    int64_t del_ret;
+	s_ = n_->Del(key, &del_ret);
 	CHECK_STATUS(OK);
 	if(!(s_.ok()))
 		return;
@@ -726,7 +732,8 @@ TEST_F(NemoKVTest, TestIncrbyfloat)
 		log_fail("测试正常情况：原来value=%f, incrbyDouble=%lf, newValue=%lf", atof(val.c_str()), incrbyDouble, atof(newVal.c_str()));
 
 	s_.OK();//测试key不存在的情况
-	s_ = n_->Del(key);
+    int64_t del_ret;
+	s_ = n_->Del(key, &del_ret);
 	CHECK_STATUS(OK);
 	if(!(s_.ok()))
 		return;
@@ -852,7 +859,8 @@ TEST_F(NemoKVTest, TestGetSet)
 		log_fail("测试原来key存在情况");
 
 	s_.OK();//测试key不存在
-	s_ = n_->Del(key);
+    int64_t del_ret;
+	s_ = n_->Del(key, &del_ret);
 	CHECK_STATUS(OK);
 	s_ = n_->GetSet(key, newVal, &oldVal);
 	EXPECT_STREQ("OK", s_.ToString().c_str());
@@ -892,7 +900,8 @@ TEST_F(NemoKVTest, TestAppend)
 		log_fail("正常情况：key存在");
 
 	s_.OK();//测试key不存在
-	s_ = n_->Del(key);
+    int64_t del_ret;
+	s_ = n_->Del(key, &del_ret);
 	CHECK_STATUS(OK);
 	if(!(s_.ok()))
 		return;
@@ -937,7 +946,8 @@ TEST_F(NemoKVTest, TestSetnx)
 
 	s_.OK();//测试原来的key不存在
 	newVal = GetRandomVal_();
-	s_ = n_->Del(key);
+    int64_t del_ret;
+	s_ = n_->Del(key, &del_ret);
 	CHECK_STATUS(OK);
 	if(!(s_.ok()))
 		return;
@@ -962,7 +972,7 @@ TEST_F(NemoKVTest, TestSetnx)
 	res = 0;
 	key = GetRandomKey_();
 	val = GetRandomVal_();
-	n_->Del(key);
+	s_ = n_->Del(key, &del_ret);
 	s_ = n_->Setnx(key, val, &res);
 	CHECK_STATUS(OK);
 	EXPECT_EQ(1, res);
@@ -977,7 +987,7 @@ TEST_F(NemoKVTest, TestSetnx)
 	res = 0;
 	key = GetRandomKey_();
 	val = GetRandomVal_();
-	n_->Del(key);
+	s_ = n_->Del(key, &del_ret);
 	s_ = n_->Setnx(key, val, &res, 2);
 	CHECK_STATUS(OK);
 	EXPECT_EQ(1, res);
@@ -994,7 +1004,7 @@ TEST_F(NemoKVTest, TestSetnx)
 	res = 0;
 	key = GetRandomKey_();
 	val = GetRandomVal_();
-	n_->Del(key);
+	s_ = n_->Del(key, &del_ret);
 	s_ = n_->Setnx(key, val, &res, -1);
 	CHECK_STATUS(OK);
 	EXPECT_EQ(1, res);
@@ -1032,7 +1042,8 @@ TEST_F(NemoKVTest, TestSetxx)
 		log_fail("测试原来的key存在的情况");
 
 	s_.OK();
-	s_ = n_->Del(key);
+    int64_t del_ret;
+	s_ = n_->Del(key, &del_ret);
 	CHECK_STATUS(OK);
 	if(!(s_.ok()))
 		return;
@@ -1107,7 +1118,7 @@ TEST_F(NemoKVTest, TestMSetnx)
 	vector<nemo::KV> kvs;
 	nemo::KV kvTemp;
 	string key, val;
-	int64_t ret, arbiter;
+	int64_t del_ret, ret, arbiter;
 
 	s_.OK();//全部的key都不存在
 	uint32_t loopNum = GetRandomUint_(2, maxMSetNum_);
@@ -1121,7 +1132,7 @@ TEST_F(NemoKVTest, TestMSetnx)
 	}
 	for(vector<nemo::KV>::iterator iter = kvs.begin(); iter != kvs.end(); iter++)
 	{
-		n_->Del(iter->key);
+		n_->Del(iter->key, &del_ret);
 	}
 	s_ = n_->MSetnx(kvs, &ret);
 	CHECK_STATUS(OK);
@@ -1134,7 +1145,7 @@ TEST_F(NemoKVTest, TestMSetnx)
 	s_.OK();//有key存在
 	for(vector<nemo::KV>::iterator iter = kvs.begin(); iter != kvs.end(); iter++)
 	{
-		n_->Del(iter->key);
+		n_->Del(iter->key, &del_ret);
 	}
 	arbiter = GetRandomUint_(0, loopNum-1);
 	vector<nemo::KV>::iterator iter = kvs.begin();
@@ -1164,6 +1175,7 @@ TEST_F(NemoKVTest, TestGetrange)
 {
 	log_message("\n========TestGetrange========");
 	string key, val, getVal, stateStr;
+    int64_t del_ret;
 	int64_t start_t, end_t;
 	s_.OK();//测试正常情况，0<=start_t <= end_t < size
 	key = GetRandomKey_();
@@ -1181,7 +1193,7 @@ TEST_F(NemoKVTest, TestGetrange)
 
 	s_.OK();//key不存在
 	getVal = "";
-	n_->Del(key);
+	n_->Del(key, &del_ret);
 	s_ = n_->Getrange(key, start_t, end_t, getVal);
 	CHECK_STATUS(NotFound);
 	EXPECT_EQ(true, getVal.empty());
@@ -1351,7 +1363,9 @@ TEST_F(NemoKVTest, TestSetrange)
 	offset = GetRandomUint_(0, val.length());
 	insertValLen = GetRandomUint_(0, val.length()-offset);
 	insertVal = GetRandomBytes_(insertValLen);
-	n_->Del(key);
+
+    int64_t del_ret;
+	n_->Del(key, &del_ret);
 	s_ = n_->Setrange(key, offset, insertVal, &newLen);
 	CHECK_STATUS(OK);
 	n_->Get(key, &getVal);
@@ -1383,7 +1397,9 @@ TEST_F(NemoKVTest, TestStrlen)
 
 	s_.OK();//key不存在
 	len = 0;
-	n_->Del(key);
+
+    int64_t del_ret;
+	n_->Del(key, &del_ret);
 	s_ = n_->Strlen(key, &len);
 	CHECK_STATUS(NotFound);
 	EXPECT_EQ(0, len);
@@ -1640,7 +1656,8 @@ TEST_F(NemoKVTest, TestTTL)
 		log_fail("key存在；ttl!=0: ttl=%d, res=%lld", 10, res);
 
 	s_.OK();//key不存在
-	n_->Del(key);
+    int64_t del_ret;
+	n_->Del(key, &del_ret);
 	s_ = n_->TTL(key, &res);
 	CHECK_STATUS(NotFound);
 	EXPECT_EQ(-2, res);
@@ -1682,7 +1699,8 @@ TEST_F(NemoKVTest, TestPersist)
 		log_fail("key存在，不持久且未过期， ttl=%lld", ttl);
 
 	s_.OK();//key不存在
-	n_->Del(key);
+    int64_t del_ret;
+	n_->Del(key, &del_ret);
 	s_ = n_->Persist(key, &res);
 	CHECK_STATUS(NotFound);
 	EXPECT_EQ(0, res);
@@ -1724,7 +1742,8 @@ TEST_F(NemoKVTest, TestExpire)
 		log_fail("key存在，seconds<=0： seconds=-1");
 	
 	s_.OK();//key不存在
-	n_->Del(key);
+    int64_t del_ret;
+	n_->Del(key, &del_ret);
 	s_ = n_->Expire(key, 10, &res);
 	CHECK_STATUS(NotFound);
 	EXPECT_EQ(0, res);
@@ -1790,7 +1809,8 @@ TEST_F(NemoKVTest, TestExpireat)
 		log_fail("key存在，timestamp<当前时间,是否删除成功");
 
 	s_.OK();//key不存在
-	n_->Del(key);
+    int64_t del_ret;
+	n_->Del(key, &del_ret);
 	timestamp = time(NULL);
 	s_ = n_->Expireat(key, timestamp, &res);
 	CHECK_STATUS(NotFound);

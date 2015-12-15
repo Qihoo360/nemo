@@ -37,7 +37,7 @@ Status Nemo::HSetNoLock(const std::string &key, const std::string &field, const 
             return Status::Corruption("incrhlen error");
         }
     }
-    s = hash_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+    s = hash_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 
@@ -73,7 +73,7 @@ Status Nemo::HDel(const std::string &key, const std::string &field) {
     }
 }
 
-Status Nemo::HDelKey(const std::string &key) {
+Status Nemo::HDelKey(const std::string &key, int64_t *res) {
     if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
@@ -81,6 +81,7 @@ Status Nemo::HDelKey(const std::string &key) {
     Status s;
     std::string val;
     std::string size_key = EncodeHsizeKey(key);
+    *res = 0;
 
     s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
     if (!s.ok()) {
@@ -92,6 +93,7 @@ Status Nemo::HDelKey(const std::string &key) {
       return Status::NotFound("");
     }
 
+    *res = 1;
     len = 0;
     MutexLock l(&mutex_hash_);
     s = hash_db_->PutWithKeyVersion(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
@@ -121,7 +123,8 @@ Status Nemo::HExpire(const std::string &key, const int32_t seconds, int64_t *res
         MutexLock l(&mutex_hash_);
         s = hash_db_->PutWithKeyTTL(rocksdb::WriteOptions(), size_key, val, seconds);
       } else { 
-        s = HDelKey(key);
+        int64_t count;
+        s = HDelKey(key, &count);
       }
       *res = 1;
     }
@@ -175,7 +178,7 @@ Status Nemo::HPersist(const std::string &key, int64_t *res) {
     if (s.ok()) {
         int32_t ttl;
         s = hash_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
-        if (ttl >= 0) {
+        if (s.ok() && ttl >= 0) {
             MutexLock l(&mutex_hash_);
             s = hash_db_->Put(rocksdb::WriteOptions(), size_key, val);
             *res = 1;
@@ -204,7 +207,8 @@ Status Nemo::HExpireat(const std::string &key, const int32_t timestamp, int64_t 
 
       std::time_t cur = std::time(0);
       if (timestamp <= cur) {
-        s = HDelKey(key);
+        int64_t count;
+        s = HDelKey(key, &count);
       } else {
         MutexLock l(&mutex_hash_);
         s = hash_db_->PutWithExpiredTime(rocksdb::WriteOptions(), size_key, val, timestamp);

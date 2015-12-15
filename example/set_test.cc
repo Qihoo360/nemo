@@ -401,7 +401,8 @@ int main()
       }
       log_info("");
 
-      s = n->SDelKey("zr");
+      int64_t del_ret;
+      s = n->SDelKey("zr", &del_ret);
       log_info("======SDelKey  return %s", s.ToString().c_str());
 
       log_info("======Test SDelKey SMembers after======");

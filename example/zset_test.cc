@@ -75,7 +75,8 @@ int main()
       }
       log_info("");
 
-      s = n->ZDelKey("zr");
+      int64_t del_ret;
+      s = n->ZDelKey("zr", &del_ret);
       log_info("======ZDelKey  return %s", s.ToString().c_str());
 
       sms.clear();

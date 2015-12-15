@@ -72,8 +72,9 @@ int main()
     /*
      *  Test Setxx
      */
+    int64_t del_ret;
     log_info("======Test Setxx======");
-    s = n->Del("a");
+    s = n->Del("a", &del_ret);
     int64_t xx_ret;
     s = n->Setxx("a", "b", &xx_ret);
     log_info("Test Setxx OK return %s, retval: %ld", s.ToString().c_str(), xx_ret);
@@ -157,14 +158,14 @@ int main()
      *  Test Del
      */
     log_info("======Test Del======");
-    s = n->Del("tSetKey");
+    s = n->Del("tSetKey", &del_ret);
     log_info("Test Det OK return %s", s.ToString().c_str());
     res = "";
     s = n->Get("tSetKey", &res);
     log_info("After Del, Get NotFound return %s, result tGetVal = %s", s.ToString().c_str(), res.c_str());
 
     //just delete all key-value set before
-    s = n->Del("tGetKey");
+    s = n->Del("tGetKey", &del_ret);
     log_info("");
 
     /*
@@ -269,7 +270,7 @@ int main()
     log_info("Test Decrby OK return %s, NonNum Decrby 6 val: %s", s.ToString().c_str(), res.c_str());
 
     //just delete all key-value set before
-    s = n->Del("tIncrByKey");
+    s = n->Del("tIncrByKey", &del_ret);
     log_info("");
 
     /*
@@ -295,7 +296,7 @@ int main()
     log_info("Test Incrbyfloat OK return %s, NonNum Incrbyfloat 6 expect value not float", s.ToString().c_str());
 
     //just delete all key-value set before
-    s = n->Del("tIncrByKey");
+    s = n->Del("tIncrByKey", &del_ret);
     log_info("");
     //char ch;
     //scanf ("%c", &ch);
@@ -320,8 +321,8 @@ int main()
     log_info("After GetSet, Test Get OK return %s, val: %s", s.ToString().c_str(), res.c_str());
 
     //just delete all key-value set before
-    s = n->Del("tGetSetKey");
-    s = n->Del("tGetSetNotFoundKey");
+    s = n->Del("tGetSetKey", &del_ret);
+    s = n->Del("tGetSetNotFoundKey", &del_ret);
     log_info("");
 
     /*

@@ -66,7 +66,8 @@ int main()
        */
       log_info("======Test HDelKey======");
 
-      s = n->HDelKey("tHSetKey");
+      int64_t del_ret;
+      s = n->HDelKey("tHSetKey", &del_ret);
       log_info("Test HDelKey return %s", s.ToString().c_str());
 
       HIterator *hit = n->HScan("tHSetKey", "", "", -1);

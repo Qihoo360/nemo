@@ -40,34 +40,34 @@ public:
 
     Status Compact();
     // =================String=====================
-    Status Del(const std::string &key);
+    Status Del(const std::string &key, int64_t *count);
     Status MDel(const std::vector<std::string> &keys, int64_t* count);
     Status Expire(const std::string &key, const int32_t seconds, int64_t *res);
     Status TTL(const std::string &key, int64_t *res);
     Status Persist(const std::string &key, int64_t *res);
     Status Expireat(const std::string &key, const int32_t timestamp, int64_t *res);
 
-    Status KDel(const std::string &key);
+    Status KDel(const std::string &key, int64_t *res);
     Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status KTTL(const std::string &key, int64_t *res);
     Status KPersist(const std::string &key, int64_t *res);
     Status KExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
-    Status HDelKey(const std::string &key);
+    Status HDelKey(const std::string &key, int64_t *res);
     Status HExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status HTTL(const std::string &key, int64_t *res);
     Status HPersist(const std::string &key, int64_t *res);
     Status HExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
-    Status ZDelKey(const std::string &key);
+    Status ZDelKey(const std::string &key, int64_t *res);
     Status ZExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status ZTTL(const std::string &key, int64_t *res);
     Status ZPersist(const std::string &key, int64_t *res);
     Status ZExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
-    Status SDelKey(const std::string &key);
+    Status SDelKey(const std::string &key, int64_t *res);
     Status SExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status STTL(const std::string &key, int64_t *res);
     Status SPersist(const std::string &key, int64_t *res);
     Status SExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
-    Status LDelKey(const std::string &key);
+    Status LDelKey(const std::string &key, int64_t *res);
     Status LExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status LTTL(const std::string &key, int64_t *res);
     Status LPersist(const std::string &key, int64_t *res);

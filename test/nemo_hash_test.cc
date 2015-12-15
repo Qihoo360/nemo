@@ -683,7 +683,9 @@ TEST_F(NemoHashTest, TestHScan)
 		log_success("key非空；start非空；end非空；但是key上不是hash结构");
 	else
 		log_fail("key非空；start非空；end非空；但是key上不是hash结构");
-	n_->Del(key);
+
+    int64_t del_ret;
+	n_->Del(key, &del_ret);
 	delete hiter;
 	
 	log_message("========Key is %s, field from %s_%d to %s_%d", key.c_str(), key.c_str(), numPre+0, key.c_str(), numPre+totalFieldsNum-1);
@@ -814,7 +816,8 @@ TEST_F(NemoHashTest, TestHVals)
 		log_success("key存在；但是key不是hash结构");
 	else
 		log_success("key存在；但是key不是hash结构");
-	n_->Del(key);
+    int64_t del_ret;
+	n_->Del(key, &del_ret);
 
 	s_.OK();//key存在；没有fields
 	key = GetRandomKey_();

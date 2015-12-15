@@ -188,6 +188,8 @@ int main()
     /*
      *  Test Setrange
      */
+    int64_t del_ret;
+
     log_info("======Test Setrange======");
     s = n->Set("tSetRangeKey", "abcd");
     int64_t sr_len;
@@ -195,7 +197,7 @@ int main()
     std::string sr_val;
     s = n->Get("tSetRangeKey", &sr_val);
     log_info("After Setrange, val = %s, new_len = %ld", sr_val.c_str(), sr_len);
-    s = n->Del("tSetRangeKey");
+    s = n->Del("tSetRangeKey", &del_ret);
     log_info("");
 
     /*
@@ -213,23 +215,23 @@ int main()
      *  Test Set with TTL
      */
     log_info("======Test Set with ttl======");
-    s = n->Set("tSetKeyWithTTL", "tSetVal", 7);
-    log_info("Test Set with ttl return %s", s.ToString().c_str());
-
-    //int64_t ttl;
-    for (int i = 0; i < 4; i++) {
-        sleep(3);
-        s = n->Get("tSetKeyWithTTL", &res);
-        log_info("          Set with ttl after %ds, return %s", (i+1)*3, s.ToString().c_str());
-        if (s.ok()) {
-            s = n->TTL("tSetKeyWithTTL", &ttl);
-            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
-        }
-        s = n->TTL("tSetKeyWithTTL", &ttl);
-        log_info("          TTL return %s, ttl is %ld\n", s.ToString().c_str(), ttl);
-        log_info("");
-    }
-    log_info("");
+//    s = n->Set("tSetKeyWithTTL", "tSetVal", 7);
+//    log_info("Test Set with ttl return %s", s.ToString().c_str());
+//
+//    //int64_t ttl;
+//    for (int i = 0; i < 4; i++) {
+//        sleep(3);
+//        s = n->Get("tSetKeyWithTTL", &res);
+//        log_info("          Set with ttl after %ds, return %s", (i+1)*3, s.ToString().c_str());
+//        if (s.ok()) {
+//            s = n->TTL("tSetKeyWithTTL", &ttl);
+//            log_info("          new TTL is %ld, Get res:%s\n", ttl, res.c_str());
+//        }
+//        s = n->TTL("tSetKeyWithTTL", &ttl);
+//        log_info("          TTL return %s, ttl is %ld\n", s.ToString().c_str(), ttl);
+//        log_info("");
+//    }
+//    log_info("");
 
     /*
      *  Test Get
@@ -248,7 +250,7 @@ int main()
      *  Test Setxx
      */
     log_info("======Test Setxx======");
-    s = n->Del("a");
+    s = n->Del("a", &del_ret);
     int64_t xx_ret;
     s = n->Setxx("a", "b", &xx_ret);
     log_info("Test Setxx OK return %s, retval: %ld", s.ToString().c_str(), xx_ret);
@@ -332,14 +334,14 @@ int main()
      *  Test Del
      */
     log_info("======Test Del======");
-    s = n->Del("tSetKey");
+    s = n->Del("tSetKey", &del_ret);
     log_info("Test Det OK return %s", s.ToString().c_str());
     res = "";
     s = n->Get("tSetKey", &res);
     log_info("After Del, Get NotFound return %s, result tGetVal = %s", s.ToString().c_str(), res.c_str());
 
     //just delete all key-value set before
-    s = n->Del("tGetKey");
+    s = n->Del("tGetKey", &del_ret);
     log_info("");
 
     /*
@@ -367,7 +369,7 @@ int main()
     log_info("======Test MDel======");
     int64_t mcount;
     s = n->MDel(keys, &mcount);
-    log_info("Test MDel OK return %s", s.ToString().c_str());
+    log_info("Test MDel OK return %s, mcount is %ld", s.ToString().c_str(), mcount);
     //After MDel, all should return NotFound
     kvss.clear();
     s = n->MGet(keys, kvss);
@@ -444,7 +446,7 @@ int main()
     log_info("Test Decrby OK return %s, NonNum Decrby 6 val: %s", s.ToString().c_str(), res.c_str());
 
     //just delete all key-value set before
-    s = n->Del("tIncrByKey");
+    s = n->Del("tIncrByKey", &del_ret);
     log_info("");
 
     /*
@@ -463,6 +465,19 @@ int main()
     s = n->Incrbyfloat("tIncrByKey", std::numeric_limits<double>::max(), res);
     log_info("Test Incrbyfloat OK return %s, Incrbyfloat numric_limits max , expect overflow", s.ToString().c_str());
 
+    s = n->Set("tIncrByKey", "+12");
+    res = "";
+    s = n->Incrbyfloat("tIncrByKey", 6.0, res);
+    log_info("Test Incrbyfloat with +12 OK return %s, +12 Incrbyfloat 6.0 val: %s", s.ToString().c_str(), res.c_str());
+
+    res = "";
+    s = n->Incrbyfloat("NotExistKey", 6.0, res);
+    log_info("Test Incrbyfloat with NotExistKey OK return %s, Incrbyfloat 6.0 val: %s", s.ToString().c_str(), res.c_str());
+
+    sr_val = "";
+    s = n->Get("NotExistKey", &sr_val);
+    log_info("     After Incrbyflost NotExistKey, return %s, val = %s, new_len = %ld", s.ToString().c_str(), sr_val.c_str(), sr_len);
+
     //Test NonNum key IncrBy
     s = n->Set("tIncrByKey", "NonNum");
     res = "";
@@ -470,7 +485,7 @@ int main()
     log_info("Test Incrbyfloat OK return %s, NonNum Incrbyfloat 6 expect value not float", s.ToString().c_str());
 
     //just delete all key-value set before
-    s = n->Del("tIncrByKey");
+    s = n->Del("tIncrByKey", &del_ret);
     log_info("");
     //char ch;
     //scanf ("%c", &ch);
@@ -495,8 +510,8 @@ int main()
     log_info("After GetSet, Test Get OK return %s, val: %s", s.ToString().c_str(), res.c_str());
 
     //just delete all key-value set before
-    s = n->Del("tGetSetKey");
-    s = n->Del("tGetSetNotFoundKey");
+    s = n->Del("tGetSetKey", &del_ret);
+    s = n->Del("tGetSetNotFoundKey", &del_ret);
     log_info("");
 
     /*
