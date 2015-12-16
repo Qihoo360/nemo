@@ -162,11 +162,11 @@ class DBImpl : public DB {
   void SetMetaPrefix(const char ch)   { meta_prefix_ = ch; }
   virtual char GetMetaPrefix() const override { return meta_prefix_; }
   //virtual int32_t GetKeyVersion(const Slice& key) override;
-  virtual void GetKeyVersionAndTS(const Slice& key, int32_t *version, int32_t *timestamp) override; 
+  virtual void GetKeyVersionAndTS(const Slice& key, int32_t *version, int32_t *timestamp) override;
 
   // Used to present the DB type
   char meta_prefix_;
-  
+
   static const uint32_t kTSLength = sizeof(int32_t);  // size of timestamp
   static const uint32_t kVersionLength = sizeof(int32_t);  // size of key version
 
