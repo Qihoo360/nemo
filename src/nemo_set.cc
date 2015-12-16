@@ -504,7 +504,7 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
 
     if (s.ok()) {
         *res = 1;
-        if (source != desination) {
+        if (source != destination) {
           if (IncrSSize(source, -1, writebatch) < 0) {
             return Status::Corruption("incrSSize error");
           }
