@@ -27,7 +27,6 @@
 #include "rocksdb/env.h"
 #include "rocksdb/memtablerep.h"
 #include "rocksdb/compaction_filter.h"
-#include "rocksdb/merge_operator.h"
 #include "rocksdb/transaction_log.h"
 #include "util/autovector.h"
 #include "util/event_logger.h"
@@ -48,7 +47,6 @@ class Version;
 class VersionEdit;
 class VersionSet;
 class Arena;
-class MergeOperator;
 
 class CompactionJob {
  public:
