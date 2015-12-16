@@ -94,8 +94,10 @@ int StrToInt64(const char *s, size_t slen, int64_t *value) {
         return 1;
     }
 
-    if (p[0] == '-') {
-        negative = 1;
+    if (p[0] == '-' || p[0] == '+') {
+        if (p[0] == '-') {
+            negative = 1;
+        }
         p++; plen++;
 
         /* Abort on only a negative sign. */
@@ -158,7 +160,7 @@ int StrToDouble(const char *s, size_t slen, double *dval) {
     return 1;
 }
 
-static int do_mkdir(const char *path, mode_t mode) {
+int do_mkdir(const char *path, mode_t mode) {
   struct stat st;
   int status = 0;
 

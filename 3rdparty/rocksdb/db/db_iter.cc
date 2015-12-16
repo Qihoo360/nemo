@@ -243,7 +243,7 @@ void DBIter::FindNextUserEntryInternal(bool skipping) {
               break;
             case kTypeValue:
               {
-              skipping = true; 
+              skipping = true;
               saved_key_.SetKey(ikey.user_key);
               //std::string user_key(ikey.user_key.data(), ikey.user_key.size());
               Slice val(iter_->value().data(), iter_->value().size());
@@ -274,7 +274,7 @@ void DBIter::FindNextUserEntryInternal(bool skipping) {
                     }
                   }
 
-                  // meta_value begin with an 0 of int64, means the key was empty  
+                  // meta_value begin with an 0 of int64, means the key was empty
                   if ( *((int64_t *)val.data()) <= 0) {
                     break;
                   }

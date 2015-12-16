@@ -359,8 +359,9 @@ int main()
         log_info("");
 
 
-      s = n->LDelKey("zr");
-      log_info("======LDelKey  return %s", s.ToString().c_str());
+        int64_t del_ret;
+        s = n->LDelKey("zr", &del_ret);
+        log_info("======LDelKey  return %s", s.ToString().c_str());
 
         log_info("======Test LDelKey Lrange after======");
         ivs.clear();

@@ -65,7 +65,7 @@ endif
 
 # compile with -O2 if debug level is not 2
 ifneq ($(DEBUG_LEVEL), 2)
-OPT += -O0 -fno-omit-frame-pointer
+OPT += -O2 -fno-omit-frame-pointer
 ifneq ($(MACHINE),ppc64) # ppc64 doesn't support -momit-leaf-frame-pointer
 OPT += -momit-leaf-frame-pointer
 endif

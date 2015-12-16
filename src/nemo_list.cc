@@ -179,7 +179,7 @@ Status Nemo::LPush(const std::string &key, const std::string &val, int64_t *llen
             }
             *((int64_t *)(meta.data() + 3 * sizeof(int64_t))) = ++cur_seq;
             batch.Put(meta_key, meta);
-            s = list_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &batch);
+            s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
             *llen = len;
             return s;
         } else {
@@ -196,7 +196,7 @@ Status Nemo::LPush(const std::string &key, const std::string &val, int64_t *llen
         batch.Put(meta_key, meta_str);
         EncodeListVal(val, 0, 0, en_val);
         batch.Put(EncodeListKey(key, 1), en_val);
-        s = list_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &batch);
+        s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
         *llen = 1;
         return s;
     } else {
@@ -256,7 +256,7 @@ Status Nemo::LPop(const std::string &key, std::string *val) {
             batch.Put(meta_key, meta);
 
             batch.Delete(db_key);
-            s = list_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &batch);
+            s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
             return s;
         } else {
             return Status::Corruption("parse listmeta error");
@@ -513,7 +513,7 @@ Status Nemo::LTrim(const std::string &key, const int64_t begin, const int64_t en
                     *((int64_t *)(meta.data() + sizeof(int64_t) * 3)) = 1;
                 }
                 batch.Put(meta_key, meta);
-                s = list_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &batch);
+                s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
                 return s;
             } else {
                 return Status::Corruption("get invalid listlen");
@@ -570,7 +570,7 @@ Status Nemo::RPush(const std::string &key, const std::string &val, int64_t *llen
             *((int64_t *)(meta.data() + 2 * sizeof(int64_t))) = right;
             *((int64_t *)(meta.data() + 3 * sizeof(int64_t))) = ++cur_seq;
             batch.Put(meta_key, meta);
-            s = list_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &batch);
+            s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
             *llen = len;
             return s;
         } else {
@@ -587,7 +587,7 @@ Status Nemo::RPush(const std::string &key, const std::string &val, int64_t *llen
         batch.Put(meta_key, meta_str);
         EncodeListVal(val, 0, 0, en_val);
         batch.Put(EncodeListKey(key, 1), en_val);
-        s = list_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &batch);
+        s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
         *llen = 1;
         return s;
     } else {
@@ -647,7 +647,7 @@ Status Nemo::RPop(const std::string &key, std::string *val) {
             batch.Put(meta_key, meta);
 
             batch.Delete(db_key);
-            s = list_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &batch);
+            s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
             return s;
         } else {
             return Status::Corruption("parse listmeta error");
@@ -738,7 +738,7 @@ Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::str
             s = list_db_->Put(rocksdb::WriteOptions(), meta_key_r, meta_r);
             
             batch.Delete(db_key_r);
-            s = list_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &batch);
+            s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
         }
     } else if (s.IsNotFound()) {
         return Status::NotFound("not found the source key");
@@ -773,7 +773,7 @@ Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::str
             }
             *((int64_t *)(meta_l.data() + 3 * sizeof(int64_t))) = ++cur_seq;
             batch.Put(meta_key_l, meta_l);
-            s = list_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &batch);
+            s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
             return s;
         } else {
             return Status::Corruption("parse listmeta error");
@@ -790,7 +790,7 @@ Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::str
         batch.Put(meta_key_l, meta_str);
         EncodeListVal(val, 0, 0, en_val);
         batch.Put(EncodeListKey(dest, 1), en_val);
-        s = list_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &batch);
+        s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
         return s;
     } else {
         return Status::Corruption("get listmeta error");
@@ -879,7 +879,7 @@ Status Nemo::LInsert(const std::string &key, Position pos, const std::string &pi
                 *((int64_t *)(meta.data() + 2 * sizeof(int64_t))) = right;
                 *((int64_t *)(meta.data() + 3 * sizeof(int64_t))) = ++cur_seq;
                 batch.Put(meta_key, meta);
-                s = list_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &batch);
+                s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
                 *llen = len;
                 return s;
             } else {
@@ -993,7 +993,7 @@ Status Nemo::LRem(const std::string &key, const int64_t count, const std::string
                   *((int64_t *)(meta.data() + 2 * sizeof(int64_t))) = right;
                   batch.Put(meta_key, meta);
                 }
-                s = list_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &batch);
+                s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
               }
             } while ((count == 0 || *rem_count < total_rem) 
                      && ((count < 0 && priv != 0) || (count >= 0 && next != 0)));
@@ -1009,8 +1009,8 @@ Status Nemo::LRem(const std::string &key, const int64_t count, const std::string
     }
 }
 
-Status Nemo::LDelKey(const std::string &key) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+Status Nemo::LDelKey(const std::string &key, int64_t *res) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1021,6 +1021,8 @@ Status Nemo::LDelKey(const std::string &key) {
     Status s;
     std::string meta;
     std::string meta_key = EncodeLMetaKey(key);
+
+    *res = 0;
 
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta);
     if (!s.ok()) {
@@ -1039,6 +1041,7 @@ Status Nemo::LDelKey(const std::string &key) {
     *((int64_t *)(meta.data() + 2 * sizeof(int64_t))) = 0;
     *((int64_t *)(meta.data() + 3 * sizeof(int64_t))) = 1;
 
+    *res = 1;
     MutexLock l(&mutex_list_);
     s = list_db_->PutWithKeyVersion(rocksdb::WriteOptions(), meta_key, meta);
 
@@ -1046,7 +1049,7 @@ Status Nemo::LDelKey(const std::string &key) {
 }
 
 Status Nemo::LExpire(const std::string &key, const int32_t seconds, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1073,7 +1076,8 @@ Status Nemo::LExpire(const std::string &key, const int32_t seconds, int64_t *res
             MutexLock l(&mutex_list_);
             s = list_db_->PutWithKeyTTL(rocksdb::WriteOptions(), meta_key, meta, seconds);
         } else { 
-            s = LDelKey(key);
+            int64_t count; 
+            s = LDelKey(key, &count);
         }
     }
 
@@ -1081,7 +1085,7 @@ Status Nemo::LExpire(const std::string &key, const int32_t seconds, int64_t *res
 }
 
 Status Nemo::LTTL(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1112,7 +1116,7 @@ Status Nemo::LTTL(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::LPersist(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1136,7 +1140,7 @@ Status Nemo::LPersist(const std::string &key, int64_t *res) {
 
         int32_t ttl;
         s = list_db_->GetKeyTTL(rocksdb::ReadOptions(), meta_key, &ttl);
-        if (ttl >= 0) {
+        if (s.ok() && ttl >= 0) {
             MutexLock l(&mutex_list_);
             s = list_db_->Put(rocksdb::WriteOptions(), meta_key, meta);
             *res = 1;
@@ -1146,7 +1150,7 @@ Status Nemo::LPersist(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::LExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1170,12 +1174,13 @@ Status Nemo::LExpireat(const std::string &key, const int32_t timestamp, int64_t 
         }
 
       std::time_t cur = std::time(0);
-      if (timestamp <= cur) {
-            s = LDelKey(key);
-        } else { 
-            MutexLock l(&mutex_list_);
-            s = list_db_->PutWithExpiredTime(rocksdb::WriteOptions(), meta_key, meta, timestamp);
-        }
+      if (timestamp <= cur) { 
+        int64_t count;
+        s = LDelKey(key, &count);
+      } else { 
+        MutexLock l(&mutex_list_);
+        s = list_db_->PutWithExpiredTime(rocksdb::WriteOptions(), meta_key, meta, timestamp);
+      }
     }
 
     return s;

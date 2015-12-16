@@ -152,7 +152,7 @@ int32_t DBWithTTLImpl::GetTTLFromNow(const Slice& value, int32_t ttl, Env* env) 
 Status DBWithTTL::GetVersion(const Slice& key, int32_t *version) {
     // KV structure and data key of Hash, list, zset, set don't have version
     *version = 0;
-    if (db_->GetMetaPrefix() == kMetaPrefix_KV || db_->GetMetaPrefix() != (key.data())[0]) { 
+    if (db_->GetMetaPrefix() == kMetaPrefix_KV || db_->GetMetaPrefix() != (key.data())[0]) {
       return Status::NotFound("Not meta key");
     }
 
@@ -197,7 +197,7 @@ Status DBWithTTL::GetKeyTTL(const ReadOptions& options, const Slice& key, int32_
     // KV do not need version check
     if (db_->GetMetaPrefix() == kMetaPrefix_KV) {
       if (DBWithTTLImpl::IsStale(value, 1, db_->GetEnv())) {
-        *ttl = 0;
+        *ttl = -2;
         return Status::NotFound("Is Stale");
       } else {
         *ttl = DBWithTTLImpl::GetTTLFromNow(value, 1, db_->GetEnv());
@@ -209,7 +209,7 @@ Status DBWithTTL::GetKeyTTL(const ReadOptions& options, const Slice& key, int32_
         *ttl = DBWithTTLImpl::GetTTLFromNow(value, 1, db_->GetEnv());
         return Status::OK();
       } else {
-        *ttl = 0;
+        *ttl = -2;
         return st;
       }
     }

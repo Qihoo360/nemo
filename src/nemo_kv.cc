@@ -24,9 +24,16 @@ Status Nemo::Get(const std::string &key, std::string *val) {
     return s;
 }
 
-Status Nemo::KDel(const std::string &key) {
+Status Nemo::KDel(const std::string &key, int64_t *res) {
     Status s;
-    s = kv_db_->Delete(rocksdb::WriteOptions(), key);
+    std::string val;
+
+    s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
+    *res = 0;
+    if (s.ok()) {
+        s = kv_db_->Delete(rocksdb::WriteOptions(), key);
+        *res = 1;
+    }
     return s;
 }
 
@@ -90,7 +97,7 @@ Status Nemo::Incrby(const std::string &key, const int64_t by, std::string &new_v
         return Status::Corruption("Get error");
     }
     int64_t ttl;
-    s = TTL(key, &ttl);
+    s = KTTL(key, &ttl);
     if (ttl) {
         s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
     } else {
@@ -119,7 +126,7 @@ Status Nemo::Decrby(const std::string &key, const int64_t by, std::string &new_v
         return Status::Corruption("Get error");
     }
     int64_t ttl;
-    s = TTL(key, &ttl);
+    s = KTTL(key, &ttl);
     if (ttl) {
         s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
     } else {
@@ -135,7 +142,7 @@ Status Nemo::Incrbyfloat(const std::string &key, const double by, std::string &n
     MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
-        new_val = std::to_string(-by);        
+        res = std::to_string(by);        
     } else if (s.ok()) {
         double dval;
         if (!StrToDouble(val.data(), val.size(), &dval)) {
@@ -157,7 +164,7 @@ Status Nemo::Incrbyfloat(const std::string &key, const double by, std::string &n
         new_val = new_val.substr(0, new_val.size()-1);
     }
     int64_t ttl;
-    s = TTL(key, &ttl);
+    s = KTTL(key, &ttl);
     if (ttl) {
         s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
     } else {
@@ -196,7 +203,7 @@ Status Nemo::Append(const std::string &key, const std::string &value, int64_t *n
     }
 
     int64_t ttl;
-    s = TTL(key, &ttl);
+    s = KTTL(key, &ttl);
     if (ttl) {
         s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
     } else {
@@ -312,7 +319,7 @@ Status Nemo::Setrange(const std::string key, const int64_t offset, const std::st
         *len = new_val.length();
     }
     int64_t ttl;
-    s = TTL(key, &ttl);
+    s = KTTL(key, &ttl);
     if (ttl) {
         s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
     } else {
@@ -393,7 +400,7 @@ Status Nemo::KPersist(const std::string &key, int64_t *res) {
     if (s.ok()) {
         int32_t ttl;
         s = kv_db_->GetKeyTTL(rocksdb::ReadOptions(), key, &ttl);
-        if (ttl >= 0) {
+        if (s.ok() && ttl >= 0) {
             s = kv_db_->Put(rocksdb::WriteOptions(), key, val);
             *res = 1;
         }
@@ -547,6 +554,7 @@ Status Nemo::Keys(const std::string &pattern, std::vector<std::string>& keys) {
 
 }
 
+// Note: return Status::OK()
 Status Nemo::MDel(const std::vector<std::string> &keys, int64_t* count) {
     *count = 0;
     Status s;
@@ -554,39 +562,57 @@ Status Nemo::MDel(const std::vector<std::string> &keys, int64_t* count) {
     std::vector<std::string>::const_iterator it;
     rocksdb::WriteBatch batch;
     for (it = keys.begin(); it != keys.end(); it++) {
-        s = Del(*it);
+        int64_t res;
+        s = Del(*it, &res);
         //s = kv_db_->Get(rocksdb::ReadOptions(), *it, &val);
         if (s.ok()) {
-            (*count)++;
+            (*count) += res;
+        } else if (!s.IsNotFound()) {
+          return s;
         }
     }
-    return s;
+
+    return Status::OK();
+ //   if (*count > 0) {
+ //     return Status::OK();
+ //   } else {
+ //     return s;
+ //   }
 }
 
-Status Nemo::Del(const std::string &key) {
-    int cnt = 0;
+// Note: return only Status::OK(), not Status::NotFound()
+Status Nemo::Del(const std::string &key, int64_t *count) {
+    int ok_cnt = 0;
+    int64_t del_cnt = 0;
     Status s;
     
-    s = KDel(key);
-    if (s.ok()) { cnt++; }
+    s = KDel(key, count);
+    if (s.ok()) { ok_cnt++; del_cnt += *count; }
     else if (!s.IsNotFound()) { return s; }
 
-    s = HDelKey(key);
-    if (s.ok()) { cnt++; }
+    s = HDelKey(key, count);
+    if (s.ok()) { ok_cnt++; del_cnt += *count; }
     else if (!s.IsNotFound()) { return s; }
 
-    s = ZDelKey(key);
-    if (s.ok()) { cnt++; }
+    s = ZDelKey(key, count);
+    if (s.ok()) { ok_cnt++; del_cnt += *count; }
     else if (!s.IsNotFound()) { return s; }
 
-    s = SDelKey(key);
-    if (s.ok()) { cnt++; }
+    s = SDelKey(key, count);
+    if (s.ok()) { ok_cnt++; del_cnt += *count; }
     else if (!s.IsNotFound()) { return s; }
 
-    s = LDelKey(key);
-    if (s.ok()) { cnt++; }
+    s = LDelKey(key, count);
+    if (s.ok()) { ok_cnt++; del_cnt += *count; }
     else if (!s.IsNotFound()) { return s; }
 
+    if (ok_cnt) {
+      if (del_cnt > 0) {
+        *count = 1;
+      } else {
+        *count = 0;
+      }
+    }
     return Status::OK();
 }
 
@@ -614,9 +640,12 @@ Status Nemo::Expire(const std::string &key, const int32_t seconds, int64_t *res)
     if (s.ok()) { cnt++; }
     else if (!s.IsNotFound()) { return s; }
 
-    if (cnt) { *res = 1; }
-
-    return s;
+    if (cnt) {
+      *res = 1;
+      return Status::OK();
+    } else {
+      return Status::NotFound("");
+    }
 }
 
 Status Nemo::TTL(const std::string &key, int64_t *res) {
@@ -641,30 +670,40 @@ Status Nemo::TTL(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::Persist(const std::string &key, int64_t *res) {
-    int cnt = 0;
+    int ok_cnt = 0;
+    int res_total = 0;
     Status s;
     
     s = KPersist(key, res);
-    if (s.ok()) { cnt++; }
+    if (s.ok()) { ok_cnt++; res_total += *res; }
     else if (!s.IsNotFound()) { return s; }
 
     s = HPersist(key, res);
-    if (s.ok()) { cnt++; }
+    if (s.ok()) { ok_cnt++; res_total += *res; }
     else if (!s.IsNotFound()) { return s; }
 
     s = ZPersist(key, res);
-    if (s.ok()) { cnt++; }
+    if (s.ok()) { ok_cnt++; res_total += *res; }
     else if (!s.IsNotFound()) { return s; }
 
     s = SPersist(key, res);
-    if (s.ok()) { cnt++; }
+    if (s.ok()) { ok_cnt++; res_total += *res; }
     else if (!s.IsNotFound()) { return s; }
 
     s = LPersist(key, res);
-    if (s.ok()) { cnt++; }
+    if (s.ok()) { ok_cnt++; res_total += *res; }
     else if (!s.IsNotFound()) { return s; }
 
-    return s;
+    if (ok_cnt) {
+      if (res_total > 0) {
+        *res = 1;
+      } else {
+        *res = 0;
+      }
+      return Status::OK();
+    } else {
+      return Status::NotFound("");
+    }
 }
 
 Status Nemo::Expireat(const std::string &key, const int32_t timestamp, int64_t *res) {
@@ -691,5 +730,10 @@ Status Nemo::Expireat(const std::string &key, const int32_t timestamp, int64_t *
     if (s.ok()) { cnt++; }
     else if (!s.IsNotFound()) { return s; }
 
-    return s;
+    if (cnt) {
+      *res = 1;
+      return Status::OK();
+    } else {
+      return Status::NotFound("");
+    }
 }

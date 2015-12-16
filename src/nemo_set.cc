@@ -10,7 +10,7 @@
 using namespace nemo;
 
 Status Nemo::SAdd(const std::string &key, const std::string &member, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -34,7 +34,7 @@ Status Nemo::SAdd(const std::string &key, const std::string &member, int64_t *re
         return Status::Corruption("sadd check member error");
     }
 
-    s = set_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+    s = set_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 
@@ -58,12 +58,12 @@ Status Nemo::SAddNoLock(const std::string &key, const std::string &member, int64
         return Status::Corruption("sadd check member error");
     }
 
-    s = set_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+    s = set_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     return s;
 }
 
 Status Nemo::SRem(const std::string &key, const std::string &member, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -81,7 +81,7 @@ Status Nemo::SRem(const std::string &key, const std::string &member, int64_t *re
             return Status::Corruption("incrSSize error");
         }
         writebatch.Delete(set_key);
-        s = set_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+        s = set_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     } else if (s.IsNotFound()) {
         *res = 0;
     } else {
@@ -104,7 +104,7 @@ Status Nemo::SRemNoLock(const std::string &key, const std::string &member, int64
             return Status::Corruption("incrSSize error");
         }
         writebatch.Delete(set_key);
-        s = set_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+        s = set_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
     } else if (s.IsNotFound()) {
         *res = 0;
     } else {
@@ -510,7 +510,7 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
           }
           writebatch.Delete(source_key);
 
-          s = set_db_->Get(rocksdb::ReadOptions(), destination, &val);
+          s = set_db_->Get(rocksdb::ReadOptions(), destination_key, &val);
           if (s.IsNotFound()) {
             if (IncrSSize(destination, 1, writebatch) < 0) {
               return Status::Corruption("incrSSize error");
@@ -518,7 +518,7 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
           }
           writebatch.Put(destination_key, rocksdb::Slice());
 
-          s = set_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+          s = set_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
         }
     } else if (s.IsNotFound()) {
         *res = 0;
@@ -528,13 +528,15 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
     return s;
 }
 
-Status Nemo::SDelKey(const std::string &key) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+Status Nemo::SDelKey(const std::string &key, int64_t *res) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
     Status s;
     std::string val;
+    *res = 0;
+
     std::string size_key = EncodeSSizeKey(key);
 
     s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
@@ -548,6 +550,7 @@ Status Nemo::SDelKey(const std::string &key) {
     }
 
     len = 0;
+    *res = 1;
     MutexLock l(&mutex_set_);
     s = set_db_->PutWithKeyVersion(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
 
@@ -555,7 +558,7 @@ Status Nemo::SDelKey(const std::string &key) {
 }
 
 Status Nemo::SExpire(const std::string &key, const int32_t seconds, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -576,7 +579,8 @@ Status Nemo::SExpire(const std::string &key, const int32_t seconds, int64_t *res
         MutexLock l(&mutex_set_);
         s = set_db_->PutWithKeyTTL(rocksdb::WriteOptions(), size_key, val, seconds);
       } else { 
-        s = SDelKey(key);
+        int64_t count;
+        s = SDelKey(key, &count);
       }
       *res = 1;
     }
@@ -584,7 +588,7 @@ Status Nemo::SExpire(const std::string &key, const int32_t seconds, int64_t *res
 }
 
 Status Nemo::STTL(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -604,7 +608,7 @@ Status Nemo::STTL(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::SPersist(const std::string &key, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -618,7 +622,7 @@ Status Nemo::SPersist(const std::string &key, int64_t *res) {
     if (s.ok()) {
         int32_t ttl;
         s = set_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
-        if (ttl >= 0) {
+        if (s.ok() && ttl >= 0) {
             MutexLock l(&mutex_set_);
             s = set_db_->Put(rocksdb::WriteOptions(), size_key, val);
             *res = 1;
@@ -628,7 +632,7 @@ Status Nemo::SPersist(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::SExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
-    if (key.size() == 0 || key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -647,7 +651,8 @@ Status Nemo::SExpireat(const std::string &key, const int32_t timestamp, int64_t 
 
       std::time_t cur = std::time(0);
       if (timestamp <= cur) {
-        s = SDelKey(key);
+        int64_t count;
+        s = SDelKey(key, &count);
       } else {
         MutexLock l(&mutex_set_);
         s = set_db_->PutWithExpiredTime(rocksdb::WriteOptions(), size_key, val, timestamp);
