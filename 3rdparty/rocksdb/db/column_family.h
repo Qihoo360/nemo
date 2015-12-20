@@ -197,12 +197,11 @@ class ColumnFamilyData {
   uint64_t GetLogNumber() const { return log_number_; }
 
   // !!! To be deprecated! Please don't not use this function anymore!
-  Options* options() { return &options_; }
+  const Options* options() const { return &options_; }
 
   // thread-safe
   const EnvOptions* soptions() const;
-  //const ImmutableCFOptions* ioptions() const { return &ioptions_; }
-  ImmutableCFOptions* ioptions() { return &ioptions_; }
+  const ImmutableCFOptions* ioptions() const { return &ioptions_; }
   // REQUIRES: DB mutex held
   // This returns the MutableCFOptions used by current SuperVersion
   // You shoul use this API to reference MutableCFOptions most of the time.
@@ -339,8 +338,8 @@ class ColumnFamilyData {
   std::vector<std::unique_ptr<IntTblPropCollectorFactory>>
       int_tbl_prop_collector_factories_;
 
-  Options options_;
-  ImmutableCFOptions ioptions_;
+  const Options options_;
+  const ImmutableCFOptions ioptions_;
   MutableCFOptions mutable_cf_options_;
 
   std::unique_ptr<TableCache> table_cache_;

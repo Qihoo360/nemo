@@ -15,20 +15,7 @@ using namespace nemo;
 
 const std::string DEFAULT_BG_PATH = "dump";
 
-//Status Nemo::DebugObject(const std::string &type, const std::string &key, std::string *reslut) {
-//    Status s;
-//    if (type == "kv") {
-//        std::string val;
-//        s = src_db->Get(rocksdb::ReadOptions(), key, val);
-//        *result = "type:kv  valuelength:" + val.length();
-//    } else if (type == "hash") {
-//}
-
-Status Nemo::SaveDBWithTTL(const std::string &db_path, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot) {
-    if (opendir(db_path.c_str()) == NULL) {
-        mkdir(db_path.c_str(), 0755);
-    }
-
+Status Nemo::SaveDBWithTTL(const std::string &db_path, const std::string &key_type, const char meta_prefix, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot) {
     //printf ("db_path=%s\n", db_path.c_str());
     
     rocksdb::DBWithTTL *dst_db;
@@ -46,9 +33,46 @@ Status Nemo::SaveDBWithTTL(const std::string &db_path, std::unique_ptr<rocksdb::
     
     rocksdb::Iterator* it = src_db->NewIterator(iterate_options);
     for (it->SeekToFirst(); it->Valid(); it->Next()) {
-        s = TTL(it->key().ToString(), &ttl);
-        //printf ("SaveDBWithTTL key=(%s) value=(%s) val_size=%u, ttl=%ld\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
-         //       it->value().ToString().size(), ttl);
+        std::string raw_key(it->key().data(), it->key().size());
+
+        if (key_type == KV_DB) {
+            s = KTTL(it->key().ToString(), &ttl);
+        } else if (key_type == HASH_DB) {
+            if (raw_key[0] == meta_prefix) {
+                s = HTTL(raw_key.substr(1), &ttl);
+                //printf ("0.1 DB:%s meta_prefix=%c raw_key(%s) ttl return %s, ttl is %ld\n", key_type.c_str(), meta_prefix, raw_key.c_str(), s.ToString().c_str(), ttl);
+            } else {
+                int32_t len = *((uint8_t *)(raw_key.data() + 1));
+                std::string key(raw_key.data() + 2, len);
+                s = HTTL(key, &ttl);
+                //printf ("0.2 DB:%s meta_prefix=%c raw_key(%s) key(%s) ttl return %s, ttl is %ld\n", key_type.c_str(), meta_prefix, raw_key.c_str(), key.c_str(), s.ToString().c_str(), ttl);
+            }
+        } else if (key_type == LIST_DB) {
+            if (raw_key[0] == meta_prefix) {
+                s = LTTL(raw_key.substr(1), &ttl);
+            } else {
+                int32_t len = *((uint8_t *)(raw_key.data() + 1));
+                std::string key(raw_key.data() + 2, len);
+                s = LTTL(key, &ttl);
+            }
+        } else if (key_type == ZSET_DB) {
+            if (raw_key[0] == meta_prefix) {
+                s = ZTTL(raw_key.substr(1), &ttl);
+            } else {
+                int32_t len = *((uint8_t *)(raw_key.data() + 1));
+                std::string key(raw_key.data() + 2, len);
+                s = ZTTL(key, &ttl);
+            }
+        } else if (key_type == SET_DB) {
+            if (raw_key[0] == meta_prefix) {
+                s = STTL(raw_key.substr(1), &ttl);
+            } else {
+                int32_t len = *((uint8_t *)(raw_key.data() + 1));
+                std::string key(raw_key.data() + 2, len);
+                s = STTL(key, &ttl);
+            }
+        }
+
         if (s.ok()) {
             if (ttl == -1) {
                 s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString());
@@ -203,22 +227,22 @@ Status Nemo::BGSaveSpecify(const std::string key_type, Snapshot* snapshot) {
     Status s;
 
     if (key_type == KV_DB) {
-      s = SaveDBWithTTL(dump_path_ + KV_DB, kv_db_, snapshot);
+      s = SaveDBWithTTL(dump_path_ + KV_DB, key_type, '\0', kv_db_, snapshot);
       if (!s.ok()) return s;
     } else if (key_type == HASH_DB) {
-      s = SaveDBWithTTL(dump_path_ + HASH_DB, hash_db_, snapshot);
+      s = SaveDBWithTTL(dump_path_ + HASH_DB, key_type, DataType::kHSize, hash_db_, snapshot);
       if (!s.ok()) return s;
       //if (!s.ok()) return (void *)&s;
     } else if (key_type == ZSET_DB) {
-      s = SaveDBWithTTL(dump_path_ + ZSET_DB, zset_db_, snapshot);
+      s = SaveDBWithTTL(dump_path_ + ZSET_DB, key_type, DataType::kZSize, zset_db_, snapshot);
       if (!s.ok()) return s;
       //if (!s.ok()) return (void *)&s;
     } else if (key_type == SET_DB) {
-      s = SaveDBWithTTL(dump_path_ + SET_DB, set_db_, snapshot);
+      s = SaveDBWithTTL(dump_path_ + SET_DB, key_type, DataType::kSSize, set_db_, snapshot);
       if (!s.ok()) return s;
       //if (!s.ok()) return (void *)&s;
     } else if (key_type == LIST_DB) {
-      s = SaveDBWithTTL(dump_path_ + LIST_DB, list_db_, snapshot);
+      s = SaveDBWithTTL(dump_path_ + LIST_DB, key_type, DataType::kLMeta, list_db_, snapshot);
       if (!s.ok()) return s;
       //if (!s.ok()) return (void *)&s;
     } else {

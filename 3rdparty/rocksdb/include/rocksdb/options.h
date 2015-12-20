@@ -740,7 +740,7 @@ struct DBOptions {
   // Default: false
   bool create_if_missing;
 
-  // @ADD 
+  // @ADD
   // The DB type, valid values are KV(kMetaPrefix_KV), hash(kMetaPrefix_HASH),
   // zset(kMetaPrefix_ZSET), set(kMetaPrefix_SET), list(kMetaPrefix_LIST)
   // Default: '\0';

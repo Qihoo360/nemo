@@ -40,34 +40,34 @@ public:
 
     Status Compact();
     // =================String=====================
-    Status Del(const std::string &key);
+    Status Del(const std::string &key, int64_t *count);
     Status MDel(const std::vector<std::string> &keys, int64_t* count);
     Status Expire(const std::string &key, const int32_t seconds, int64_t *res);
     Status TTL(const std::string &key, int64_t *res);
     Status Persist(const std::string &key, int64_t *res);
     Status Expireat(const std::string &key, const int32_t timestamp, int64_t *res);
 
-    Status KDel(const std::string &key);
+    Status KDel(const std::string &key, int64_t *res);
     Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status KTTL(const std::string &key, int64_t *res);
     Status KPersist(const std::string &key, int64_t *res);
     Status KExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
-    Status HDelKey(const std::string &key);
+    Status HDelKey(const std::string &key, int64_t *res);
     Status HExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status HTTL(const std::string &key, int64_t *res);
     Status HPersist(const std::string &key, int64_t *res);
     Status HExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
-    Status ZDelKey(const std::string &key);
+    Status ZDelKey(const std::string &key, int64_t *res);
     Status ZExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status ZTTL(const std::string &key, int64_t *res);
     Status ZPersist(const std::string &key, int64_t *res);
     Status ZExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
-    Status SDelKey(const std::string &key);
+    Status SDelKey(const std::string &key, int64_t *res);
     Status SExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status STTL(const std::string &key, int64_t *res);
     Status SPersist(const std::string &key, int64_t *res);
     Status SExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
-    Status LDelKey(const std::string &key);
+    Status LDelKey(const std::string &key, int64_t *res);
     Status LExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status LTTL(const std::string &key, int64_t *res);
     Status LPersist(const std::string &key, int64_t *res);
@@ -142,12 +142,12 @@ public:
     Status ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms);
     Status ZUnionStore(const std::string &destination, const int numkeys, const std::vector<std::string> &keys, const std::vector<double> &weights, Aggregate agg, int64_t *res);
     Status ZInterStore(const std::string &destination, const int numkeys, const std::vector<std::string> &keys, const std::vector<double> &weights, Aggregate agg, int64_t *res);
-    Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms, int64_t offset = 0, bool is_lo = false, bool is_ro = false);
+    Status ZRangebyscore(const std::string &key, const double start, const double stop, std::vector<SM> &sms, bool is_lo = false, bool is_ro = false);
     Status ZRem(const std::string &key, const std::string &member, int64_t *res);
     Status ZRank(const std::string &key, const std::string &member, int64_t *rank);
     Status ZRevrank(const std::string &key, const std::string &member, int64_t *rank);
     Status ZScore(const std::string &key, const std::string &member, double *score);
-    Status ZRangebylex(const std::string &key, const std::string &min, const std::string &max, std::vector<std::string> &members, int64_t offset = 0);
+    Status ZRangebylex(const std::string &key, const std::string &min, const std::string &max, std::vector<std::string> &members);
     Status ZLexcount(const std::string &key, const std::string &min, const std::string &max, int64_t* count);
     Status ZRemrangebylex(const std::string &key, const std::string &min, const std::string &max, bool is_lo, bool is_ro, int64_t* count);
     Status ZRemrangebyrank(const std::string &key, const int64_t start, const int64_t stop, int64_t* count);
@@ -232,7 +232,8 @@ private:
     Status SAddNoLock(const std::string &key, const std::string &member, int64_t *res);
     Status SRemNoLock(const std::string &key, const std::string &member, int64_t *res);
 
-    Status SaveDBWithTTL(const std::string &db_path, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
+    Status SaveDBWithTTL(const std::string &db_path, const std::string &key_type, const char meta_prefix, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
+    //Status SaveDBWithTTL(const std::string &db_path, const std::string &key_type, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
     Status SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &src_db, const rocksdb::Snapshot *snapshot);
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);

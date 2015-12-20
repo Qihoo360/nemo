@@ -284,28 +284,21 @@ void DBImpl::CancelAllBackgroundWork(bool wait) {
   mutex_.Unlock();
 }
 
-int32_t ReadLenData(const char *str, std::string *res = NULL) {
-  int32_t len = *((uint8_t *)str);
-  str += 1;
-  if (res) {
-    res->assign(str, len);
-  }
-  return len + 1;
-}
-
-// Get key version according to MetaKey;
+// Get key version and timestamp according to MetaKey;
 // Meta_key is meta_prefix + key, except for KV structure.
+// Meta_val is val + (int32_t)version + (int32_t)timestamp.
 // Note: The format is based on nemo
 // A return value of 0 means that KV do not have meta.
-int32_t DBImpl::GetKeyVersion(const Slice& key) {
+void DBImpl::GetKeyVersionAndTS(const Slice& key, int32_t *version, int32_t *timestamp) {
+  *version = 0;
+  *timestamp = 0;
+
   // KV do not have meta_prefix
   if (meta_prefix_ == kMetaPrefix_KV) {
-    return 0;
+    return;
   }
 
-  int32_t version = 0;
   std::string value;
-
   std::string meta_key(1, meta_prefix_);
 
   if (meta_prefix_ == (key.data())[0]) { 
@@ -317,9 +310,9 @@ int32_t DBImpl::GetKeyVersion(const Slice& key) {
 
   Status st = this->Get(ReadOptions(), DefaultColumnFamily(), meta_key, &value);
   if (st.ok()) {
-      version = DecodeFixed32(value.data() + value.size() - kVersionLength - kTSLength);
+      *version = DecodeFixed32(value.data() + value.size() - kVersionLength - kTSLength);
+      *timestamp = DecodeFixed32(value.data() + value.size() - kTSLength);
   }
-  return version;
 }
 
 DBImpl::~DBImpl() {

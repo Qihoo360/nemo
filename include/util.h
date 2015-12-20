@@ -44,7 +44,7 @@ int StrToInt32(const char *s, size_t slen, int32_t *val);
 int StrToUint32(const char *s, size_t slen, uint32_t *val); 
 int StrToDouble(const char *s, size_t slen, double *dval);
 
-static int do_mkdir(const char *path, mode_t mode);
+int do_mkdir(const char *path, mode_t mode);
 int mkpath(const char *path, mode_t mode);
 
 int stringmatchlen(const char *pattern, int patternLen, const char *string, int stringLen, int nocase);
