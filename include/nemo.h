@@ -91,6 +91,7 @@ public:
     Status Setrange(const std::string key, const int64_t offset, const std::string &value, int64_t *len);
     Status Strlen(const std::string &key, int64_t *len);
     KIterator* Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
+    Status Scan(int64_t cursor, std::string &pattern, int64_t count, std::vector<std::string>& keys, int64_t* cursor_ret);
 
     Status Keys(const std::string &pattern, std::vector<std::string>& keys);
 
@@ -198,12 +199,18 @@ private:
     pthread_mutex_t mutex_list_;
     pthread_mutex_t mutex_zset_;
     pthread_mutex_t mutex_set_;
+    pthread_mutex_t mutex_cursors_;
 
     bool save_flag_;
 
     Status GetSnapshot(Snapshots &snapshots);
     Status ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys);
+    bool ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, std::string &start_key, const std::string &pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key);
     Status ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys);
+    bool ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kType, std::string &start_key, const std::string &pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key);
+    Status GetStartKey(int64_t cursor, std::string* start_key);
+    int64_t StoreAndGetCursor(int64_t cursor, const std::string& next_key);
+    Status SeekCursor(int64_t cursor, std::string* start_key);
 
     int DoHSet(const std::string &key, const std::string &field, const std::string &val, rocksdb::WriteBatch &writebatch);
     int DoHDel(const std::string &key, const std::string &field, rocksdb::WriteBatch &writebatch);

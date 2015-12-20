@@ -1,5 +1,7 @@
 #include <ctime>
 #include <climits>
+#include <list>
+#include <iostream>
 
 #include "nemo.h"
 #include "nemo_iterator.h"
@@ -349,6 +351,288 @@ KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t
     it = kv_db_->NewIterator(iterate_options);
     it->Seek(start);
     return new KIterator(new Iterator(it, key_end, limit, iterate_options)); 
+}
+
+Status Nemo::GetStartKey(int64_t cursor, std::string* start_key) {
+    std::string scan_keys_store_pre = "Scan_Keys_Store_";
+    std::string store_key = scan_keys_store_pre + std::to_string(cursor);
+    Status s = Get(store_key, start_key);
+    if (s.ok()) {
+        Del(store_key);
+    }
+    return s;
+}
+
+int64_t Nemo::StoreAndGetCursor(int64_t cursor, const std::string& next_key) {
+    MutexLock l(&mutex_cursors_);
+    std::string scan_keys_store_pre = "Scan_Keys_Store_", store_key, cursor_str;
+    nemo::KIterator* kiter = Scan(scan_keys_store_pre, "", -1);
+    std::list<int64_t> cursor_ls;
+    bool isExsit = false;
+    while (kiter->Next() && kiter->Key().substr(0, scan_keys_store_pre.size()) == scan_keys_store_pre) {
+        cursor_ls.push_back(std::stoll(kiter->Key().substr(scan_keys_store_pre.size())));
+    }
+    delete kiter;
+    if (cursor_ls.size() == 0) {
+        store_key = scan_keys_store_pre + std::to_string(cursor);
+        Set(store_key, next_key, 864000);//set 10 days to live
+        return cursor;
+    }
+    std::list<int64_t>::iterator iter_ls = cursor_ls.begin();
+    while (iter_ls != cursor_ls.end() && *iter_ls != cursor) {
+        iter_ls++;
+    }
+    if (iter_ls == cursor_ls.end()) {
+        store_key = scan_keys_store_pre + std::to_string(cursor);
+        Set(store_key, next_key, 864000);
+        return cursor;
+    }
+    cursor_ls.sort();
+    iter_ls = cursor_ls.begin();
+    while (iter_ls != cursor_ls.end()) {
+        if (cursor < *iter_ls) {
+            break;
+        } else if (cursor == *iter_ls) {
+            cursor++;
+            iter_ls++;
+        } else {
+            iter_ls++;
+        }
+    }
+    store_key = scan_keys_store_pre + std::to_string(cursor);
+    Set(store_key, next_key, 864000);
+    return cursor;
+}
+
+bool Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL>& db, std::string& start_key, const std::string& pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key) {
+    assert(*count > 0);
+    rocksdb::ReadOptions iterate_options;
+    iterate_options.fill_cache = false;
+    bool is_over = true;
+    std::string scan_keys_store_pre = "Scan_Keys_Store_";
+    int64_t ttl;
+    Status s;
+
+    rocksdb::Iterator *it = db->NewIterator(iterate_options);
+
+    std::string key;
+    it->Seek(start_key);
+    while (it->Valid() && (*count) > 0) {
+        key = it->key().ToString();
+        s = TTL(key, &ttl);
+        if (!s.ok() || ttl == 0 || ttl == -2) {
+            continue;
+        }
+        if (stringmatchlen(pattern.data(), pattern.size(), key.data(), key.size(), 0) && key.substr(0, scan_keys_store_pre.size()) != scan_keys_store_pre) {
+            keys.push_back(key);
+            (*count)--;
+        }
+        std::cout << it->key().ToString() << std::endl;
+        it->Next();
+    }
+    if (it->Valid()) {//the scan is over in the kv_db_
+        is_over = false;
+        *next_key = it->key().ToString();
+    } else { // the kv_db is over, but the scan is over or not
+        *next_key = "";
+    }
+    delete it;
+    return is_over;
+}
+
+
+bool Nemo::ScanKeys(std::unique_ptr<rocksdb::DBWithTTL>& db, const char kType, std::string& start_key, const std::string& pattern, std::vector<std::string>& keys, int64_t* count, std::string *next_key) {
+    rocksdb::ReadOptions iterate_options;
+    iterate_options.fill_cache = false;
+    bool is_over = true;
+
+    rocksdb::Iterator *it = db->NewIterator(iterate_options);
+
+    std::string start_key_real;
+    start_key_real.assign(1, kType);
+    start_key_real.append(start_key.data(), start_key.size());
+    it->Seek(start_key_real);
+    std::string key;
+    while (it->Valid() && *count) {
+        key = it->key().ToString();
+        if (key.size() == 0 || key.at(0) != kType) {
+        break;
+        }
+        if (stringmatchlen(pattern.data(), pattern.size(), key.data(), key.size(), 0)) {
+            key.erase(key.begin());//删除第一个标记字母
+            keys.push_back(key);
+            (*count)--;
+        }
+        std::cout << it->key().ToString() << std::endl;
+        it->Next();
+    }
+    if (it->Valid() && key.at(0) == kType) {
+        is_over = false;
+        *next_key = it->key().ToString();
+    } else {
+        *next_key = "";
+    }
+    delete it;
+
+    return is_over;
+}
+
+Status Nemo::SeekCursor(int64_t cursor, std::string* start_key) {//the sequence is the same with Scan function
+    uint64_t offset, offset_acc = 0;
+    Status s;
+    rocksdb::ReadOptions iterate_options;
+    iterate_options.fill_cache = false;
+    rocksdb::Iterator* iter;
+    std::string scan_keys_store_pre = "Scan_Keys_Store_";
+
+    int32_t db_index = 0, index;
+    char kType;
+    while (cursor >= offset_acc && db_index < 5) {
+        switch (db_index) {
+            case 0: s = ScanKeyNumWithTTL(kv_db_, offset);
+                    iter = kv_db_->NewIterator(iterate_options);
+                    break;
+            case 1: s = ScanKeyNum(hash_db_, DataType::kHSize, offset);
+                    iter = hash_db_->NewIterator(iterate_options);
+                    break;
+            case 2: s = ScanKeyNum(zset_db_, DataType::kZSize, offset);
+                    iter = zset_db_->NewIterator(iterate_options);
+                    break;
+            case 3: s = ScanKeyNum(set_db_, DataType::kSSize, offset);
+                    iter = set_db_->NewIterator(iterate_options);
+                    break;
+            case 4: s = ScanKeyNum(list_db_, DataType::kLMeta, offset);
+                    iter = list_db_->NewIterator(iterate_options);
+                    break;
+        }
+        if (!s.ok()) {
+            delete iter;
+            break;
+        }
+        if (offset+offset_acc < cursor+1) {
+            offset_acc += offset;
+        } else {
+            iter->SeekToFirst();
+            //iter->Skip(cursor-offset_acc);
+            index = cursor-offset_acc;
+            while (index > 0) {
+                iter->Next();
+                index--;
+            }
+            *start_key = iter->key().ToString();
+            if ((*start_key).substr(0, scan_keys_store_pre.size()) != scan_keys_store_pre) {
+                delete iter;
+                break;
+            }
+            iter->Seek(scan_keys_store_pre.substr(0, scan_keys_store_pre.size()-1) + static_cast<char>(scan_keys_store_pre.back() + 1));
+            if (iter->Valid()) {
+                *start_key = iter->key().ToString();
+                delete iter;
+                break;
+            }
+        }
+        delete iter;
+        db_index++;
+    }
+
+    if (db_index >= 5 || !s.ok())//cursor too large or scankeys error all set the start_key to the last element
+    {
+        iter = list_db_->NewIterator(iterate_options);
+        iter->SeekToFirst();
+        //iter->Skip(cursor);//skip to last position
+        while (iter->Valid()) {
+            *start_key = iter->key().ToString();
+            iter->Next();
+        }
+        delete iter;
+    }
+    switch (db_index) {
+        case 0: *start_key = std::string("k") + (*start_key); break;
+        case 1: start_key->erase(start_key->begin()); *start_key = std::string("h") + *start_key; break;
+        case 2: start_key->erase(start_key->begin()); *start_key = std::string("z") + *start_key; break;
+        case 3: start_key->erase(start_key->begin()); *start_key = std::string("s") + *start_key; break;
+        case 4: start_key->erase(start_key->begin()); *start_key = std::string("l") + *start_key; break;
+        default: start_key->erase(start_key->begin()); *start_key = std::string("l") + *start_key; 
+    }
+    return Status::OK();
+}
+
+Status Nemo::Scan(int64_t cursor, std::string& pattern, int64_t count, std::vector<std::string>& keys, int64_t* cursor_ret_ptr) {//the sequence is kv, hash, zset, set, list
+    std::string scan_store_key = "Scan_Key_Store";
+    std::string start_key = "k";
+    std::string next_key;
+    std::string field;
+    Status s;
+    bool is_over;
+    int64_t count_origin = count;
+
+    *cursor_ret_ptr = 0;
+    keys.clear();
+    if (count < 0) {
+        return Status::Corruption("Count is less than 0");
+    }
+    if (cursor < 0) {
+        return Status::OK();
+    } else if (cursor > 0) {
+        s = GetStartKey(cursor, &start_key);
+    }
+    if (s.IsNotFound()) {
+        SeekCursor(cursor, &start_key);
+    }
+
+    char key_type = start_key.at(0);
+    start_key.erase(start_key.begin());
+    switch (key_type) {
+        case 'k':
+            is_over = ScanKeysWithTTL(kv_db_, start_key, pattern, keys, &count, &next_key);
+            if (count == 0 && is_over) {
+                *cursor_ret_ptr = StoreAndGetCursor(cursor+count_origin, std::string("h"));
+                break;
+            } else if (count == 0 && !is_over) {
+                *cursor_ret_ptr = StoreAndGetCursor(cursor+count_origin, std::string("k")+next_key);
+                break;
+            }
+            start_key = next_key;
+        case 'h':
+            is_over = ScanKeys(hash_db_, DataType::kHSize, start_key, pattern, keys, &count, &next_key);
+            if (count == 0 && is_over) {
+                *cursor_ret_ptr = StoreAndGetCursor(cursor+count_origin, std::string("z"));
+                break;
+            } else if (count == 0 && !is_over) {
+                *cursor_ret_ptr = StoreAndGetCursor(cursor+count_origin, std::string("h")+next_key);
+                break;
+            }
+            start_key= next_key;
+        case 'z':
+            is_over = ScanKeys(zset_db_, DataType::kZSize, start_key, pattern, keys, &count, &next_key);
+            if (count == 0 && is_over) {
+                *cursor_ret_ptr = StoreAndGetCursor(cursor+count_origin, std::string("s"));
+                break;
+            } else if (count == 0 && !is_over) {
+                *cursor_ret_ptr = StoreAndGetCursor(cursor+count_origin, std::string("z")+next_key);
+                break;
+            }
+            start_key = next_key;
+        case 's':
+            is_over = ScanKeys(set_db_, DataType::kSSize, start_key, pattern, keys, &count, &next_key);
+            if (count == 0 && is_over) {
+                *cursor_ret_ptr = StoreAndGetCursor(cursor+count_origin, std::string("l"));
+                break;
+            } else if (count == 0 && !is_over) {
+                *cursor_ret_ptr = StoreAndGetCursor(cursor+count_origin, std::string("s")+next_key);
+                break;
+            }
+            start_key = next_key;
+        case 'l':
+            is_over = ScanKeys(list_db_, DataType::kLMeta, start_key, pattern, keys, &count, &next_key);
+            start_key = next_key;
+            if (!is_over) {
+                *cursor_ret_ptr = StoreAndGetCursor(cursor+count_origin, std::string("l")+next_key);
+            } else {
+                *cursor_ret_ptr = 0;
+            }
+    }
+    return Status::OK();
 }
 
 Status Nemo::KExpire(const std::string &key, const int32_t seconds, int64_t *res) {
