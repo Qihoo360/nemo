@@ -499,18 +499,23 @@ Status Nemo::SeekCursor(int64_t cursor, std::string* start_key) {//the sequence 
         switch (db_index) {
             case 0: s = ScanKeyNumWithTTL(kv_db_, offset);
                     iter = kv_db_->NewIterator(iterate_options);
+                    iter->Seek(std::string(99, '\0') + char('0x1'));
                     break;
             case 1: s = ScanKeyNum(hash_db_, DataType::kHSize, offset);
                     iter = hash_db_->NewIterator(iterate_options);
+                    iter->SeekToFirst();
                     break;
             case 2: s = ScanKeyNum(zset_db_, DataType::kZSize, offset);
                     iter = zset_db_->NewIterator(iterate_options);
+                    iter->SeekToFirst();
                     break;
             case 3: s = ScanKeyNum(set_db_, DataType::kSSize, offset);
                     iter = set_db_->NewIterator(iterate_options);
+                    iter->SeekToFirst();
                     break;
             case 4: s = ScanKeyNum(list_db_, DataType::kLMeta, offset);
                     iter = list_db_->NewIterator(iterate_options);
+                    iter->SeekToFirst();
                     break;
         }
         if (!s.ok()) {
@@ -520,7 +525,7 @@ Status Nemo::SeekCursor(int64_t cursor, std::string* start_key) {//the sequence 
         if (offset+offset_acc < cursor+1) {
             offset_acc += offset;
         } else {
-            iter->SeekToFirst();
+            //iter->SeekToFirst();
             //iter->Skip(cursor-offset_acc);
             index = cursor-offset_acc;
             while (index > 0) {
@@ -768,7 +773,8 @@ Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *
 
     rocksdb::Iterator *it = db->NewIterator(iterate_options);
 
-    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    it->Seek(std::string(99, '\0') + char(0x1));
+    for (; it->Valid(); it->Next()) {
       std::string key = it->key().ToString();
       if (stringmatchlen(pattern.data(), pattern.size(), key.data(), key.size(), 0)) {
           keys.push_back(key);
@@ -1021,4 +1027,121 @@ Status Nemo::Expireat(const std::string &key, const int32_t timestamp, int64_t *
     } else {
       return Status::NotFound("");
     }
+}
+/*
+Status Nemo::Type(const std::string& key, std::string* type) {
+    Status s;
+    std::vector<const rocksdb::Snapshot*> snapshots;
+
+    type->clear();
+    s = GetSnapshot(snapshots);
+    if (!s.ok()) {
+        return s;
+    }
+    rocksdb::ReadOptions iterate_options;
+    iterate_options.snapshot = snapshots[0];
+    iterate_options.fill_cache = false;
+
+    rocksdb::Iterator* iter;
+    iter = kv_db_->NewIterator(iterate_options);
+    iter->Seek(std::string(99, '\0') + char(0x1));
+    while (iter->key().ToString() != key && iter->Valid()) {
+        iter->Next();
+    }
+    if (iter->key().ToString() == key) {
+        *type = "kv";
+        delete iter;
+        return Status::OK();
+    }
+    delete iter;
+
+    iter = hash_db_->NewIterator(iterate_options);
+    iter->Seek(std::string(1, DataType::kHSize));
+    while (iter->key().ToString().at(0) == DataType::kHSize && iter->key().ToString() != std::string(1, DataType::kHSize) + key && iter->Valid()) {
+        iter->Next();
+    }
+    if (iter->key().ToString() == key) {
+        *type = "hash";
+        delete iter;
+        return Status::OK();
+    }
+    delete iter;
+
+    iter = zset_db_->NewIterator(iterate_options);
+    iter->Seek(std::string(1, DataType::kZSize));
+    while (iter->key().ToString().at(0) == DataType::kZSize && iter->key().ToString() != std::string(1, DataType::kZSize) + key && iter->Valid()) {
+        *type = "zset";
+        delete iter;
+        return Status::OK();
+    }
+    delete iter;
+
+    iter = set_db_->NewIterator(iterate_options);
+    iter->Seek(std::string(1, DataType::kSSize));
+    while (iter->key().ToString().at(0) == DataType::kSSize && iter->key().ToString() != std::string(1, DataType::kSSize) + key && iter->Valid()) {
+        *type = "set";
+        delete iter;
+        return Status::OK();
+    }
+    delete iter;
+
+    iter = list_db_->NewIterator(iterate_options);
+    iter->Seek(std::string(1, DataType::kLMeta));
+    while (iter->key().ToString().at(0) == DataType::kLMeta && iter->key().ToString() != std::string(1, DataType::kLMeta) + key && iter->Valid()) {
+        *type = "list";
+        delete iter;
+        return Status::OK();
+    }
+    delete iter;
+    return Status::NotFound();
+}
+*/
+
+Status Nemo::Type(const std::string& key, std::string* type) {
+    Status s;
+    std::string val;
+
+    type->clear();
+
+    s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
+    if (s.ok()) {
+        *type = "kv";
+        return s;
+    } else if (!s.IsNotFound()) {
+        return s;
+    }
+    
+    s = hash_db_->Get(rocksdb::ReadOptions(), std::string(1, DataType::kHSize) + key, &val);
+    if (s.ok()) { 
+        *type = "hash";
+        return s;
+    } else if (!s.IsNotFound()) {
+        return s;
+    }
+
+    s = zset_db_->Get(rocksdb::ReadOptions(), std::string(1, DataType::kZSize) + key, &val);
+    if (s.ok()) { 
+        *type = "zset";
+        return s;
+    } else if (!s.IsNotFound()) {
+        return s;
+    }
+
+    s = set_db_->Get(rocksdb::ReadOptions(), std::string(1, DataType::kSSize) + key, &val);
+    if (s.ok()) {
+        *type = "set";
+        return s;
+    } else if (!s.IsNotFound()) {
+        return s;
+    }
+    
+    s = list_db_->Get(rocksdb::ReadOptions(), std::string(1, DataType::kLMeta) + key, &val);
+    if (s.ok()) { 
+        *type = "list";
+        return s;
+    } else if (!s.IsNotFound()) {
+        return s;
+    }
+
+    return Status::NotFound();
 }

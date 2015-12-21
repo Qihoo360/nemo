@@ -46,6 +46,7 @@ public:
     Status TTL(const std::string &key, int64_t *res);
     Status Persist(const std::string &key, int64_t *res);
     Status Expireat(const std::string &key, const int32_t timestamp, int64_t *res);
+    Status Type(const std::string &key, std::string* type);
 
     Status KDel(const std::string &key, int64_t *res);
     Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
