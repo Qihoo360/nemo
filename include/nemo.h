@@ -226,7 +226,8 @@ private:
     Status SAddNoLock(const std::string &key, const std::string &member, int64_t *res);
     Status SRemNoLock(const std::string &key, const std::string &member, int64_t *res);
 
-    Status SaveDBWithTTL(const std::string &db_path, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
+    Status SaveDBWithTTL(const std::string &db_path, const std::string &key_type, const char meta_prefix, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
+    //Status SaveDBWithTTL(const std::string &db_path, const std::string &key_type, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
     Status SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &src_db, const rocksdb::Snapshot *snapshot);
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);

@@ -591,7 +591,7 @@ class DB {
       ColumnFamilyMetaData* metadata) {
     GetColumnFamilyMetaData(DefaultColumnFamily(), metadata);
   }
-  
+
   // Get Key Version 
   virtual void GetKeyVersionAndTS(const Slice& key, int32_t *version, int32_t *timestamp) { }
   virtual char GetMetaPrefix() const { return '\0'; }
