@@ -364,8 +364,9 @@ Status Nemo::GetStartKey(int64_t cursor, std::string* start_key) {
     std::string scan_keys_store_pre = "Scan_Keys_Store_";
     std::string store_key = scan_keys_store_pre + std::to_string(cursor);
     Status s = Get(store_key, start_key);
+    int64_t res;
     if (s.ok()) {
-        Del(store_key);
+        KDel(store_key, &res);
     }
     return s;
 }
