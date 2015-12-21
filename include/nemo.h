@@ -175,6 +175,7 @@ public:
     Status BGSaveGetSnapshot(Snapshots &snapshots);
     Status BGSaveSpecify(const std::string key_type, Snapshot* snapshot);
     Status BGSaveGetSpecifySnapshot(const std::string key_type, Snapshot *&snapshot);
+    Status BGSaveOff();
     //Status BGSaveReleaseSnapshot(Snapshots &snapshots);
 
     Status GetKeyNum(std::vector<uint64_t> &nums);
@@ -238,7 +239,10 @@ private:
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);
 
+    pthread_mutex_t mutex_dump_;
     std::string dump_path_;
+    std::map<std::string, pthread_t> dump_pthread_ts_;
+    Snapshots dump_snapshots_;
 };
 
 }
