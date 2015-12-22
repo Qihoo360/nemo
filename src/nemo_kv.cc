@@ -956,34 +956,34 @@ Status Nemo::Type(const std::string& key, std::string* type) {//the sequence is 
     }
     
     s = hash_db_->Get(rocksdb::ReadOptions(), std::string(1, DataType::kHSize) + key, &val);
-    if (s.ok()) { 
+    if (s.ok() && *(reinterpret_cast<const int64_t*>(val.data())) > 0) { 
         *type = "hash";
         return s;
-    } else if (!s.IsNotFound()) {
+    } else if (!s.IsNotFound() && !s.ok()) {
         return s;
     }
 
     s = list_db_->Get(rocksdb::ReadOptions(), std::string(1, DataType::kLMeta) + key, &val);
-    if (s.ok()) {
+    if (s.ok() && *(reinterpret_cast<const int64_t*>(val.data())) > 0) {
         *type = "list";
         return s;
-    } else if (!s.IsNotFound()) {
+    } else if (!s.IsNotFound() && !s.ok()) {
         return s;
     }
 
     s = zset_db_->Get(rocksdb::ReadOptions(), std::string(1, DataType::kZSize) + key, &val);
-    if (s.ok()) { 
+    if (s.ok() && *(reinterpret_cast<const int64_t*>(val.data())) > 0) { 
         *type = "zset";
         return s;
-    } else if (!s.IsNotFound()) {
+    } else if (!s.IsNotFound() && !s.ok()) {
         return s;
     }
 
     s = set_db_->Get(rocksdb::ReadOptions(), std::string(1, DataType::kSSize) + key, &val);
-    if (s.ok()) {
+    if (s.ok() && *(reinterpret_cast<const int64_t*>(val.data())) > 0) {
         *type = "set";
         return s;
-    } else if (!s.IsNotFound()) {
+    } else if (!s.IsNotFound() && !s.ok()) {
         return s;
     }
 
