@@ -19,7 +19,6 @@ namespace rocksdb {
 // to these data.
 struct ImmutableCFOptions {
   explicit ImmutableCFOptions(const Options& options);
-  //explicit ImmutableCFOptions(Options& options);
 
   CompactionStyle compaction_style;
 

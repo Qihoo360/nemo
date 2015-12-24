@@ -61,7 +61,6 @@ class DBWithTTL : public StackableDB {
                      DBWithTTL** dbptr, std::vector<int32_t> ttls,
                      bool read_only = false);
 
-
   // add key ttl feature and key version
   Status SanityCheckVersionAndTimestamp(const Slice &key, const Slice& value);
   Status GetKeyTTL(const ReadOptions& options, const Slice& key, int32_t *ttl);
@@ -75,23 +74,14 @@ class DBWithTTL : public StackableDB {
   Status PutWithExpiredTime(const WriteOptions& options, const Slice& key, const Slice& val, int32_t expired_time);
   Status WriteWithExpiredTime(const WriteOptions& opts, WriteBatch* updates, int32_t expired_time);
 
-//  static Status Open(const Options& options, const std::string& dbname,
-//                     DBWithTTL** dbptr,  const char meta_prefix, int32_t ttl = 0,
-//                     bool read_only = false);
-//  static Status Open(const DBOptions& db_options, const std::string& dbname,
-//                     const std::vector<ColumnFamilyDescriptor>& column_families,
-//                     std::vector<ColumnFamilyHandle*>* handles,
-//                     DBWithTTL** dbptr, const char meta_prefix, std::vector<int32_t> ttls,
-//                     bool read_only = false);
-
   static const uint32_t kTSLength = sizeof(int32_t);  // size of timestamp
   static const uint32_t kVersionLength = sizeof(int32_t);  // size of key version
-
-  char meta_prefix_;
 
  protected:
 
   explicit DBWithTTL(DB* db) : StackableDB(db) {}
+
+  char meta_prefix_;
 };
 
 }  // namespace rocksdb

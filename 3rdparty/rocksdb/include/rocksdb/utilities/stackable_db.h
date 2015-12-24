@@ -186,6 +186,12 @@ class StackableDB : public DB {
     return db_->Flush(fopts, column_family);
   }
 
+  using DB::GetMetaPrefix;
+  virtual char GetMetaPrefix() const override {
+    return db_->GetMetaPrefix();
+  }
+
+
 #ifndef ROCKSDB_LITE
 
   virtual Status DisableFileDeletions() override {
