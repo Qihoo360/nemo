@@ -35,6 +35,9 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
 
     open_options_.create_if_missing = true;
     open_options_.write_buffer_size = options.write_buffer_size;
+    if (!options.compression) {
+        open_options_.compression = rocksdb::CompressionType::kNoCompression;
+    }
     if (options.target_file_size_base > 0) {
        open_options_.target_file_size_base = (uint64_t)options.target_file_size_base;
     }
