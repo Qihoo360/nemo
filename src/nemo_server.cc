@@ -19,7 +19,6 @@ Status Nemo::SaveDBWithTTL(const std::string &db_path, const std::string &key_ty
     //printf ("db_path=%s\n", db_path.c_str());
     
     rocksdb::DBWithTTL *dst_db;
-
     rocksdb::Options option(open_options_);
     option.meta_prefix = meta_prefix;
 
@@ -36,7 +35,7 @@ Status Nemo::SaveDBWithTTL(const std::string &db_path, const std::string &key_ty
     iterate_options.fill_cache = false;
     
     rocksdb::Iterator* it = src_db->NewIterator(iterate_options);
-    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    for (it->SeekToFirst(); it->Valid() && !dump_to_terminate_; it->Next()) {
         std::string raw_key(it->key().data(), it->key().size());
 
         if (key_type == KV_DB) {
@@ -76,7 +75,6 @@ Status Nemo::SaveDBWithTTL(const std::string &db_path, const std::string &key_ty
                 s = STTL(key, &ttl);
             }
         }
-
         if (s.ok()) {
             if (ttl == -1) {
                 s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString());
@@ -270,6 +268,7 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
             return Status::Corruption("DB dumping is performing.");
         }
         dump_path_ = path;
+        dump_to_terminate_ = false;
     }
 
     Status s;
@@ -328,6 +327,7 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
         list_db_->ReleaseSnapshot(dump_snapshots_[4]);
         dump_pthread_ts_.clear();
         dump_snapshots_.clear();
+        dump_to_terminate_ = true;
     }
 
     delete arg_kv;
@@ -340,29 +340,8 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
 }
 
 Status Nemo::BGSaveOff() {
-    MutexLock l(&mutex_dump_);
-    if (dump_snapshots_.size() == 0 && dump_pthread_ts_.size() == 0) {
-        return Status::Corruption("there is no dumping threads");
-    }
-    for (std::map<std::string, pthread_t>::iterator iter = dump_pthread_ts_.begin(); iter != dump_pthread_ts_.end(); iter++) {
-        if (iter->second != 0) {
-            pthread_cancel(iter->second);
-        }
-    }
-    kv_db_->ReleaseSnapshot(dump_snapshots_[0]);
-    hash_db_->ReleaseSnapshot(dump_snapshots_[1]);
-    zset_db_->ReleaseSnapshot(dump_snapshots_[2]);
-    set_db_->ReleaseSnapshot(dump_snapshots_[3]);
-    list_db_->ReleaseSnapshot(dump_snapshots_[4]);
-    dump_pthread_ts_.clear();
-    dump_snapshots_.clear();
-    std::string dump_path_failed;
-    if (dump_path_[dump_path_.length()-1] == '/') {
-        dump_path_failed = dump_path_.substr(0, dump_path_.length()-1) + "_FAILED";
-    } else {
-        dump_path_failed = dump_path_ + "_FAILED";
-    }
-    rename(dump_path_.c_str(), dump_path_failed.c_str());
+    sleep(1);
+    dump_to_terminate_ = true;
     return Status::OK();
 }
 
