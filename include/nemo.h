@@ -1,6 +1,8 @@
 #ifndef NEMO_INCLUDE_NEMO_H_
 #define NEMO_INCLUDE_NEMO_H_
 
+#include <atomic>
+
 #include "rocksdb/db.h"
 #include "rocksdb/utilities/db_ttl.h"
 
@@ -36,6 +38,8 @@ public:
         pthread_mutex_destroy(&(mutex_list_));
         pthread_mutex_destroy(&(mutex_zset_));
         pthread_mutex_destroy(&(mutex_set_));
+        pthread_mutex_destroy(&(mutex_cursors_));
+        pthread_mutex_destroy(&(mutex_dump_));
     };
 
     Status Compact();
@@ -242,6 +246,7 @@ private:
 
     pthread_mutex_t mutex_dump_;
     std::string dump_path_;
+    std::atomic<bool> dump_to_terminate_;
     std::map<std::string, pthread_t> dump_pthread_ts_;
     Snapshots dump_snapshots_;
 };
