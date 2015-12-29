@@ -19,7 +19,11 @@ Status Nemo::SaveDBWithTTL(const std::string &db_path, const std::string &key_ty
     //printf ("db_path=%s\n", db_path.c_str());
     
     rocksdb::DBWithTTL *dst_db;
-    rocksdb::Status s = rocksdb::DBWithTTL::Open(open_options_, db_path, &dst_db);
+
+    rocksdb::Options option(open_options_);
+    option.meta_prefix = meta_prefix;
+
+    rocksdb::Status s = rocksdb::DBWithTTL::Open(option, db_path, &dst_db);
     if (!s.ok()) {
         log_err("save db %s, open error %s", db_path.c_str(), s.ToString().c_str());
         return s;
