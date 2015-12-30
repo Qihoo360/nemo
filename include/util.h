@@ -51,6 +51,5 @@ int stringmatchlen(const char *pattern, int patternLen, const char *string, int 
 
 int is_dir(const char* filename);
 int delete_dir(const char* dirname);
-
 }
 #endif

@@ -361,52 +361,39 @@ KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t
 }
 
 Status Nemo::GetStartKey(int64_t cursor, std::string* start_key) {
-    std::string scan_keys_store_pre = std::string(100, '\0');;
-    std::string store_key = scan_keys_store_pre + std::to_string(cursor + LLONG_MAX/2);
-    Status s = Get(store_key, start_key);
-    int64_t res;
-    if (s.ok()) {
-        KDel(store_key, &res);
+    std::map<int64_t, std::string>& cursors_map = cursors_store_.map_;
+    MutexLock l(&mutex_cursors_);
+    if (cursors_map.end() == cursors_map.find(cursor)) {
+        return Status::NotFound();
     }
-    return s;
+    *start_key = cursors_map[cursor];
+    return Status::OK();
 }
 
 int64_t Nemo::StoreAndGetCursor(int64_t cursor, const std::string& next_key) {
+    int64_t cursor_origin = cursor;
+    std::list<int64_t>& cursors_list = cursors_store_.list_;
+    std::map<int64_t, std::string>& cursors_map = cursors_store_.map_;
     MutexLock l(&mutex_cursors_);
-    std::string scan_keys_store_pre = std::string(100, '\0'), store_key, cursor_str;
-    nemo::KIterator* kiter = Scan(scan_keys_store_pre, "", -1);
-    std::list<int64_t> cursor_ls;
-    bool isExsit = false;
-    while (kiter->Next() && kiter->Key().substr(0, scan_keys_store_pre.size()) == scan_keys_store_pre) {
-        cursor_ls.push_back(std::stoll(kiter->Key().substr(scan_keys_store_pre.size())) - LLONG_MAX/2);
+    if (cursors_store_.cur_size_ >= cursors_store_.max_size_) {
+        int64_t cursor_oldest = cursors_list.front();
+        cursors_list.erase(cursors_list.begin());
+        cursors_map.erase(cursor_oldest);
     }
-    delete kiter;
-    if (cursor_ls.size() == 0) {
-        store_key = scan_keys_store_pre + std::to_string(cursor + LLONG_MAX/2);
-        Set(store_key, next_key, 3600);//set 1 hour time to live
-        return cursor;
-    }
-    std::list<int64_t>::iterator iter_ls = cursor_ls.begin();
-    while (iter_ls != cursor_ls.end() && *iter_ls != cursor) {
-        iter_ls++;
-    }
-    if (iter_ls == cursor_ls.end()) {
-        store_key = scan_keys_store_pre + std::to_string(cursor + LLONG_MAX/2);
-        Set(store_key, next_key, 3600);
-        return cursor;
-    }
-    while (iter_ls != cursor_ls.end()) {
-        if (cursor < *iter_ls) {
+    std::map<int64_t, std::string>::iterator iter_map = cursors_map.begin();
+    while (iter_map != cursors_map.end()) {
+        if (cursor < iter_map->first) {
             break;
-        } else if (cursor == *iter_ls) {
+        } else if (cursor == iter_map->first) {
             cursor++;
-            iter_ls++;
+            iter_map++;
         } else {
-            iter_ls++;
+            iter_map++;
         }
     }
-    store_key = scan_keys_store_pre + std::to_string(cursor + LLONG_MAX/2);
-    Set(store_key, next_key, 3600);
+    cursors_list.push_back(cursor);
+    cursors_map[cursor] = next_key;
+    cursors_store_.cur_size_++;
     return cursor;
 }
 
@@ -503,6 +490,7 @@ Status Nemo::Scan(int64_t cursor, std::string& pattern, int64_t count, std::vect
     }
     if (s.IsNotFound()) {
         start_key = "k";
+        cursor = 0;
     }
 
     char key_type = start_key.at(0);
@@ -685,7 +673,7 @@ Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *
 
     rocksdb::Iterator *it = db->NewIterator(iterate_options);
 
-    it->Seek(std::string(99, '\0') + char(0x1));
+    it->SeekToFirst();
     for (; it->Valid(); it->Next()) {
       std::string key = it->key().ToString();
       if (stringmatchlen(pattern.data(), pattern.size(), key.data(), key.size(), 0)) {

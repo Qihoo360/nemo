@@ -399,7 +399,7 @@ Status Nemo::ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t
     rocksdb::Iterator *it = db->NewIterator(iterate_options);
 
     num = 0;
-    it->Seek(std::string(99, '\0')+ char(0x1));
+    it->SeekToFirst();
     for (; it->Valid(); it->Next()) {
         num++;
        //printf ("ScanDB key=(%s) value=(%s) val_size=%u num=%lu\n", it->key().ToString().c_str(), it->value().ToString().c_str(),

@@ -1,6 +1,7 @@
 #ifndef NEMO_INCLUDE_NEMO_H_
 #define NEMO_INCLUDE_NEMO_H_
 
+#include <list>
 #include <atomic>
 
 #include "rocksdb/db.h"
@@ -16,6 +17,14 @@ namespace nemo {
 typedef rocksdb::Status Status;
 typedef const rocksdb::Snapshot Snapshot;
 typedef std::vector<const rocksdb::Snapshot *> Snapshots;
+
+template <typename T1, typename T2>
+struct ItemListMap{
+    int64_t cur_size_;
+    int64_t max_size_;
+    std::list<T1> list_;
+    std::map<T1, T2> map_;
+};
 
 class Nemo
 {
@@ -208,6 +217,8 @@ private:
     pthread_mutex_t mutex_cursors_;
 
     bool save_flag_;
+
+    ItemListMap<int64_t, std::string> cursors_store_;
 
     Status GetSnapshot(Snapshots &snapshots);
     Status ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys);

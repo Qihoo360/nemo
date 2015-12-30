@@ -33,6 +33,11 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
     mkpath((db_path_ + "zset").c_str(), 0755);
     mkpath((db_path_ + "set").c_str(), 0755);
 
+    cursors_store_.cur_size_ = 0;
+    cursors_store_.max_size_ = 5000;
+    cursors_store_.list_.clear();
+    cursors_store_.map_.clear();
+
     open_options_.create_if_missing = true;
     open_options_.write_buffer_size = options.write_buffer_size;
     if (!options.compression) {
