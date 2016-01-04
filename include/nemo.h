@@ -4,10 +4,9 @@
 #include "rocksdb/db.h"
 #include "rocksdb/utilities/db_ttl.h"
 
-#include "nemo_mutex.h"
-#include "nemo_iterator.h"
-#include "nemo_const.h"
 #include "nemo_options.h"
+#include "nemo_const.h"
+#include "nemo_iterator.h"
 
 namespace nemo {
 
@@ -47,6 +46,7 @@ public:
     Status Persist(const std::string &key, int64_t *res);
     Status Expireat(const std::string &key, const int32_t timestamp, int64_t *res);
 
+    KIterator* KScan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
     Status KDel(const std::string &key, int64_t *res);
     Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status KTTL(const std::string &key, int64_t *res);
@@ -90,7 +90,6 @@ public:
     Status Getrange(const std::string key, const int64_t start, const int64_t end, std::string &substr);
     Status Setrange(const std::string key, const int64_t offset, const std::string &value, int64_t *len);
     Status Strlen(const std::string &key, int64_t *len);
-    KIterator* Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
 
     Status Keys(const std::string &pattern, std::vector<std::string>& keys);
 

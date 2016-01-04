@@ -5,6 +5,8 @@
 #include <algorithm>
 
 #include "nemo.h"
+//#include "nemo_options.h"
+
 #include "util.h"
 #include "xdebug.h"
 

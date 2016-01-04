@@ -2,6 +2,7 @@
 #include <climits>
 
 #include "nemo.h"
+#include "nemo_mutex.h"
 #include "nemo_iterator.h"
 #include "util.h"
 #include "xdebug.h"
@@ -340,22 +341,25 @@ Status Nemo::Strlen(const std::string &key, int64_t *len) {
     return s;
 }
 
-KIterator* Nemo::Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot) {
+KIterator* Nemo::KScan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot) {
     std::string key_end;
     if (end.empty()) {
         key_end = "";
     } else {
         key_end = end;
     }
-    rocksdb::Iterator *it;
-    rocksdb::ReadOptions iterate_options;
+    rocksdb::ReadOptions read_options;
     if (use_snapshot) {
-        iterate_options.snapshot = kv_db_->GetSnapshot();
+        read_options.snapshot = kv_db_->GetSnapshot();
     }
-    iterate_options.fill_cache = false;
-    it = kv_db_->NewIterator(iterate_options);
+    read_options.fill_cache = false;
+
+    IteratorOptions iter_options(key_end, limit, read_options);
+
+    rocksdb::Iterator *it = kv_db_->NewIterator(read_options);
     it->Seek(start);
-    return new KIterator(new Iterator(it, key_end, limit, iterate_options)); 
+
+    return new KIterator(it, iter_options); 
 }
 
 Status Nemo::KExpire(const std::string &key, const int32_t seconds, int64_t *res) {

@@ -1,9 +1,11 @@
 #include <climits>
 #include <ctime>
 
-#include "nemo.h"
 #include "nemo_hash.h"
+
+#include "nemo.h"
 #include "nemo_iterator.h"
+#include "nemo_mutex.h"
 #include "util.h"
 #include "xdebug.h"
 
@@ -229,7 +231,7 @@ Status Nemo::HKeys(const std::string &key, std::vector<std::string> &fields) {
     it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
     while (it->Valid()) {
-       if ((it->key()).data()[0] != DataType::kHash) {
+       if ((it->key())[0] != DataType::kHash) {
            break;
        }
        DecodeHashKey(it->key(), &dbkey, &dbfield);
@@ -275,7 +277,7 @@ Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
     it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
     while (it->Valid()) {
-       if ((it->key()).data()[0] != DataType::kHash) {
+       if ((it->key())[0] != DataType::kHash) {
            break;
        }
        DecodeHashKey(it->key(), &dbkey, &dbfield);
@@ -290,31 +292,6 @@ Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
     delete it;
     return Status::OK();
 }
-
-//int64_t Nemo::HLen(const std::string &key) {
-//    int64_t len = 0;
-//    std::string dbkey;
-//    std::string dbfield;
-//    std::string key_start = EncodeHashKey(key, "");
-//    rocksdb::Iterator *it;
-//    rocksdb::ReadOptions iterate_options;
-//    iterate_options.fill_cache = false;
-//    it = hash_db_->NewIterator(iterate_options);
-//    it->Seek(key_start);
-//    while (it->Valid()) {
-//       if((it->key()).data()[0] != DataType::kHash) { 
-//           break;
-//       }
-//       DecodeHashKey(it->key(), &dbkey, &dbfield);
-//       if (dbkey == key) {
-//           len++;
-//       } else {
-//           break;
-//       }
-//       it->Next();
-//    }
-//    return len;
-//}
 
 Status Nemo::HMSet(const std::string &key, const std::vector<FV> &fvs) {
     if (key.size() >= KEY_MAX_LENGTH) {
@@ -348,15 +325,19 @@ HIterator* Nemo::HScan(const std::string &key, const std::string &start, const s
     } else {
         key_end = EncodeHashKey(key, end);
     }
-    rocksdb::Iterator *it;
-    rocksdb::ReadOptions iterate_options;
+
+
+    rocksdb::ReadOptions read_options;
     if (use_snapshot) {
-        iterate_options.snapshot = hash_db_->GetSnapshot();
+        read_options.snapshot = hash_db_->GetSnapshot();
     }
-    iterate_options.fill_cache = false;
-    it = hash_db_->NewIterator(iterate_options);
+    read_options.fill_cache = false;
+
+    IteratorOptions iter_options(key_end, limit, read_options);
+    
+    rocksdb::Iterator *it = hash_db_->NewIterator(read_options);
     it->Seek(key_start);
-    return new HIterator(new Iterator(it, key_end, limit, iterate_options), key); 
+    return new HIterator(it, iter_options, key); 
 }
 
 Status Nemo::HSetnx(const std::string &key, const std::string &field, const std::string &val) {
@@ -405,7 +386,7 @@ Status Nemo::HVals(const std::string &key, std::vector<std::string> &vals) {
     it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
     while (it->Valid()) {
-       if ((it->key()).data()[0] != DataType::kHash) {
+       if ((it->key())[0] != DataType::kHash) {
            break;
        }
        DecodeHashKey(it->key(), &dbkey, &dbfield);

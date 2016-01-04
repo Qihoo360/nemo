@@ -60,8 +60,8 @@ int main()
     if (sit == NULL) {
         log_info("SScan error!");
     }
-    while (sit->Next()) {
-        log_info("SScan key: %s, member: %s", sit->Key().c_str(), sit->Member().c_str()); 
+    for (; sit->Valid(); sit->Next()) {
+        log_info("SScan key: %s, member: %s", sit->key().c_str(), sit->member().c_str()); 
     }
     log_info("");
 

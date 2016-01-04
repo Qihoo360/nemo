@@ -1,8 +1,8 @@
 #include <cstdlib>
 #include <ctime>
 
-#include "nemo.h"
 #include "nemo_set.h"
+#include "nemo_mutex.h"
 #include "nemo_iterator.h"
 #include "util.h"
 #include "xdebug.h"
@@ -155,24 +155,27 @@ int64_t Nemo::SCard(const std::string &key) {
 SIterator* Nemo::SScan(const std::string &key, uint64_t limit, bool use_snapshot) {
     std::string set_key = EncodeSetKey(key, "");
 
-    rocksdb::Iterator *it;
-    rocksdb::ReadOptions iterate_options;
+    rocksdb::ReadOptions read_options;
     if (use_snapshot) {
-        iterate_options.snapshot = set_db_->GetSnapshot();
+        read_options.snapshot = set_db_->GetSnapshot();
     }
-    iterate_options.fill_cache = false;
-    it = set_db_->NewIterator(iterate_options);
+    read_options.fill_cache = false;
+
+    rocksdb::Iterator *it = set_db_->NewIterator(read_options);
     it->Seek(set_key);
-    return new SIterator(new Iterator(it, "", limit, iterate_options), key); 
+
+    IteratorOptions iter_options("", limit, read_options);
+
+    return new SIterator(it, iter_options, key); 
 }
 
 Status Nemo::SMembers(const std::string &key, std::vector<std::string> &members) {
     SIterator *iter = SScan(key, -1, true);
 
-    while (iter->Next()) {
-        members.push_back(iter->Member());
+    for (; iter->Valid(); iter->Next()) {
+        members.push_back(iter->member());
     }
-    set_db_->ReleaseSnapshot(iter->Opt().snapshot);
+    set_db_->ReleaseSnapshot(iter->read_options().snapshot);
     delete iter;
     return Status::OK();
 }
@@ -183,14 +186,14 @@ Status Nemo::SUnion(const std::vector<std::string> &keys, std::vector<std::strin
     for (int i = 0; i < (int)keys.size(); i++) {
         SIterator *iter = SScan(keys[i], -1, true);
         
-        while (iter->Next()) {
-            std::string member = iter->Member();
+        for (; iter->Valid(); iter->Next()) {
+            std::string member = iter->member();
             if (result_flag.find(member) == result_flag.end()) {
                 members.push_back(member);
                 result_flag[member] = 1;
             }
         }
-        set_db_->ReleaseSnapshot(iter->Opt().snapshot);
+        set_db_->ReleaseSnapshot(iter->read_options().snapshot);
         delete iter;
     }
     return Status::OK();
@@ -209,10 +212,10 @@ Status Nemo::SUnionStore(const std::string &destination, const std::vector<std::
     for (int i = 0; i < numkey; i++) {
         SIterator *iter = SScan(keys[i], -1, true);
         
-        while (iter->Next()) {
-            member_result[iter->Member()] = 1;
+        for (; iter->Valid(); iter->Next()) {
+            member_result[iter->member()] = 1;
         }
-        set_db_->ReleaseSnapshot(iter->Opt().snapshot);
+        set_db_->ReleaseSnapshot(iter->read_options().snapshot);
         delete iter;
     }
 
@@ -222,14 +225,14 @@ Status Nemo::SUnionStore(const std::string &destination, const std::vector<std::
 
     if (SCard(destination) > 0) {
         SIterator *iter = SScan(destination, -1, true);
-        while (iter->Next()) {
-            s = SRemNoLock(destination, iter->Member(), &tmp_res);
+        for (; iter->Valid(); iter->Next()) {
+            s = SRemNoLock(destination, iter->member(), &tmp_res);
             if (!s.ok()) {
                 delete iter;
                 return s;
             }
         }
-        set_db_->ReleaseSnapshot(iter->Opt().snapshot);
+        set_db_->ReleaseSnapshot(iter->read_options().snapshot);
         delete iter;
     }
 
@@ -260,9 +263,9 @@ Status Nemo::SInter(const std::vector<std::string> &keys, std::vector<std::strin
 
     SIterator *iter = SScan(keys[0], -1, true);
     
-    while (iter->Next()) {
+    for (; iter->Valid(); iter->Next()) {
         int i = 1;
-        std::string member = iter->Member();
+        std::string member = iter->member();
         for (; i < numkey; i++) {
             if (!SIsMember(keys[i], member)) {
                 break;
@@ -272,7 +275,7 @@ Status Nemo::SInter(const std::vector<std::string> &keys, std::vector<std::strin
             members.push_back(member);
         }
     }
-    set_db_->ReleaseSnapshot(iter->Opt().snapshot);
+    set_db_->ReleaseSnapshot(iter->read_options().snapshot);
     delete iter;
     return Status::OK();
 }
@@ -288,9 +291,9 @@ Status Nemo::SInterStore(const std::string &destination, const std::vector<std::
     std::map<std::string, int>::iterator it;
     SIterator *iter = SScan(keys[0], -1, true);
 
-    while (iter->Next()) {
+    for (; iter->Valid(); iter->Next()) {
         int i = 1;
-        std::string member = iter->Member();
+        std::string member = iter->member();
         for (; i < numkey; i++) {
             if (!SIsMember(keys[i], member)) {
                 break;
@@ -300,7 +303,7 @@ Status Nemo::SInterStore(const std::string &destination, const std::vector<std::
             member_result[member] = 1;
         }
     }
-    set_db_->ReleaseSnapshot(iter->Opt().snapshot);
+    set_db_->ReleaseSnapshot(iter->read_options().snapshot);
     delete iter;
 
     // we delete the destination if it exists
@@ -309,14 +312,14 @@ Status Nemo::SInterStore(const std::string &destination, const std::vector<std::
 
     if (SCard(destination) > 0) {
         SIterator *iter = SScan(destination, -1, true);
-        while (iter->Next()) {
-            s = SRemNoLock(destination, iter->Member(), &tmp_res);
+        for (; iter->Valid(); iter->Next()) {
+            s = SRemNoLock(destination, iter->member(), &tmp_res);
             if (!s.ok()) {
                 delete iter;
                 return s;
             }
         }
-        set_db_->ReleaseSnapshot(iter->Opt().snapshot);
+        set_db_->ReleaseSnapshot(iter->read_options().snapshot);
         delete iter;
     }
 
@@ -339,9 +342,9 @@ Status Nemo::SDiff(const std::vector<std::string> &keys, std::vector<std::string
 
     SIterator *iter = SScan(keys[0], -1, true);
     
-    while (iter->Next()) {
+    for (; iter->Valid(); iter->Next()) {
         int i = 1;
-        std::string member = iter->Member();
+        std::string member = iter->member();
         for (; i < numkey; i++) {
             if (SIsMember(keys[i], member)) {
                 break;
@@ -351,7 +354,7 @@ Status Nemo::SDiff(const std::vector<std::string> &keys, std::vector<std::string
             members.push_back(member);
         }
     }
-    set_db_->ReleaseSnapshot(iter->Opt().snapshot);
+    set_db_->ReleaseSnapshot(iter->read_options().snapshot);
     delete iter;
     return Status::OK();
 }
@@ -368,9 +371,9 @@ Status Nemo::SDiffStore(const std::string &destination, const std::vector<std::s
 
     SIterator *iter = SScan(keys[0], -1, true);
 
-    while (iter->Next()) {
+    for (; iter->Valid(); iter->Next()) {
         int i = 1;
-        std::string member = iter->Member();
+        std::string member = iter->member();
         for (; i < numkey; i++) {
             if (SIsMember(keys[i], member)) {
                 break;
@@ -380,7 +383,7 @@ Status Nemo::SDiffStore(const std::string &destination, const std::vector<std::s
             member_result[member] = 1;
         }
     }
-    set_db_->ReleaseSnapshot(iter->Opt().snapshot);
+    set_db_->ReleaseSnapshot(iter->read_options().snapshot);
     delete iter;
 
     // we delete the destination if it exists
@@ -389,14 +392,14 @@ Status Nemo::SDiffStore(const std::string &destination, const std::vector<std::s
 
     if (SCard(destination) > 0) {
         SIterator *iter = SScan(destination, -1, true);
-        while (iter->Next()) {
-            s = SRemNoLock(destination, iter->Member(), &tmp_res);
+        for (; iter->Valid(); iter->Next()) {
+            s = SRemNoLock(destination, iter->member(), &tmp_res);
             if (!s.ok()) {
                 delete iter;
                 return s;
             }
         }
-        set_db_->ReleaseSnapshot(iter->Opt().snapshot);
+        set_db_->ReleaseSnapshot(iter->read_options().snapshot);
         delete iter;
     }
 
@@ -425,7 +428,7 @@ Status Nemo::SPop(const std::string &key, std::string &member) {
     for (int i = 0; i < k; i++) {
         iter->Next();
     }
-    member = iter->Member();
+    member = iter->member();
 
     int64_t res;
     return SRemNoLock(key, member, &res);
@@ -478,16 +481,16 @@ Status Nemo::SRandMember(const std::string &key, std::vector<std::string> &membe
     }
 
     SIterator *iter = SScan(key, -1, true);
-    for (int i = 0, cnt = 0; iter->Next() && cnt < ncount; i++) {
+    for (int i = 0, cnt = 0; iter->Valid() && cnt < ncount; iter->Next(), i++) {
         if (idx_flag.find(i) != idx_flag.end()) {
             for (int j = 0; j < idx_flag[i]; j++) {
-                members.push_back(iter->Member());
+                members.push_back(iter->member());
                 cnt++;
             }
         }
     }
 
-    set_db_->ReleaseSnapshot(iter->Opt().snapshot);
+    set_db_->ReleaseSnapshot(iter->read_options().snapshot);
     delete iter;
     return Status::OK();
 }

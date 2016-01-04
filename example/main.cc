@@ -33,39 +33,40 @@ int main()
      *  Test Internal Skip
      */
     log_info("======Test Internal Skip======");
-    KIterator *kit = n->Scan("", "", -1);
-    bool skip_ret = kit->Skip(2);
+    KIterator *kit = n->KScan("", "", -1);
+    kit->Skip(2);
+    bool skip_ret = kit->Valid();
     log_info ("test Internal Skip(2) when no keys, expect false, return %s", skip_ret ? "true" : "false");
 
     s = n->Set("tSetKey1", "tSetVal1");
     s = n->Set("tSetKey2", "tSetVal2");
     s = n->Set("tSetKey3", "tSetVal3");
 
-    kit = n->Scan("", "", -1);
-    skip_ret = kit->Skip(1);
+    kit = n->KScan("", "", -1);
+    kit->Skip(1);
+    skip_ret = kit->Valid();
     log_info ("test Internal Skip(1) when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
     if (skip_ret) {
-        log_info ("                 expect[tSetKey1, tSetVal1], key=%s val=%s", kit->Key().c_str(), kit->Val().c_str());
+        log_info ("                 expect[tSetKey2, tSetVal2], key=%s val=%s", kit->key().c_str(), kit->value().c_str());
     }
 
-    skip_ret = kit->Skip(1);
+    kit->Skip(1);
+    skip_ret = kit->Valid();
     log_info ("test Internal Skip(1) again when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
     if (skip_ret) {
-        log_info ("                 expect[tSetKey2, tSetVal2], key=%s val=%s", kit->Key().c_str(), kit->Val().c_str());
+        log_info ("                 expect[tSetKey3, tSetVal3], key=%s val=%s", kit->key().c_str(), kit->value().c_str());
     }
 
-    skip_ret = kit->Skip(2);
-    log_info ("test Internal Skip(2) when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
-    if (skip_ret) {
-        log_info ("                 expect[tSetKey3, tSetVal3], key=%s val=%s", kit->Key().c_str(), kit->Val().c_str());
-    }
+    kit->Skip(2);
+    skip_ret = kit->Valid();
+    log_info ("test Internal Skip(2) again when 3 keys, expect false, return %s", skip_ret ? "true" : "false");
+    log_info ("                 expect[tSetKey3, tSetVal3], key=%s val=%s", kit->key().c_str(), kit->value().c_str());
 
-    kit = n->Scan("", "", -1);
-    skip_ret = kit->Skip(5);
-    log_info ("test Internal Skip(5) when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
-    if (skip_ret) {
-        log_info ("                 expect[tSetKey3, tSetVal3], key=%s val=%s", kit->Key().c_str(), kit->Val().c_str());
-    }
+    kit = n->KScan("", "", -1);
+    kit->Skip(5);
+    skip_ret = kit->Valid();
+    log_info ("test Internal Skip(5) when 3 keys, expect false, return %s", skip_ret ? "true" : "false");
+    log_info ("                 expect[tSetKey3, tSetVal3], key=%s val=%s", kit->key().c_str(), kit->value().c_str());
     log_info("");
 
     /*
@@ -73,7 +74,8 @@ int main()
      */
     log_info("======Test Internal Hash Skip======");
     HIterator *hs_it = n->HScan("tHSetKey", "", "", -1);
-    skip_ret = hs_it->Skip(2);
+    hs_it->Skip(2);
+    skip_ret = hs_it->Valid();
     log_info ("test Internal Hash Skip(2) when no keys, expect false, return %s", skip_ret ? "true" : "false");
 
     s = n->HSet("tHSetKey", "tHSetField1", "tSetVal1");
@@ -81,24 +83,25 @@ int main()
     s = n->HSet("tHSetKey", "tHSetField3", "tSetVal3");
 
     hs_it = n->HScan("tHSetKey", "", "", -1);
-    skip_ret = hs_it->Skip(1);
+    hs_it->Skip(1);
+    skip_ret = hs_it->Valid();
     log_info ("test Internal Hash Skip(1) when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
     if (skip_ret) {
-        log_info ("                     expect[tHSetKey, tHSetField2, tSetVal2], key=%s field=%s val=%s", hs_it->Key().c_str(), hs_it->Field().c_str(), hs_it->Val().c_str());
+        log_info ("                     expect[tHSetKey, tHSetField2, tSetVal2], key=%s field=%s val=%s", hs_it->key().c_str(), hs_it->field().c_str(), hs_it->value().c_str());
     }
 
-    skip_ret = hs_it->Skip(1);
+    hs_it->Skip(1);
+    skip_ret = hs_it->Valid();
     log_info ("test Internal Hash Skip(1) again when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
     if (skip_ret) {
-        log_info ("                     expect[tHSetKey, tHSetField3, tSetVal3], key=%s field=%s val=%s", hs_it->Key().c_str(), hs_it->Field().c_str(), hs_it->Val().c_str());
+        log_info ("                     expect[tHSetKey, tHSetField3, tSetVal3], key=%s field=%s val=%s", hs_it->key().c_str(), hs_it->field().c_str(), hs_it->value().c_str());
     }
 
     hs_it = n->HScan("tHSetKey", "", "", -1);
-    skip_ret = hs_it->Skip(5);
-    log_info ("test Internal Hash Skip(5) when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
-    if (skip_ret) {
-        log_info ("                 expect[tHSetKey, tHSetField3, tSetVal3], key=%s field=%s val=%s", hs_it->Key().c_str(), hs_it->Field().c_str(), hs_it->Val().c_str());
-    }
+    hs_it->Skip(5);
+    skip_ret = hs_it->Valid();
+    log_info ("test Internal Hash Skip(5) when 3 keys, expect false, return %s", skip_ret ? "true" : "false");
+    log_info ("                 expect[tHSetKey, tHSetField3, tSetVal3], key=%s field=%s val=%s", hs_it->key().c_str(), hs_it->field().c_str(), hs_it->value().c_str());
     log_info("");
 
     /*
@@ -106,7 +109,8 @@ int main()
      */
     log_info("======Test Internal ZSet Skip======");
     ZIterator *zs_it = n->ZScan("tZSetKey", nemo::ZSET_SCORE_MIN, nemo::ZSET_SCORE_MAX, -1);
-    skip_ret = zs_it->Skip(2);
+    zs_it->Skip(2);
+    skip_ret = zs_it->Valid();
     log_info ("test Internal ZSet Skip(2) when no keys, expect false, return %s", skip_ret ? "true" : "false");
 
     int64_t za_res;
@@ -118,30 +122,31 @@ int main()
     if (zit_zset == NULL) {
         log_info("ZScan error!");
     }
-    while (zit_zset->Next()) {
-        log_info("Test ZScan key: %s, score: %lf, member: %s", zit_zset->Key().c_str(), zit_zset->Score(), zit_zset->Member().c_str());
+    for (; zit_zset->Valid(); zit_zset->Next()) {
+        log_info("Test ZScan key: %s, score: %lf, member: %s", zit_zset->key().c_str(), zit_zset->score(), zit_zset->member().c_str());
     }
 
     zs_it = n->ZScan("tZSetKey", nemo::ZSET_SCORE_MIN, nemo::ZSET_SCORE_MAX, -1);
 
-    skip_ret = zs_it->Skip(1);
+    zs_it->Skip(1);
+    skip_ret = zs_it->Valid();
     log_info ("test Internal ZSet Skip(1) when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
     if (skip_ret) {
-        log_info ("                      expect[tZSetKey, 110, tHMember2], key=%s member=%s score=%lf", zs_it->Key().c_str(), zs_it->Member().c_str(), zs_it->Score());
+        log_info ("                      expect[tZSetKey, 110, tHMember2], key=%s member=%s score=%lf", zs_it->key().c_str(), zs_it->member().c_str(), zs_it->score());
     }
 
-    skip_ret = zs_it->Skip(1);
+    zs_it->Skip(1);
+    skip_ret = zs_it->Valid();
     log_info ("test Internal ZSet Skip(1) again when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
     if (skip_ret) {
-        log_info ("                     expect[tZSetKey, 120, tHMember3], key=%s member=%s score=%lf", zs_it->Key().c_str(), zs_it->Member().c_str(), zs_it->Score());
+        log_info ("                     expect[tZSetKey, 120, tHMember3], key=%s member=%s score=%lf", zs_it->key().c_str(), zs_it->member().c_str(), zs_it->score());
     }
 
     zs_it = n->ZScan("tZSetKey", nemo::ZSET_SCORE_MIN, nemo::ZSET_SCORE_MAX, -1);
-    skip_ret = zs_it->Skip(5);
+    zs_it->Skip(5);
+    skip_ret = zs_it->Valid();
     log_info ("test Internal ZSet Skip(5) when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
-    if (skip_ret) {
-        log_info ("                     expect[tZSetKey, 120, tHMember3], key=%s member=%s score=%lf", zs_it->Key().c_str(), zs_it->Member().c_str(), zs_it->Score());
-    }
+    log_info ("                     expect[tZSetKey, 120, tHMember3], key=%s member=%s score=%lf", zs_it->key().c_str(), zs_it->member().c_str(), zs_it->score());
     log_info("");
 
     /*
@@ -149,7 +154,8 @@ int main()
      */
     log_info("======Test Internal Set Skip======");
     SIterator *ss_it = n->SScan("tSetKey", -1);
-    skip_ret = ss_it->Skip(2);
+    ss_it->Skip(2);
+    skip_ret = ss_it->Valid();
     log_info ("test Internal Set Skip(2) when no keys, expect false, return %s", skip_ret ? "true" : "false");
 
     s = n->SAdd("tSetKey", "tSetMember1", &za_res);
@@ -160,29 +166,30 @@ int main()
     if (ss_it == NULL) {
         log_info("ZScan error!");
     }
-    while (ss_it->Next()) {
-        log_info("Test SScan key: %s, member: %s", ss_it->Key().c_str(), ss_it->Member().c_str());
+    for (; ss_it->Valid(); ss_it->Next()) {
+        log_info("Test SScan key: %s, member: %s", ss_it->key().c_str(), ss_it->member().c_str());
     }
     
     ss_it = n->SScan("tSetKey", -1);
-    skip_ret = ss_it->Skip(1);
+    ss_it->Skip(1);
+    skip_ret = ss_it->Valid();
     log_info ("test Internal Set Skip(1) when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
     if (skip_ret) {
-        log_info ("                      expect[tSetKey,  tSetMember2], key=%s member=%s", ss_it->Key().c_str(), ss_it->Member().c_str());
+        log_info ("                      expect[tSetKey,  tSetMember2], key=%s member=%s", ss_it->key().c_str(), ss_it->member().c_str());
     }
 
-    skip_ret = ss_it->Skip(1);
+    ss_it->Skip(1);
+    skip_ret = ss_it->Valid();
     log_info ("test Internal Set Skip(1) again when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
     if (skip_ret) {
-        log_info ("                      expect[tSetKey,  tSetMember3], key=%s member=%s", ss_it->Key().c_str(), ss_it->Member().c_str());
+        log_info ("                      expect[tSetKey,  tSetMember3], key=%s member=%s", ss_it->key().c_str(), ss_it->member().c_str());
     }
 
     ss_it = n->SScan("tSetKey", -1);
-    skip_ret = ss_it->Skip(5);
+    ss_it->Skip(5);
+    skip_ret = ss_it->Valid();
     log_info ("test Internal Set Skip(5) when 3 keys, expect true, return %s", skip_ret ? "true" : "false");
-    if (skip_ret) {
-        log_info ("                      expect[tSetKey,  tSetMember3], key=%s member=%s", ss_it->Key().c_str(), ss_it->Member().c_str());
-    }
+    log_info ("                      expect[tSetKey,  tSetMember3], key=%s member=%s", ss_it->key().c_str(), ss_it->member().c_str());
     log_info("");
 
     /*
@@ -540,12 +547,12 @@ int main()
     keys.push_back("tScanKey2");
 
     s = n->MSet(kvs);
-    KIterator *scan_iter = n->Scan("tScanKey1", "tScanKey2", -1);
+    KIterator *scan_iter = n->KScan("tScanKey1", "tScanKey2", -1);
     if (scan_iter == NULL) {
         log_info("Scan error!");
     }
-    while (scan_iter->Next()) {
-        log_info("Test Scan key: %s, value: %s", scan_iter->Key().c_str(), scan_iter->Val().c_str());
+    for (; scan_iter->Valid(); scan_iter->Next()) {
+        log_info("Test Scan key: %s, value: %s", scan_iter->key().c_str(), scan_iter->value().c_str());
     }
 
     //just delete all key-value set before
@@ -769,8 +776,8 @@ int main()
     if (hit == NULL) {
         log_info("HScan error!");
     }
-    while (hit->Next()) {
-        log_info("HScan key: %s, field: %s, value: %s", hit->Key().c_str(), hit->Field().c_str(), hit->Val().c_str());
+    for (; hit->Valid(); hit->Next()) {
+        log_info("HScan key: %s, field: %s, value: %s", hit->key().c_str(), hit->field().c_str(), hit->value().c_str());
     }
     log_info("");
     //just delete all key-value set before
@@ -1081,8 +1088,8 @@ int main()
     if (it_zset == NULL) {
         log_info("ZScan error!");
     }
-    while (it_zset->Next()) {
-        log_info("Test ZScan key: %s, score: %lf, member: %s", it_zset->Key().c_str(), it_zset->Score(), it_zset->Member().c_str());
+    for (; it_zset->Valid(); it_zset->Next()) {
+        log_info("Test ZScan key: %s, score: %lf, member: %s", it_zset->key().c_str(), it_zset->score(), it_zset->member().c_str());
     }
 
     /*
@@ -1105,8 +1112,8 @@ int main()
     if (it_zset == NULL) {
         log_info("ZScan error!");
     }
-    while (it_zset->Next()) {
-        log_info("After ZIncrby, Scan key: %s, score: %lf, value: %s", it_zset->Key().c_str(), it_zset->Score(), it_zset->Member().c_str());
+    for (; it_zset->Valid(); it_zset->Next()) {
+        log_info("After ZIncrby, Scan key: %s, score: %lf, value: %s", it_zset->key().c_str(), it_zset->score(), it_zset->member().c_str());
     }
     log_info("After ZIncrby, ZCard return %ld", n->ZCard("tZAddKey")); 
     log_info("");
@@ -1140,8 +1147,8 @@ int main()
     log_info("Test ZScore return %s, score: %lf", s.ToString().c_str(), score);
     
 //    ZLexIterator* zlex = n->ZScanbylex("zk1", "m2", "", -1);
-//    while (zlex->Next()) {
-//        log_info("ZScanbylex, Scan key: %s, value: %s", zlex->Key().c_str(), zlex->Member().c_str());
+//    for (; zlex->Valid(); zlex->Next()) {
+//        log_info("ZScanbylex, Scan key: %s, value: %s", zlex->key().c_str(), zlex->member().c_str());
 //    }
     
     /*
@@ -1340,8 +1347,8 @@ int main()
     if (sit == NULL) {
         log_info("SScan error!");
     }
-    while (sit->Next()) {
-        log_info("SScan key: %s, member: %s", sit->Key().c_str(), sit->Member().c_str()); 
+    for (; sit->Valid(); sit->Next()) {
+        log_info("SScan key: %s, member: %s", sit->key().c_str(), sit->member().c_str()); 
     }
     log_info("");
 

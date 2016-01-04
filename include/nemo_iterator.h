@@ -10,134 +10,141 @@ enum Direction {
     kBackward = 1
 };
 
+struct IteratorOptions {
+  std::string end;
+  uint64_t limit;
+  rocksdb::ReadOptions read_options;
+  Direction direction;
+
+  IteratorOptions()
+      : limit(1LL << 60), direction(kForward) {}
+  IteratorOptions(const std::string &_end, uint64_t _limit,
+                  rocksdb::ReadOptions roptions, Direction _dir = kForward)
+      : end(_end), limit(_limit), read_options(roptions), direction(_dir) {}
+};
+
 class Iterator {
 public:
-    Iterator(rocksdb::Iterator *it, const std::string &end, uint64_t limit, rocksdb::ReadOptions options, Direction direction = kForward);
-    ~Iterator();
-    bool Skip(uint64_t offset);
-    bool Next();
-    bool Valid() { return it_->Valid(); };
-    rocksdb::Slice Key();
-    rocksdb::Slice Val();
-    rocksdb::ReadOptions Opt() { return options_; };
+    Iterator(rocksdb::Iterator *it, const IteratorOptions& iter_options);
+    virtual ~Iterator() {
+      delete it_;
+    }
 
-    std::string PrevKey() {  return prev_key_; }
-    std::string PrevVal() {  return prev_val_; }
-    bool SetPrevKeyVal();
+    rocksdb::Slice key();
+    rocksdb::Slice value();
+    virtual void Skip(int64_t offset);
+    virtual void Next();
+    virtual bool Valid();
+    virtual rocksdb::ReadOptions read_options() { return ioptions_.read_options; }
+    int direction()                 {  return ioptions_.direction; }
 
-    void RawNext() {    it_->Next(); }
-    void RawPrev() {    it_->Prev(); }
-    int GetDirection() {  return direction_; }
+protected:
+    bool valid_;
+
 private:
+    bool Check();
+    
     rocksdb::Iterator *it_;
-    std::string end_;
-    uint64_t limit_;
-    rocksdb::ReadOptions options_;
-    bool is_first_;
-    int direction_;
-    std::string prev_key_;
-    std::string prev_val_;
+    IteratorOptions ioptions_;
+
     //No Copying Allowed
     Iterator(Iterator&);
     void operator=(Iterator&);
 };
 
-class KIterator {
+class KIterator : public Iterator {
 public:
-    KIterator(Iterator *it);
-    ~KIterator();
-    bool Next();
-    bool Valid() { return it_->Valid(); };
-    bool Skip(int64_t offset);
-    rocksdb::ReadOptions Opt() { return it_->Opt(); };
-    std::string Key() { return key_; };
-    std::string Val() { return val_; };
+    KIterator(rocksdb::Iterator *it, const IteratorOptions iter_options)
+        : Iterator(it, iter_options) {}
+    virtual void Next();
+    virtual void Skip(int64_t offset);
+    //virtual bool Valid();
+    std::string key()       { return key_; };
+    std::string value()     { return value_; };
+    
 private:
-    Iterator *it_;
+    void LoadData();
+
     std::string key_;
-    std::string val_;
+    std::string value_;
+
     //No Copying Allowed
     KIterator(KIterator&);
     void operator=(KIterator&);
 };
 
-class HIterator {
+class HIterator : public Iterator {
 public:
-    HIterator(Iterator *it, const rocksdb::Slice &key);
-    ~HIterator();
-    bool Next();
-    bool Valid();
-    bool Skip(int64_t offset);
-    rocksdb::ReadOptions Opt() { return it_->Opt(); };
-    std::string Key() { return key_; };
-    std::string Field() { return field_; };
-    std::string Val() { return val_; };
+    HIterator(rocksdb::Iterator *it, const IteratorOptions iter_options, const rocksdb::Slice &key);
+    virtual void Next();
+    virtual void Skip(int64_t offset);
+    virtual bool Valid();
+    std::string key()   { return key_; };
+    std::string field() { return field_; };
+    std::string value() { return value_; };
+
 private:
-    Iterator *it_;
     std::string key_;
     std::string field_;
-    std::string val_;
+    std::string value_;
+
     //No Copying Allowed
     HIterator(HIterator&);
     void operator=(HIterator&);
 };
 
-class ZIterator {
+class ZIterator : public Iterator {
 public:
-    ZIterator(Iterator *it, const rocksdb::Slice &key);
-    ~ZIterator();
-    bool Valid();
-    bool Skip(int64_t offset);
-    bool Next();
-    rocksdb::ReadOptions Opt() { return it_->Opt(); };
-    std::string Key() { return key_; };
-    double Score() { return score_; };
-    std::string Member() { return member_; };
+    ZIterator(rocksdb::Iterator *it, const IteratorOptions iter_options, const rocksdb::Slice &key);
+    virtual bool Valid();
+    virtual void Skip(int64_t offset);
+    virtual void Next();
+    std::string key()    { return key_; };
+    double score()       { return score_; };
+    std::string member() { return member_; };
+
 private:
-    Iterator *it_;
     std::string key_;
     double score_;
     std::string member_;
+
     //No Copying Allowed
     ZIterator(ZIterator&);
     void operator=(ZIterator&);
     
 };
 
-class ZLexIterator {
+class ZLexIterator : public Iterator {
 public:
-    ZLexIterator(Iterator *it, const rocksdb::Slice &key);
-    ~ZLexIterator();
-    bool Valid() { return it_->Valid(); };
-    bool Skip(int64_t offset) { if (offset < 0) {return true;} else {return it_->Skip(offset);} };
-    bool Next();
-    rocksdb::ReadOptions Opt() { return it_->Opt(); };
-    std::string Key() { return key_; };
-    std::string Member() { return member_; };
+    ZLexIterator(rocksdb::Iterator *it, const IteratorOptions iter_options, const rocksdb::Slice &key);
+    virtual bool Valid();
+    virtual void Skip(int64_t offset);
+    virtual void Next();
+    std::string key()       { return key_; };
+    std::string member()    { return member_; };
+
 private:
-    Iterator *it_;
     std::string key_;
     std::string member_;
+
     //No Copying Allowed
     ZLexIterator(ZLexIterator&);
     void operator=(ZLexIterator&);
-    
 };
 
-class SIterator {
+class SIterator : public Iterator {
 public:
-    SIterator(Iterator *it, const rocksdb::Slice &key);
-    ~SIterator();
-    bool Next();
-    bool Valid();
-    bool Skip(int64_t offset);
-    rocksdb::ReadOptions Opt() { return it_->Opt(); };
-    std::string Key() { return key_; };
-    std::string Member() { return member_; };
+    SIterator(rocksdb::Iterator *it, const IteratorOptions iter_options, const rocksdb::Slice &key);
+    virtual void Skip(int64_t offset);
+    virtual void Next();
+    virtual bool Valid();
+    std::string key()       { return key_; };
+    std::string member()    { return member_; };
+
 private:
-    Iterator *it_;
     std::string key_;
     std::string member_;
+
     //No Copying Allowed
     SIterator(SIterator&);
     void operator=(SIterator&);
