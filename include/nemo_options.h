@@ -19,7 +19,7 @@ struct Options {
         max_open_files(200),
         use_bloomfilter(true),
         write_threads(71),
-        target_file_size_base(2),
+        target_file_size_base(20 * 1024 * 1024),
         target_file_size_multiplier(1) {}
 };
 
