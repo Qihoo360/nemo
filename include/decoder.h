@@ -2,6 +2,7 @@
 #define NEMO_INCLUDE_DECODER_H
 
 #include <string>
+#include "util.h"
 
 class Decoder {
 public:
