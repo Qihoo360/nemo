@@ -44,6 +44,7 @@ int main(int argc, char *argv[])
         case 'w':
             char * pEnd;
             options.write_buffer_size = strtol(optarg, &pEnd, 10);
+            break;
         case 'h':
             usage();
             return 0;
