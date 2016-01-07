@@ -12,8 +12,8 @@ using namespace nemo;
 
 void usage() {
   printf ("Usage:\n"
-          "\told2new_db -s source_dir -d destination_dir\n"
-          "\told2new_db -s source_dir -d destination_dir -w write_buffer_size(default 200M)\n"
+          "\tmigrator -s source_dir -d destination_dir\n"
+          "\tmigrator -s source_dir -d destination_dir -w write_buffer_size(default 200M)\n"
           );
 }
 
