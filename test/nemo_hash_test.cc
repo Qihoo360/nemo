@@ -663,6 +663,7 @@ TEST_F(NemoHashTest, TestHScan)
 	n_->HKeys(key, fields);
 	for(vector<string>::iterator iter = fields.begin(); iter != fields.end(); iter++)
 	{
+    fprintf (stderr, "hdel (%s)\n", iter->c_str());
 		n_->HDel(key, *iter);
 	}
 
@@ -698,10 +699,10 @@ TEST_F(NemoHashTest, TestHScan)
 	hiter = n_->HScan(key, start, end, limit);\
 	index = startInt;\
 	flag = true;\
-	while(hiter->Next())\
+  for (; hiter->Valid(); hiter->Next())\
 	{\
-		EXPECT_EQ(key + "_" + itoa(numPre + index), hiter->Field());\
-		if(key + "_" + itoa(numPre + index) != hiter->Field())\
+		EXPECT_EQ(key + "_" + itoa(numPre + index), hiter->field());\
+		if(key + "_" + itoa(numPre + index) != hiter->field())\
 		{\
 			flag = false;\
 		}\
@@ -784,7 +785,7 @@ TEST_F(NemoHashTest, TestHScan)
 	}
 	hiter = n_->HScan("", "", "", -1);
 	index = 0;
-	while(hiter->Next())
+  for (; hiter->Valid(); hiter->Next())
 	{
 		index++;
 	}

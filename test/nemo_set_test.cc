@@ -215,7 +215,7 @@ TEST_F(NemoSetTest, TestSScan) {
 #define SScanLoopProcess(limit, expectedNum, testMessage)\
 	siter = n_->SScan(key, limit);\
 	num = 0;\
-	while (siter->Next()) {\
+  for (; siter->Valid(); siter->Next()){\
 		num++;\
 	}\
 	EXPECT_EQ(expectedNum, num);\
@@ -1005,8 +1005,9 @@ TEST_F(NemoSetTest, TestSPop) {
 	s_.OK();//key存在，存的是Set结构
 	key = GetRandomKey_();
 	nemo::SIterator* siter = n_->SScan(key, -1);
-	while (siter->Next()) {
-		n_->SRem(key, siter->Member(), &resTemp);
+  for (; siter->Valid(); siter->Next()) {
+	//while (siter->Next()) {
+		n_->SRem(key, siter->member(), &resTemp);
 	}
 	delete siter;
 	member = GetRandomVal_();

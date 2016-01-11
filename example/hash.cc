@@ -10,124 +10,119 @@
 
 using namespace nemo;
 
-int main()
-{
-    nemo::Options options;
-    options.target_file_size_base = 20 * 1024 * 1024;
+Nemo *n;
 
-    Nemo *n = new Nemo("./tmp/", options); 
-    Status s;
+void* ThreadMain1(void *arg) {
+  Status s = n->HSet("tHSetKey", "field1", "value1");
+  log_info("Test HSet field1 OK return %s", s.ToString().c_str());
+  return NULL;
+}
 
-    std::string res;
+void* ThreadMain2(void *arg) {
+  Status s = n->HSet("tHSetKey", "field2", "value2");
+  log_info("Test HSet field2 OK return %s", s.ToString().c_str());
+  return NULL;
+}
 
-    /*
-     *************************************************KV**************************************************
-     */
+void* ThreadMain3(void *arg) {
+  Status s = n->HSet("tHSetKey", "field3", "value3");
+  log_info("Test HSet field3 OK return %s", s.ToString().c_str());
+  return NULL;
+}
 
-    std::vector<std::string> keys;
-    std::vector<KV> kvs;
-    std::vector<KVS> kvss;
-    std::vector<SM> sms;
+void* ThreadMain4(void *arg) {
+  Status s = n->HSet("tHSetKey1", "field3", "value3");
+  log_info("Test HSet field3 OK return %s", s.ToString().c_str());
+  return NULL;
+}
 
-    /*
-     *************************************************HASH**************************************************
-     */
-    std::vector<std::string> fields;
-    std::vector<std::string> values;
-    std::vector<FV> fvs;
-    std::vector<FVS> fvss;
-    
-    for (int i = 0; i < 2; i++) {
-      /*
-       *  Test HSet
-       */
-      log_info("======Test HSet======");
-      s = n->HSet("tHSetKey", "field1", "value1");
-      s = n->HSet("tHSetKey", "field2", "value2");
-      s = n->HSet("tHSetKey", "field3", "value3");
-      log_info("Test HSet OK return %s", s.ToString().c_str());
-      log_info("");
+void* ThreadMain5(void *arg) {
+  Status s = n->HSet("tHSetKey2", "field3", "value3");
+  log_info("Test HSet field3 OK return %s", s.ToString().c_str());
+  return NULL;
+}
 
-      /*
-       *  Test HGetall
-       */
-      log_info("======Test HGetall======");
-      fvs.clear();
-      s = n->HGetall("tHSetKey", fvs);
-      log_info("Test HGetall OK return %s", s.ToString().c_str());
-      std::vector<FV>::iterator fv_iter;
-      for (fv_iter = fvs.begin(); fv_iter != fvs.end(); fv_iter++) {
-        log_info("Test HGetall, field: %s, val: %s", fv_iter->field.c_str(), fv_iter->val.c_str());
-      }
-      log_info("");
+void* ThreadMain6(void *arg) {
+  Status s = n->HSet("tHSetKey3", "field3", "value3");
+  log_info("Test HSet field3 OK return %s", s.ToString().c_str());
+  return NULL;
+}
 
-      /*
-       *  Test HDelKey
-       */
-      log_info("======Test HDelKey======");
+int main() {
+  nemo::Options options;
+  options.target_file_size_base = 20 * 1024 * 1024;
 
-      int64_t del_ret;
-      s = n->HDelKey("tHSetKey", &del_ret);
-      log_info("Test HDelKey return %s", s.ToString().c_str());
+  n = new Nemo("./tmp/", options); 
+  Status s;
 
-      HIterator *hit = n->HScan("tHSetKey", "", "", -1);
-      if (hit == NULL) {
-        log_info("HScan error!");
-      }
-      for (; hit->Valid(); hit->Next()) {
-        log_info("HScan key: %s, field: %s, value: %s", hit->key().c_str(), hit->field().c_str(), hit->value().c_str());
-      }
-      log_info("");
-      delete hit;
-    }
+  std::string res;
 
-    s = n->HSet("tHSetKey", "field11", "value11");
-    s = n->HSet("tHSetKey", "field21", "value21");
-    s = n->HSet("tHSetKey", "field31", "value31");
-    s = n->HSet("tHSetKey", "field41", "value41");
-    s = n->HSet("tHSetKey", "field51", "value51");
+  std::vector<std::string> keys;
+  std::vector<KV> kvs;
+  std::vector<KVS> kvss;
+  std::vector<SM> sms;
 
-    /*
-     *  Test HGetall
-     */
-    log_info("======Test HGetall with new fields======");
-    fvs.clear();
-    s = n->HGetall("tHSetKey", fvs);
-    log_info("Test HGetall OK return %s", s.ToString().c_str());
-    std::vector<FV>::iterator fv_iter;
-    for (fv_iter = fvs.begin(); fv_iter != fvs.end(); fv_iter++) {
-      log_info("Test HGetall, field: %s, val: %s", fv_iter->field.c_str(), fv_iter->val.c_str());
-    }
-    log_info("");
+  /*
+   *************************************************HASH**************************************************
+   */
+  std::vector<std::string> fields;
+  std::vector<std::string> values;
+  std::vector<FV> fvs;
+  std::vector<FVS> fvss;
 
-    /*
-     *  Test HGetall
-     */
-    log_info("======Test Compact======");
-    n->Compact();
+  log_info("======Test HSet Same key======");
 
-    /*
-     *  Test Expire 
-     */
-    int64_t e_ret;
-    int64_t ttl;
+  pthread_t tid[3];
+  pthread_create(&tid[0], NULL, &ThreadMain1, NULL);
+  pthread_create(&tid[1], NULL, &ThreadMain2, NULL);
+  pthread_create(&tid[2], NULL, &ThreadMain3, NULL);
 
-    log_info("======Test HExpire======");
-    s = n->HExpire("tHSetKey", 7, &e_ret);
-    log_info("Test HExpire with key=tHSetKey in 7s, return %s", s.ToString().c_str());
+  for (int i = 0; i < 3; i++) {
+      pthread_join(tid[i], 0); 
+  }
 
-    for (int i = 0; i < 3; i++) {
-        sleep(3);
-        s = n->HGet("tHSetKey", "field11", &res);
-        log_info("          after %ds, return %s", (i+1)*3, s.ToString().c_str());
-        if (s.ok()) {
-            n->HTTL("tHSetKey", &ttl);
-            log_info("          new TTL is %ld, HGet field11 res:%s\n", ttl, res.c_str());
-        }
-    }
-    log_info("");
+  log_info("======Test HSet different key======");
 
-    delete n;
+  pthread_create(&tid[0], NULL, &ThreadMain4, NULL);
+  pthread_create(&tid[1], NULL, &ThreadMain5, NULL);
 
-    return 0;
+  for (int i = 0; i < 2; i++) {
+      pthread_join(tid[i], 0); 
+  }
+
+  log_info("======Test HSet different key with all the lru in use======");
+ // pthread_create(&tid[0], NULL, &ThreadMain4, NULL);
+ // pthread_create(&tid[1], NULL, &ThreadMain5, NULL);
+ // pthread_create(&tid[2], NULL, &ThreadMain6, NULL);
+
+ // for (int i = 0; i < 3; i++) {
+ //     pthread_join(tid[i], 0); 
+ // }
+
+  /*
+   *  Test HGetall
+   */
+  log_info("======Test HGetall======");
+  fvs.clear();
+  s = n->HGetall("tHSetKey", fvs);
+  log_info("Test HGetall OK return %s", s.ToString().c_str());
+  std::vector<FV>::iterator fv_iter;
+  for (fv_iter = fvs.begin(); fv_iter != fvs.end(); fv_iter++) {
+    log_info("Test HGetall, field: %s, val: %s", fv_iter->field.c_str(), fv_iter->val.c_str());
+  }
+  log_info("");
+
+  HIterator *hit = n->HScan("tHSetKey", "", "", -1);
+  if (hit == NULL) {
+    log_info("HScan error!");
+  }
+  for (; hit->Valid(); hit->Next()) {
+    log_info("HScan key: %s, field: %s, value: %s", hit->key().c_str(), hit->field().c_str(), hit->value().c_str());
+  }
+  log_info("");
+  delete hit;
+
+  delete n;
+
+  return 0;
 }

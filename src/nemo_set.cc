@@ -15,7 +15,8 @@ Status Nemo::SAdd(const std::string &key, const std::string &member, int64_t *re
     }
 
     Status s;
-    MutexLock l(&mutex_set_);
+    RecordLock l(&mutex_set_record_, key);
+    //MutexLock l(&mutex_set_);
     rocksdb::WriteBatch writebatch;
     std::string set_key = EncodeSetKey(key, member);
 
@@ -68,7 +69,8 @@ Status Nemo::SRem(const std::string &key, const std::string &member, int64_t *re
     }
 
     Status s;
-    MutexLock l(&mutex_set_);
+    //MutexLock l(&mutex_set_);
+    RecordLock l(&mutex_set_record_, key);
     rocksdb::WriteBatch writebatch;
     std::string set_key = EncodeSetKey(key, member);
 
@@ -184,6 +186,7 @@ Status Nemo::SUnion(const std::vector<std::string> &keys, std::vector<std::strin
     std::map<std::string, bool> result_flag;
     
     for (int i = 0; i < (int)keys.size(); i++) {
+        RecordLock l(&mutex_set_record_, keys[i]);
         SIterator *iter = SScan(keys[i], -1, true);
         
         for (; iter->Valid(); iter->Next()) {
@@ -201,15 +204,16 @@ Status Nemo::SUnion(const std::vector<std::string> &keys, std::vector<std::strin
 
 Status Nemo::SUnionStore(const std::string &destination, const std::vector<std::string> &keys, int64_t *res) {
     int numkey = keys.size();
-    MutexLock l(&mutex_set_);
+    //MutexLock l(&mutex_set_);
     if (numkey <= 0) {
-        return Status::Corruption("SInter invalid parameter, no keys");
+        return Status::Corruption("invalid parameter, no keys");
     }
 
     std::map<std::string, int> member_result;
     std::map<std::string, int>::iterator it;
 
     for (int i = 0; i < numkey; i++) {
+        RecordLock l(&mutex_set_record_, keys[i]);
         SIterator *iter = SScan(keys[i], -1, true);
         
         for (; iter->Valid(); iter->Next()) {
@@ -223,6 +227,7 @@ Status Nemo::SUnionStore(const std::string &destination, const std::vector<std::
     Status s;
     int64_t tmp_res;
 
+    RecordLock l(&mutex_set_record_, destination);
     if (SCard(destination) > 0) {
         SIterator *iter = SScan(destination, -1, true);
         for (; iter->Valid(); iter->Next()) {
@@ -255,6 +260,7 @@ bool Nemo::SIsMember(const std::string &key, const std::string &member) {
     return s.ok();
 }
 
+//Note: no lock
 Status Nemo::SInter(const std::vector<std::string> &keys, std::vector<std::string>& members) {
     int numkey = keys.size();
     if (numkey <= 0) {
@@ -282,9 +288,13 @@ Status Nemo::SInter(const std::vector<std::string> &keys, std::vector<std::strin
 
 Status Nemo::SInterStore(const std::string &destination, const std::vector<std::string> &keys, int64_t *res) {
     int numkey = keys.size();
-    MutexLock l(&mutex_set_);
+    //MutexLock l(&mutex_set_);
     if (numkey <= 0) {
         return Status::Corruption("SInter invalid parameter, no keys");
+    }
+
+    for (size_t i = 0; i < keys.size(); i++) {
+      mutex_set_record_.Lock(keys[i]);
     }
 
     std::map<std::string, int> member_result;
@@ -306,10 +316,15 @@ Status Nemo::SInterStore(const std::string &destination, const std::vector<std::
     set_db_->ReleaseSnapshot(iter->read_options().snapshot);
     delete iter;
 
+    for (size_t i = 0; i < keys.size(); i++) {
+      mutex_set_record_.Unlock(keys[i]);
+    }
+
     // we delete the destination if it exists
     Status s;
     int64_t tmp_res;
 
+    RecordLock l(&mutex_set_record_, destination);
     if (SCard(destination) > 0) {
         SIterator *iter = SScan(destination, -1, true);
         for (; iter->Valid(); iter->Next()) {
@@ -323,15 +338,15 @@ Status Nemo::SInterStore(const std::string &destination, const std::vector<std::
         delete iter;
     }
 
-
     for (it = member_result.begin(); it != member_result.end(); it++) {
         s = SAddNoLock(destination, it->first, &tmp_res);
         if (!s.ok()) {
-            return s;
+            break;
         }
     }
+
     *res = member_result.size();
-    return Status::OK();
+    return s;
 }
 
 Status Nemo::SDiff(const std::vector<std::string> &keys, std::vector<std::string>& members) {
@@ -361,7 +376,7 @@ Status Nemo::SDiff(const std::vector<std::string> &keys, std::vector<std::string
 
 Status Nemo::SDiffStore(const std::string &destination, const std::vector<std::string> &keys, int64_t *res) {
     int numkey = keys.size();
-    MutexLock l(&mutex_set_);
+    //MutexLock l(&mutex_set_);
     if (numkey <= 0) {
         return Status::Corruption("SDiff invalid parameter, no keys");
     }
@@ -390,6 +405,7 @@ Status Nemo::SDiffStore(const std::string &destination, const std::vector<std::s
     Status s;
     int64_t tmp_res;
 
+    RecordLock l(&mutex_set_record_, destination);
     if (SCard(destination) > 0) {
         SIterator *iter = SScan(destination, -1, true);
         for (; iter->Valid(); iter->Next()) {
@@ -420,7 +436,8 @@ Status Nemo::SPop(const std::string &key, std::string &member) {
         return Status::NotFound();
     }
 
-    MutexLock l(&mutex_set_);
+    //MutexLock l(&mutex_set_);
+    RecordLock l(&mutex_set_record_, key);
     srand (time(NULL));
     int k = rand() % card + 1;
 
@@ -434,6 +451,7 @@ Status Nemo::SPop(const std::string &key, std::string &member) {
     return SRemNoLock(key, member, &res);
 }
 
+//Note: no lock
 Status Nemo::SRandMember(const std::string &key, std::vector<std::string> &members, const int count) {
     members.clear();
 
@@ -497,11 +515,13 @@ Status Nemo::SRandMember(const std::string &key, std::vector<std::string> &membe
 
 Status Nemo::SMove(const std::string &source, const std::string &destination, const std::string &member, int64_t *res) {
     Status s;
-    MutexLock l(&mutex_set_);
+    //MutexLock l(&mutex_set_);
     rocksdb::WriteBatch writebatch;
     std::string source_key = EncodeSetKey(source, member);
     std::string destination_key = EncodeSetKey(destination, member);
 
+    RecordLock l1(&mutex_set_record_, source);
+    RecordLock l2(&mutex_set_record_, destination);
     std::string val;
     s = set_db_->Get(rocksdb::ReadOptions(), source_key, &val);
 
@@ -531,7 +551,7 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
     return s;
 }
 
-Status Nemo::SDelKey(const std::string &key, int64_t *res) {
+Status Nemo::SDelKey(const std::string &key, int64_t *res, bool is_lock) {
     if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
@@ -542,21 +562,26 @@ Status Nemo::SDelKey(const std::string &key, int64_t *res) {
 
     std::string size_key = EncodeSSizeKey(key);
 
+    if (is_lock) {
+      mutex_set_record_.Lock(key);
+    }
+
     s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
-    if (!s.ok()) {
-        return s;
+    if (s.ok()) {
+      int64_t len = *(int64_t *)val.data();
+      if (len <= 0) {
+        s = Status::NotFound("");
+      } else {
+        len = 0;
+        *res = 1;
+        //MutexLock l(&mutex_set_);
+        s = set_db_->PutWithKeyVersion(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+      }
     }
 
-    int64_t len = *(int64_t *)val.data();
-    if (len <= 0) {
-      return Status::NotFound("");
+    if (is_lock) {
+      mutex_set_record_.Unlock(key);
     }
-
-    len = 0;
-    *res = 1;
-    MutexLock l(&mutex_set_);
-    s = set_db_->PutWithKeyVersion(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
-
     return s;
 }
 
@@ -568,6 +593,7 @@ Status Nemo::SExpire(const std::string &key, const int32_t seconds, int64_t *res
     Status s;
     std::string val;
 
+    RecordLock l(&mutex_set_record_, key);
     std::string size_key = EncodeSSizeKey(key);
     s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
     if (s.IsNotFound()) {
@@ -579,11 +605,11 @@ Status Nemo::SExpire(const std::string &key, const int32_t seconds, int64_t *res
       }
 
       if (seconds > 0) {
-        MutexLock l(&mutex_set_);
+        //MutexLock l(&mutex_set_);
         s = set_db_->PutWithKeyTTL(rocksdb::WriteOptions(), size_key, val, seconds);
       } else { 
         int64_t count;
-        s = SDelKey(key, &count);
+        s = SDelKey(key, &count, false);
       }
       *res = 1;
     }
@@ -597,6 +623,7 @@ Status Nemo::STTL(const std::string &key, int64_t *res) {
 
     Status s;
     std::string val;
+    RecordLock l(&mutex_set_record_, key);
 
     std::string size_key = EncodeSSizeKey(key);
     s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
@@ -618,6 +645,8 @@ Status Nemo::SPersist(const std::string &key, int64_t *res) {
     Status s;
     std::string val;
 
+    RecordLock l(&mutex_set_record_, key);
+
     *res = 0;
     std::string size_key = EncodeSSizeKey(key);
     s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
@@ -626,7 +655,7 @@ Status Nemo::SPersist(const std::string &key, int64_t *res) {
         int32_t ttl;
         s = set_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
         if (s.ok() && ttl >= 0) {
-            MutexLock l(&mutex_set_);
+            //MutexLock l(&mutex_set_);
             s = set_db_->Put(rocksdb::WriteOptions(), size_key, val);
             *res = 1;
         }
@@ -642,6 +671,8 @@ Status Nemo::SExpireat(const std::string &key, const int32_t timestamp, int64_t 
     Status s;
     std::string val;
 
+    RecordLock l(&mutex_set_record_, key);
+
     std::string size_key = EncodeSSizeKey(key);
     s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
     if (s.IsNotFound()) {
@@ -655,9 +686,9 @@ Status Nemo::SExpireat(const std::string &key, const int32_t timestamp, int64_t 
       std::time_t cur = std::time(0);
       if (timestamp <= cur) {
         int64_t count;
-        s = SDelKey(key, &count);
+        s = SDelKey(key, &count, false);
       } else {
-        MutexLock l(&mutex_set_);
+        //MutexLock l(&mutex_set_);
         s = set_db_->PutWithExpiredTime(rocksdb::WriteOptions(), size_key, val, timestamp);
       }
       *res = 1;

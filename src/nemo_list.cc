@@ -23,7 +23,6 @@ static int32_t ParseMeta(std::string &meta_val, ListMeta &meta) {
 int32_t Nemo::L2R(const std::string &key, const int64_t index, const int64_t left, int64_t *priv, int64_t *cur, int64_t *next) {
     int64_t t = index;
     int64_t t_cur = left;
-    int64_t seq;
     Status s;
     std::string db_key;
     std::string en_val;
@@ -49,7 +48,6 @@ int32_t Nemo::L2R(const std::string &key, const int64_t index, const int64_t lef
 int32_t Nemo::R2L(const std::string &key, const int64_t index, const int64_t right, int64_t *priv, int64_t *cur, int64_t *next) {
     int64_t t = index;
     int64_t t_cur = right;
-    int64_t seq;
     Status s;
     std::string db_key;
     std::string en_val;
@@ -77,7 +75,8 @@ Status Nemo::LIndex(const std::string &key, const int64_t index, std::string *va
     rocksdb::WriteBatch batch;
     std::string meta_val;
     ListMeta meta;
-
+    RecordLock l(&mutex_list_record_, key);
+    
     int64_t priv;
     int64_t cur;
     int64_t next;
@@ -146,7 +145,8 @@ Status Nemo::LPush(const std::string &key, const std::string &val, int64_t *llen
     std::string en_val;
     std::string raw_val;
     std::string meta_key = EncodeLMetaKey(key);
-    MutexLock l(&mutex_list_);
+    //MutexLock l(&mutex_list_);
+    RecordLock l(&mutex_list_record_, key);
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
     if (s.ok()) {
         if (ParseMeta(meta_val, meta) == 0) {
@@ -206,7 +206,8 @@ Status Nemo::LPop(const std::string &key, std::string *val) {
     std::string en_val;
     std::string raw_val;
     std::string meta_key = EncodeLMetaKey(key);
-    MutexLock l(&mutex_list_);
+    //MutexLock l(&mutex_list_);
+    RecordLock l(&mutex_list_record_, key);
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
     if (s.ok()) {
         if (ParseMeta(meta_val, meta) == 0) {
@@ -221,7 +222,7 @@ Status Nemo::LPop(const std::string &key, std::string *val) {
             }
             DecodeListVal(en_val, &priv, &next, *val);
 
-
+            meta.left = next;
             if (next != 0) {
                 std::string l_key = EncodeListKey(key, next);
                 s = list_db_->Get(rocksdb::ReadOptions(), l_key, &en_val);
@@ -234,7 +235,6 @@ Status Nemo::LPop(const std::string &key, std::string *val) {
             }
 
             --meta.len;
-            meta.left = next;
             if (meta.len == 0) {
                 meta.right = 0;
                 meta.cur_seq = 1;
@@ -292,6 +292,8 @@ Status Nemo::LRange(const std::string &key, const int64_t begin, const int64_t e
     std::string meta_key = EncodeLMetaKey(key);
     std::string db_key;
 //    MutexLock l(&mutex_list_);
+    RecordLock l(&mutex_list_record_, key);
+
     const rocksdb::Snapshot* ss = list_db_->GetSnapshot();
     rocksdb::ReadOptions rop = rocksdb::ReadOptions();
     rop.snapshot = ss;
@@ -370,7 +372,8 @@ Status Nemo::LSet(const std::string &key, const int64_t index, const std::string
     int64_t next;
     std::string en_val;
     std::string meta_key = EncodeLMetaKey(key);
-    MutexLock l(&mutex_list_);
+    RecordLock l(&mutex_list_record_, key);
+    //MutexLock l(&mutex_list_);
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
     if (s.ok()) {
         if (ParseMeta(meta_val, meta) == 0) {
@@ -413,7 +416,8 @@ Status Nemo::LTrim(const std::string &key, const int64_t begin, const int64_t en
     std::string meta_key = EncodeLMetaKey(key);
     std::string db_key;
     rocksdb::WriteBatch batch;
-    MutexLock l(&mutex_list_);
+    RecordLock l(&mutex_list_record_, key);
+    //MutexLock l(&mutex_list_);
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
     if (s.ok()) {
         if (ParseMeta(meta_val, meta) == 0) {
@@ -513,7 +517,8 @@ Status Nemo::RPush(const std::string &key, const std::string &val, int64_t *llen
     std::string en_val;
     std::string raw_val;
     std::string meta_key = EncodeLMetaKey(key);
-    MutexLock l(&mutex_list_);
+    //MutexLock l(&mutex_list_);
+    RecordLock l(&mutex_list_record_, key);
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
     if (s.ok()) {
         if (ParseMeta(meta_val, meta) == 0) {
@@ -574,7 +579,8 @@ Status Nemo::RPop(const std::string &key, std::string *val) {
     std::string en_val;
     std::string raw_val;
     std::string meta_key = EncodeLMetaKey(key);
-    MutexLock l(&mutex_list_);
+    //MutexLock l(&mutex_list_);
+    RecordLock l(&mutex_list_record_, key);
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
     if (s.ok()) {
         if (ParseMeta(meta_val, meta) == 0) {
@@ -589,6 +595,7 @@ Status Nemo::RPop(const std::string &key, std::string *val) {
             }
             DecodeListVal(en_val, &priv, &next, *val);
 
+            meta.right = priv;
 
             if (priv != 0) {
                 std::string r_key = EncodeListKey(key, priv);
@@ -601,7 +608,6 @@ Status Nemo::RPop(const std::string &key, std::string *val) {
                 batch.Put(r_key, en_val);
             }
             
-            meta.right = priv;
             --meta.len;
             if (meta.len == 0) {
                 meta.left = 0;
@@ -663,7 +669,9 @@ Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::str
     std::string db_key_l;
     std::string meta_key_l = EncodeLMetaKey(dest);
 
-    MutexLock l(&mutex_list_);
+    //MutexLock l(&mutex_list_);
+    RecordLock l1(&mutex_list_record_, dest);
+    RecordLock l2(&mutex_list_record_, src);
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key_r, &meta_r);
     if (s.ok()) {
         if (ParseMeta(meta_r, meta) == 0) {
@@ -769,7 +777,8 @@ Status Nemo::LInsert(const std::string &key, Position pos, const std::string &pi
     std::string en_val;
     std::string raw_val;
     std::string meta_key = EncodeLMetaKey(key);
-    MutexLock l(&mutex_list_);
+    //MutexLock l(&mutex_list_);
+    RecordLock l(&mutex_list_record_, key);
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
     if (s.ok()) {
         if (ParseMeta(meta_val, meta) == 0) {
@@ -859,15 +868,14 @@ Status Nemo::LRem(const std::string &key, const int64_t count, const std::string
     rocksdb::WriteBatch batch;
     std::string meta_val;
     ListMeta meta;
-    int64_t before_seq;
-    int64_t after_seq;
 
     int64_t priv;
     int64_t next;
     std::string en_val;
     std::string raw_val;
     std::string meta_key = EncodeLMetaKey(key);
-    MutexLock l(&mutex_list_);
+    //MutexLock l(&mutex_list_);
+    RecordLock l(&mutex_list_record_, key);
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
     if (s.ok()) {
         if (ParseMeta(meta_val, meta) == 0) {
@@ -962,7 +970,7 @@ Status Nemo::LRem(const std::string &key, const int64_t count, const std::string
     }
 }
 
-Status Nemo::LDelKey(const std::string &key, int64_t *res) {
+Status Nemo::LDelKey(const std::string &key, int64_t *res, bool is_lock) {
     if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
@@ -972,27 +980,29 @@ Status Nemo::LDelKey(const std::string &key, int64_t *res) {
     std::string meta_val;
     std::string meta_key = EncodeLMetaKey(key);
 
+    //RecordLock l(&mutex_list_record_, key);
+
+    if (is_lock) {
+      mutex_list_record_.Lock(key);
+    }
+
     *res = 0;
 
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
-    if (!s.ok()) {
-        return s;
+    if (s.ok()) {
+      if (ParseMeta(meta_val, meta) != 0 || meta.len == 0) {
+        s = Status::NotFound("not found key");
+      } else {
+        meta = ListMeta();
+
+        *res = 1;
+        s = list_db_->PutWithKeyVersion(rocksdb::WriteOptions(), meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+      }
     }
 
-    if (ParseMeta(meta_val, meta) != 0) {
-        return Status::NotFound("not found key");
+    if (is_lock) {
+      mutex_list_record_.Unlock(key);
     }
-    if (meta.len == 0) {
-        return Status::NotFound("not found key");
-    }
-
-    meta = ListMeta();
-    //memcpy(meta_val, (char *)&meta, sizeof(ListMeta));
-
-    *res = 1;
-    MutexLock l(&mutex_list_);
-    //s = list_db_->PutWithKeyVersion(rocksdb::WriteOptions(), meta_key, meta_val);
-    s = list_db_->PutWithKeyVersion(rocksdb::WriteOptions(), meta_key, std::string((char *)&meta, sizeof(ListMeta)));
 
     return s;
 }
@@ -1007,6 +1017,7 @@ Status Nemo::LExpire(const std::string &key, const int32_t seconds, int64_t *res
     std::string meta_val;
     std::string meta_key = EncodeLMetaKey(key);
 
+    RecordLock l(&mutex_list_record_, key);
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
     if (s.IsNotFound()) {
         *res = 0;
@@ -1019,11 +1030,11 @@ Status Nemo::LExpire(const std::string &key, const int32_t seconds, int64_t *res
         }
 
         if (seconds > 0) {
-            MutexLock l(&mutex_list_);
+            //MutexLock l(&mutex_list_);
             s = list_db_->PutWithKeyTTL(rocksdb::WriteOptions(), meta_key, meta_val, seconds);
         } else { 
             int64_t count; 
-            s = LDelKey(key, &count);
+            s = LDelKey(key, &count, false);
         }
     }
 
@@ -1039,6 +1050,8 @@ Status Nemo::LTTL(const std::string &key, int64_t *res) {
     Status s;
     std::string meta_val;
     std::string meta_key = EncodeLMetaKey(key);
+
+    RecordLock l(&mutex_list_record_, key);
 
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
     if (s.IsNotFound()) {
@@ -1068,6 +1081,8 @@ Status Nemo::LPersist(const std::string &key, int64_t *res) {
     std::string meta_val;
     std::string meta_key = EncodeLMetaKey(key);
 
+    RecordLock l(&mutex_list_record_, key);
+
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
 
     if (s.ok()) {
@@ -1081,7 +1096,7 @@ Status Nemo::LPersist(const std::string &key, int64_t *res) {
         int32_t ttl;
         s = list_db_->GetKeyTTL(rocksdb::ReadOptions(), meta_key, &ttl);
         if (s.ok() && ttl >= 0) {
-            MutexLock l(&mutex_list_);
+            //MutexLock l(&mutex_list_);
             s = list_db_->Put(rocksdb::WriteOptions(), meta_key, meta_val);
             *res = 1;
         }
@@ -1099,6 +1114,8 @@ Status Nemo::LExpireat(const std::string &key, const int32_t timestamp, int64_t 
     std::string meta_val;
     std::string meta_key = EncodeLMetaKey(key);
 
+    RecordLock l(&mutex_list_record_, key);
+
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
     if (s.IsNotFound()) {
         *res = 0;
@@ -1113,9 +1130,9 @@ Status Nemo::LExpireat(const std::string &key, const int32_t timestamp, int64_t 
       std::time_t cur = std::time(0);
       if (timestamp <= cur) { 
         int64_t count;
-        s = LDelKey(key, &count);
+        s = LDelKey(key, &count, false);
       } else { 
-        MutexLock l(&mutex_list_);
+        //MutexLock l(&mutex_list_);
         s = list_db_->PutWithExpiredTime(rocksdb::WriteOptions(), meta_key, meta_val, timestamp);
       }
     }

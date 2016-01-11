@@ -54,9 +54,10 @@ public:
 		//	n_->SRem(key, key+"_"+itoa(index), &resTemp);
 		//}
 		nemo::SIterator* siter = n_->SScan(key, -1);
-		while(siter->Next())
+    for (; siter->Valid(); siter->Next())
+		//while(siter->Next())
 		{
-			n_->SRem(key, siter->Member(), &resTemp);
+			n_->SRem(key, siter->member(), &resTemp);
 		}
 		delete siter;
 		for (int64_t index = 0; index != num; index++)
@@ -73,9 +74,10 @@ public:
 		//	n_->SRem(key, key+"_"+itoa(index), &resTemp);
 		//}
 		nemo::SIterator* siter = n_->SScan(key, -1);
-		while(siter->Next())
-		{
-			n_->SRem(key, siter->Member(), &resTemp);
+    for (; siter->Valid(); siter->Next())
+    {
+		//while(siter->Next()) {
+			n_->SRem(key, siter->member(), &resTemp);
 		}
 		delete siter;
 		for (int64_t index = numStart; index != numEnd; index++)
@@ -87,8 +89,9 @@ public:
 	void deleteAllMembers(string key) {
 		nemo::SIterator* siter = n_->SScan(key, -1);
 		int64_t resTemp;
-		while (siter->Next()) {
-			n_->SRem(key, siter->Member(), &resTemp);
+		//while (siter->Next()) {
+    for (; siter->Valid(); siter->Next()) {
+			n_->SRem(key, siter->member(), &resTemp);
 		}
 		delete siter;
 	}

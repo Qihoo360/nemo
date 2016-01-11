@@ -58,7 +58,7 @@ public:
         : Iterator(it, iter_options) {}
     virtual void Next();
     virtual void Skip(int64_t offset);
-    //virtual bool Valid();
+    virtual bool Valid();
     std::string key()       { return key_; };
     std::string value()     { return value_; };
     

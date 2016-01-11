@@ -1,0 +1,126 @@
+//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+//
+// Copyright (c) 2011 The LevelDB Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file. See the AUTHORS file for names of contributors.
+
+#include "port.h"
+
+#include <stdio.h>
+#include <assert.h>
+#include <errno.h>
+#include <sys/time.h>
+#include <string.h>
+#include <cstdlib>
+
+#include "xdebug.h"
+
+namespace nemo {
+namespace port {
+
+static int PthreadCall(const char* label, int result) {
+  if (result != 0 && result != ETIMEDOUT) {
+    fprintf(stderr, "pthread %s: %s\n", label, strerror(result));
+    abort();
+  }
+  return result;
+}
+
+Mutex::Mutex() { PthreadCall("init mutex", pthread_mutex_init(&mu_, nullptr)); }
+
+Mutex::~Mutex() { PthreadCall("destroy mutex", pthread_mutex_destroy(&mu_)); }
+
+void Mutex::Lock() { PthreadCall("lock", pthread_mutex_lock(&mu_)); }
+
+void Mutex::Unlock() { PthreadCall("unlock", pthread_mutex_unlock(&mu_)); }
+
+RWMutex::RWMutex() { PthreadCall("init mutex", pthread_rwlock_init(&mu_, nullptr)); }
+
+RWMutex::~RWMutex() { PthreadCall("destroy mutex", pthread_rwlock_destroy(&mu_)); }
+
+void RWMutex::ReadLock() { PthreadCall("read lock", pthread_rwlock_rdlock(&mu_)); }
+
+void RWMutex::WriteLock() { PthreadCall("write lock", pthread_rwlock_wrlock(&mu_)); }
+
+void RWMutex::ReadUnlock() { PthreadCall("read unlock", pthread_rwlock_unlock(&mu_)); }
+
+void RWMutex::WriteUnlock() { PthreadCall("write unlock", pthread_rwlock_unlock(&mu_)); }
+
+#include <pthread.h>
+
+RecordMutex::~RecordMutex() {
+  //rw_mutex_.WriteLock();
+  std::unordered_map<std::string, data_type>::const_iterator it = records_.begin();
+  for (; it != records_.end(); it++) {
+    delete it->second.first;
+  }
+  //rw_mutex_.WriteUnlock();
+}
+
+
+void RecordMutex::Lock(const std::string &key) {
+  mutex_.Lock();
+  //rw_mutex_.ReadLock();
+  std::unordered_map<std::string, data_type>::const_iterator it = records_.find(key);
+
+  if (it != records_.end()) {
+    log_info ("tid=(%u) >Lock key=(%s) exist", pthread_self(), key.c_str());
+    Mutex *mu = it->second.first;
+    lru_.splice(lru_.end(), lru_, it->second.second);
+    mutex_.Unlock();
+
+    mu->Lock();
+    log_info ("tid=(%u) <Lock key=(%s) exist", pthread_self(), key.c_str());
+  } else {
+    log_info ("tid=(%u) >Lock key=(%s) new", pthread_self(), key.c_str());
+    // insert new
+    if (lru_.size() == capacity_)
+      evict();
+
+    Mutex *mu = new Mutex();
+
+    std::list<std::string>::iterator lru_it = lru_.insert(lru_.end(), key);
+    records_.insert(std::make_pair(key, std::make_pair(mu, lru_it)));
+    mutex_.Unlock();
+
+
+    mu->Lock();
+    log_info ("tid=(%u) <Lock key=(%s) new", pthread_self(), key.c_str());
+  }
+}
+
+void RecordMutex::Unlock(const std::string &key) {
+  mutex_.Lock();
+  std::unordered_map<std::string, data_type>::const_iterator it = records_.find(key);
+  
+  log_info ("tid=(%u) >Unlock key=(%s) new", pthread_self(), key.c_str());
+  if (it != records_.end()) {
+    Mutex *mu = it->second.first;
+    mutex_.Unlock();
+
+    mu->Unlock();
+  }
+  log_info ("tid=(%u) <Unlock key=(%s) new", pthread_self(), key.c_str());
+}
+
+// no lock
+void RecordMutex::evict() {
+    std::unordered_map<std::string, data_type>::const_iterator it = records_.find(lru_.front());
+
+    assert(it != records_.end());
+
+    log_info ("tid=(%u) >evict lru key=(%s)", pthread_self(), lru_.front().c_str());
+    //rw_mutex_.WriteLock();
+    Mutex *mu = it->second.first;
+    delete mu; 
+    records_.erase(it);
+    lru_.pop_front();
+    //rw_mutex_.WriteUnlock();
+    log_info ("tid=(%u) <evict lru key=(%s)", pthread_self(), lru_.front().c_str());
+}
+
+}  // namespace port
+}  // namespace nemo

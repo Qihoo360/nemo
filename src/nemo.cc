@@ -16,11 +16,11 @@ namespace nemo {
 Nemo::Nemo(const std::string &db_path, const Options &options) :
     db_path_(db_path), save_flag_(false)
 {
-    pthread_mutex_init(&(mutex_kv_), NULL);
-    pthread_mutex_init(&(mutex_hash_), NULL);
-    pthread_mutex_init(&(mutex_list_), NULL);
-    pthread_mutex_init(&(mutex_zset_), NULL);
-    pthread_mutex_init(&(mutex_set_), NULL);
+   // pthread_mutex_init(&(mutex_kv_), NULL);
+   // pthread_mutex_init(&(mutex_hash_), NULL);
+   // pthread_mutex_init(&(mutex_list_), NULL);
+   // pthread_mutex_init(&(mutex_zset_), NULL);
+   // pthread_mutex_init(&(mutex_set_), NULL);
 
     if (db_path_[db_path_.length() - 1] != '/') {
         db_path_.append("/");

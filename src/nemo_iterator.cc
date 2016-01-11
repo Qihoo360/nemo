@@ -89,18 +89,24 @@ void nemo::KIterator::LoadData() {
   this->value_.assign(vs.data(), vs.size());
 }
 
+void nemo::KIterator::Valid() {
+}
 void nemo::KIterator::Next() {
   Iterator::Next();
-  if (valid_) {
-    LoadData();
-  }
+  Valid();
+
+ // if (valid_) {
+ //   LoadData();
+ // }
 }
 
 void nemo::KIterator::Skip(int64_t offset) {
   Iterator::Skip(offset);
-  if (valid_) {
-    LoadData();
-  }
+
+  Valid();
+ // if (valid_) {
+ //   LoadData();
+ // }
 }
 
 // HASH

@@ -1421,10 +1421,10 @@ TEST_F(NemoKVTest, TestScan)
 	/*
 	start="";
 	end="";
-	kIterPtr = n_->Scan(start, end, -1);
+	kIterPtr = n_->KScan(start, end, -1);
 	while(kIterPtr->Next())
 	{
-		n_->Del(kIterPtr->Key());
+		n_->Del(kIterPtr->key());
 	}
 	*/
 
@@ -1448,20 +1448,22 @@ TEST_F(NemoKVTest, TestScan)
 	start=string("nemo_scan_test") + itoa(numPre + 0);
 	endInt = totalKeyNum - 1;
 	end = string("nemo_scan_test") + itoa(numPre + endInt);
-	kIterPtr = n_->Scan(start, end, -1);
+	kIterPtr = n_->KScan(start, end, -1);
 	flag1 = false; flag2 = false; flag3 = false;
-	EXPECT_EQ(true, kIterPtr->Next());
+	EXPECT_EQ(true, kIterPtr->Valid());
+	//EXPECT_EQ(true, kIterPtr->Next());
 	index = 0;
-	EXPECT_EQ(string("nemo_scan_test") + itoa(numPre+index), kIterPtr->Key());
-	if(keyPre + itoa(numPre+index) == kIterPtr->Key())
+	EXPECT_EQ(string("nemo_scan_test") + itoa(numPre+index), kIterPtr->key());
+	if(keyPre + itoa(numPre+index) == kIterPtr->key())
 		flag1 = true;
-	while(kIterPtr->Next())
+  for (; kIterPtr->Valid(); kIterPtr->Next())
+	//while(kIterPtr->Next())
 	{
 		index++;
-		//EXPECT_EQ(string("nemo_scan_test") + itoa(numPre + index), kIterPtr->Key());
+		//EXPECT_EQ(string("nemo_scan_test") + itoa(numPre + index), kIterPtr->key());
 	}
-	EXPECT_EQ(string("nemo_scan_test") + itoa(numPre+totalKeyNum-1), kIterPtr->Key());
-	if(keyPre + itoa(numPre+totalKeyNum-1) == kIterPtr->Key())
+	EXPECT_EQ(string("nemo_scan_test") + itoa(numPre+totalKeyNum-1), kIterPtr->key());
+	if(keyPre + itoa(numPre+totalKeyNum-1) == kIterPtr->key())
 		flag2 = true;
 	EXPECT_EQ(totalKeyNum-1, index);
 	if(index == totalKeyNum-1)
@@ -1478,19 +1480,19 @@ TEST_F(NemoKVTest, TestScan)
 	start = string("nemo_scan_test");
 	endInt = totalKeyNum;
 	end = string("nemo_scan_test") + itoa(numPre + endInt);
-	kIterPtr = n_->Scan(start, end, -1);
+	kIterPtr = n_->KScan(start, end, -1);
 	index=0;
-	EXPECT_EQ(true, kIterPtr->Next());
-	EXPECT_EQ(string("nemo_scan_test") + itoa(numPre+index), kIterPtr->Key());
-	if(string("nemo_scan_test") + itoa(numPre+index) == kIterPtr->Key())
+	EXPECT_EQ(true, kIterPtr->Valid());
+	EXPECT_EQ(string("nemo_scan_test") + itoa(numPre+index), kIterPtr->key());
+	if(string("nemo_scan_test") + itoa(numPre+index) == kIterPtr->key())
 		flag1 = true;
-	while(kIterPtr->Next())
+  for (; kIterPtr->Valid(); kIterPtr->Next())
 	{
 		index++;
-		//EXPECT_EQ(string("nomo_scan_test") + itoa(numPre+index), kIterPtr->Key());
+		//EXPECT_EQ(string("nomo_scan_test") + itoa(numPre+index), kIterPtr->key());
 	}
-	EXPECT_EQ(string("nemo_scan_test") + itoa(numPre+totalKeyNum-1), kIterPtr->Key());
-	if(string("nemo_scan_test") + itoa(numPre+totalKeyNum-1) == kIterPtr->Key())
+	EXPECT_EQ(string("nemo_scan_test") + itoa(numPre+totalKeyNum-1), kIterPtr->key());
+	if(string("nemo_scan_test") + itoa(numPre+totalKeyNum-1) == kIterPtr->key())
 		flag2 = true;
 	EXPECT_EQ(totalKeyNum-1, index);
 	if(index == totalKeyNum-1)
@@ -1507,19 +1509,19 @@ TEST_F(NemoKVTest, TestScan)
 	endInt = totalKeyNum + 100;
 	start = string("nemo_scan_test") + itoa(numPre + startInt);
 	end = keyPre + itoa(numPre + endInt);
-	kIterPtr = n_->Scan(start, end, -1);
+	kIterPtr = n_->KScan(start, end, -1);
 	index = startInt;
-	EXPECT_EQ(true, kIterPtr->Next());
-	EXPECT_EQ(keyPre + itoa(numPre + index), kIterPtr->Key());
-	if(keyPre + itoa(numPre + index) == kIterPtr->Key())
+	EXPECT_EQ(true, kIterPtr->Valid());
+	EXPECT_EQ(keyPre + itoa(numPre + index), kIterPtr->key());
+	if(keyPre + itoa(numPre + index) == kIterPtr->key())
 		flag1 = true;
-	while(kIterPtr->Next())
+  for (; kIterPtr->Valid(); kIterPtr->Next())
 	{
 		index++;
-		//EXPECT_EQ(keyPre + itoa(numPre + index), kIterPtr->Key());
+		//EXPECT_EQ(keyPre + itoa(numPre + index), kIterPtr->key());
 	}
-	EXPECT_EQ(keyPre + itoa(numPre + totalKeyNum - 1), kIterPtr->Key());
-	if(keyPre + itoa(numPre + totalKeyNum - 1) == kIterPtr->Key())
+	EXPECT_EQ(keyPre + itoa(numPre + totalKeyNum - 1), kIterPtr->key());
+	if(keyPre + itoa(numPre + totalKeyNum - 1) == kIterPtr->key())
 		flag2 = true;
 	EXPECT_EQ(totalKeyNum-1, index);
 	if(index == totalKeyNum-1)
@@ -1536,18 +1538,18 @@ TEST_F(NemoKVTest, TestScan)
 	start = keyPre;
 	endInt = GetRandomUint_(0, totalKeyNum-1);
 	end = keyPre + itoa(numPre + endInt);
-	kIterPtr = n_->Scan(start, end, -1);
+	kIterPtr = n_->KScan(start, end, -1);
 	index = startInt;
-	EXPECT_EQ(true, kIterPtr->Next());
-	EXPECT_EQ(keyPre + itoa(numPre + index), kIterPtr->Key());
-	if(keyPre + itoa(numPre + index) == kIterPtr->Key())
+	EXPECT_EQ(true, kIterPtr->Valid());
+	EXPECT_EQ(keyPre + itoa(numPre + index), kIterPtr->key());
+	if(keyPre + itoa(numPre + index) == kIterPtr->key())
 		flag1 = true;
-	while(kIterPtr->Next())
+  for (; kIterPtr->Valid(); kIterPtr->Next())
 	{
 		index++;
 	}
-	EXPECT_EQ(keyPre + itoa(numPre + endInt), kIterPtr->Key());
-	if(keyPre + itoa(numPre + endInt) == kIterPtr->Key())
+	EXPECT_EQ(keyPre + itoa(numPre + endInt), kIterPtr->key());
+	if(keyPre + itoa(numPre + endInt) == kIterPtr->key())
 		flag2 = true;
 	EXPECT_EQ(endInt, index);
 	if(endInt == index)
@@ -1564,10 +1566,10 @@ TEST_F(NemoKVTest, TestScan)
 	endInt = totalKeyNum + 20;
 	start = keyPre + itoa(numPre + startInt);
 	end = keyPre + itoa(numPre + endInt);
-	kIterPtr = n_->Scan(start, end, -1);
-	while(kIterPtr->Next());
-	EXPECT_EQ(true, (kIterPtr->Key()).empty());
-	if(true == (kIterPtr->Key()).empty())
+	kIterPtr = n_->KScan(start, end, -1);
+  for (; kIterPtr->Valid(); kIterPtr->Next());
+	EXPECT_EQ(true, (kIterPtr->key()).empty());
+	if(true == (kIterPtr->key()).empty())
 		log_success("start，end都在keys外，且和keys没有交集： start=%s, end=%s, limits=-1", start.c_str(), end.c_str());
 	else
 		log_fail("start，end都在keys外，且和keys没有交集： start=%s, end=%s, limits=-1", start.c_str(), end.c_str());
@@ -1580,14 +1582,14 @@ TEST_F(NemoKVTest, TestScan)
 	endInt = 0;
 	start = "";
 	end = "";
-	kIterPtr = n_->Scan(start, end, -1);
+	kIterPtr = n_->KScan(start, end, -1);
 	index = -1;
 	while(kIterPtr->Next())
 	{
 		index++;
 	}
-	EXPECT_EQ(keyPre + itoa(numPre + totalKeyNum-1), kIterPtr->Key());
-	if(keyPre + itoa(numPre + totalKeyNum-1) == kIterPtr->Key())
+	EXPECT_EQ(keyPre + itoa(numPre + totalKeyNum-1), kIterPtr->key());
+	if(keyPre + itoa(numPre + totalKeyNum-1) == kIterPtr->key())
 		flag1 = true;
 	EXPECT_EQ(totalKeyNum-1, index);
 	if(totalKeyNum-1 == index)
@@ -1605,18 +1607,19 @@ TEST_F(NemoKVTest, TestScan)
 	uint64_t limit = GetRandomUint_(0, totalKeyNum-2);
 	start = keyPre + itoa(numPre + startInt);
 	end = keyPre + itoa(numPre + endInt);
-	kIterPtr = n_->Scan(start, end, limit);
+	kIterPtr = n_->KScan(start, end, limit);
 	index = 0;
-	EXPECT_EQ(true, kIterPtr->Next());
-	EXPECT_EQ(keyPre + itoa(numPre + index), kIterPtr->Key());
-	if(keyPre + itoa(numPre + index) == kIterPtr->Key())
+	EXPECT_EQ(true, kIterPtr->Valid());
+	EXPECT_EQ(keyPre + itoa(numPre + index), kIterPtr->key());
+	if(keyPre + itoa(numPre + index) == kIterPtr->key())
 		flag1 = true;
-	while(kIterPtr->Next())
+  for (; kIterPtr->Valid(); kIterPtr->Next())
+	//while(kIterPtr->Next())
 	{
 		index++;
 	}
-	EXPECT_EQ(keyPre + itoa(numPre + limit -1 ), kIterPtr->Key());
-	if(keyPre + itoa(numPre + limit -1 ) == kIterPtr->Key())
+	EXPECT_EQ(keyPre + itoa(numPre + limit -1 ), kIterPtr->key());
+	if(keyPre + itoa(numPre + limit -1 ) == kIterPtr->key())
 		flag2 = true;
 	EXPECT_EQ(limit-1, index);
 	if(limit-1 == index)

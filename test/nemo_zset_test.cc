@@ -214,7 +214,7 @@ TEST_F(NemoZSetTest, TestZScan) {
 #define ZScanLoopProcess(countExpected, message)\
 	ziter = n_->ZScan(key, start, end, limit);\
 	count = 0;\
-	while(ziter->Next())\
+  for (; ziter->Valid(); ziter->Next())\
 	{\
 		count++;\
 	}\
@@ -1148,16 +1148,16 @@ TEST_F(NemoZSetTest, TestZRangelex) {
 	s_.OK();//原来的key存在，max和min与scores有交集，且offset>0
 	min = "";
 	max = "";
-	uint32_t offset = GetRandomUint_(0, num-1);	
-	members.clear();
-	s_ = n_->ZRangebylex(key, min, max, members, offset);
-	CHECK_STATUS(OK);
-	EXPECT_EQ(num-offset, members.size());
-	if (s_.ok() && num-offset == members.size()) {
-		log_success("原来的key存在，max和min与members有交集，且offset>0");
-	} else {
-		log_fail("原来的key存在，max和min与members有交集，且offset>0");
-	}
+//	uint32_t offset = GetRandomUint_(0, num-1);	
+//	members.clear();
+//	s_ = n_->ZRangebylex(key, min, max, members, offset);
+//	CHECK_STATUS(OK);
+//	EXPECT_EQ(num-offset, members.size());
+//	if (s_.ok() && num-offset == members.size()) {
+//		log_success("原来的key存在，max和min与members有交集，且offset>0");
+//	} else {
+//		log_fail("原来的key存在，max和min与members有交集，且offset>0");
+//	}
 	
 	s_.OK();//原来的key存在，max与min和scores有交集，且有相同的score
 	min = "";

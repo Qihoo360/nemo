@@ -25,15 +25,22 @@ Status Nemo::Get(const std::string &key, std::string *val) {
     return s;
 }
 
-Status Nemo::KDel(const std::string &key, int64_t *res) {
+// Note: no lock
+Status Nemo::KDel(const std::string &key, int64_t *res, bool is_lock) {
     Status s;
     std::string val;
 
+    if (is_lock) {
+      mutex_kv_record_.Lock(key);
+    }
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     *res = 0;
     if (s.ok()) {
         s = kv_db_->Delete(rocksdb::WriteOptions(), key);
         *res = 1;
+    }
+    if (is_lock) {
+      mutex_kv_record_.Unlock(key);
     }
     return s;
 }
@@ -81,7 +88,8 @@ Status Nemo::MGet(const std::vector<std::string> &keys, std::vector<KVS> &kvss) 
 Status Nemo::Incrby(const std::string &key, const int64_t by, std::string &new_val) {
     Status s;
     std::string val;
-    MutexLock l(&mutex_kv_);
+    RecordLock l(&mutex_kv_record_, key);
+    //MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
         new_val = std::to_string(by);        
@@ -110,7 +118,8 @@ Status Nemo::Incrby(const std::string &key, const int64_t by, std::string &new_v
 Status Nemo::Decrby(const std::string &key, const int64_t by, std::string &new_val) {
     Status s;
     std::string val;
-    MutexLock l(&mutex_kv_);
+    RecordLock l(&mutex_kv_record_, key);
+    //MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
         new_val = std::to_string(-by);        
@@ -140,7 +149,8 @@ Status Nemo::Incrbyfloat(const std::string &key, const double by, std::string &n
     Status s;
     std::string val;
     std::string res;
-    MutexLock l(&mutex_kv_);
+    RecordLock l(&mutex_kv_record_, key);
+    //MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
         res = std::to_string(by);        
@@ -178,7 +188,8 @@ Status Nemo::GetSet(const std::string &key, const std::string &new_val, std::str
     Status s;
     std::string val;
     *old_val = "";
-    MutexLock l(&mutex_kv_);
+    RecordLock l(&mutex_kv_record_, key);
+    //MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, old_val);
     if (!s.ok() && !s.IsNotFound()) {
         return Status::Corruption("Get error");
@@ -192,7 +203,8 @@ Status Nemo::Append(const std::string &key, const std::string &value, int64_t *n
     Status s;
     *new_len = 0;
     std::string old_val;
-    MutexLock l(&mutex_kv_);
+    //MutexLock l(&mutex_kv_);
+    RecordLock l(&mutex_kv_record_, key);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &old_val);
     std::string new_val;
     if (s.ok()) {
@@ -216,7 +228,8 @@ Status Nemo::Append(const std::string &key, const std::string &value, int64_t *n
 Status Nemo::Setnx(const std::string &key, const std::string &value, int64_t *ret, const int32_t ttl) {
     *ret = 0;
     std::string val;
-    MutexLock l(&mutex_kv_);
+    RecordLock l(&mutex_kv_record_, key);
+    //MutexLock l(&mutex_kv_);
     Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
         if (ttl <= 0) {
@@ -232,7 +245,8 @@ Status Nemo::Setnx(const std::string &key, const std::string &value, int64_t *re
 Status Nemo::Setxx(const std::string &key, const std::string &value, int64_t *ret, const int32_t ttl) {
     *ret = 0;
     std::string val;
-    MutexLock l(&mutex_kv_);
+    RecordLock l(&mutex_kv_record_, key);
+    //MutexLock l(&mutex_kv_);
     Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.ok()) {
         if (ttl <= 0) {
@@ -296,7 +310,8 @@ Status Nemo::Setrange(const std::string key, const int64_t offset, const std::st
     if (offset < 0) {
         return Status::Corruption("offset < 0");
     }
-    MutexLock l(&mutex_kv_);
+    //MutexLock l(&mutex_kv_);
+    RecordLock l(&mutex_kv_record_, key);
     Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.ok()) {
         if (val.length() + offset > (1<<29)) {
@@ -365,7 +380,7 @@ KIterator* Nemo::KScan(const std::string &start, const std::string &end, uint64_
 Status Nemo::KExpire(const std::string &key, const int32_t seconds, int64_t *res) {
     Status s;
     std::string val;
-
+    RecordLock l(&mutex_kv_record_, key);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
         *res = 0;
@@ -380,6 +395,7 @@ Status Nemo::KExpire(const std::string &key, const int32_t seconds, int64_t *res
     return s;
 }
 
+//TODO two get
 Status Nemo::KTTL(const std::string &key, int64_t *res) {
     Status s;
     std::string val;
@@ -398,7 +414,8 @@ Status Nemo::KTTL(const std::string &key, int64_t *res) {
 Status Nemo::KPersist(const std::string &key, int64_t *res) {
     Status s;
     std::string val;
-
+ 
+    RecordLock l(&mutex_kv_record_, key);
     *res = 0;
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.ok()) {
@@ -416,6 +433,7 @@ Status Nemo::KExpireat(const std::string &key, const int32_t timestamp, int64_t 
     Status s;
     std::string val;
 
+    RecordLock l(&mutex_kv_record_, key);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
         *res = 0;
