@@ -52,38 +52,30 @@ void RWMutex::WriteUnlock() { PthreadCall("write unlock", pthread_rwlock_unlock(
 #include <pthread.h>
 
 RecordMutex::~RecordMutex() {
-  //rw_mutex_.WriteLock();
-  std::unordered_map<std::string, data_type>::const_iterator it = records_.begin();
+  std::unordered_map<std::string, Mutex *>::const_iterator it = records_.begin();
   for (; it != records_.end(); it++) {
-    delete it->second.first;
+    delete it->second;
   }
-  //rw_mutex_.WriteUnlock();
 }
 
 
 void RecordMutex::Lock(const std::string &key) {
   mutex_.Lock();
-  //rw_mutex_.ReadLock();
-  std::unordered_map<std::string, data_type>::const_iterator it = records_.find(key);
+  std::unordered_map<std::string, Mutex *>::const_iterator it = records_.find(key);
 
   if (it != records_.end()) {
     log_info ("tid=(%u) >Lock key=(%s) exist", pthread_self(), key.c_str());
-    Mutex *mu = it->second.first;
-    lru_.splice(lru_.end(), lru_, it->second.second);
+    Mutex *mu = it->second;
     mutex_.Unlock();
 
     mu->Lock();
     log_info ("tid=(%u) <Lock key=(%s) exist", pthread_self(), key.c_str());
   } else {
     log_info ("tid=(%u) >Lock key=(%s) new", pthread_self(), key.c_str());
-    // insert new
-    if (lru_.size() == capacity_)
-      evict();
 
     Mutex *mu = new Mutex();
 
-    std::list<std::string>::iterator lru_it = lru_.insert(lru_.end(), key);
-    records_.insert(std::make_pair(key, std::make_pair(mu, lru_it)));
+    records_.insert(std::make_pair(key, mu));
     mutex_.Unlock();
 
 
@@ -94,32 +86,16 @@ void RecordMutex::Lock(const std::string &key) {
 
 void RecordMutex::Unlock(const std::string &key) {
   mutex_.Lock();
-  std::unordered_map<std::string, data_type>::const_iterator it = records_.find(key);
+  std::unordered_map<std::string, Mutex *>::const_iterator it = records_.find(key);
   
   log_info ("tid=(%u) >Unlock key=(%s) new", pthread_self(), key.c_str());
   if (it != records_.end()) {
-    Mutex *mu = it->second.first;
+    Mutex *mu = it->second;
     mutex_.Unlock();
 
     mu->Unlock();
   }
   log_info ("tid=(%u) <Unlock key=(%s) new", pthread_self(), key.c_str());
-}
-
-// no lock
-void RecordMutex::evict() {
-    std::unordered_map<std::string, data_type>::const_iterator it = records_.find(lru_.front());
-
-    assert(it != records_.end());
-
-    log_info ("tid=(%u) >evict lru key=(%s)", pthread_self(), lru_.front().c_str());
-    //rw_mutex_.WriteLock();
-    Mutex *mu = it->second.first;
-    delete mu; 
-    records_.erase(it);
-    lru_.pop_front();
-    //rw_mutex_.WriteUnlock();
-    log_info ("tid=(%u) <evict lru key=(%s)", pthread_self(), lru_.front().c_str());
 }
 
 }  // namespace port

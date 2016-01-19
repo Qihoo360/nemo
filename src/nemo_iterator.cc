@@ -82,6 +82,11 @@ void nemo::Iterator::Next() {
 }
 
 // KV
+nemo::KIterator::KIterator(rocksdb::Iterator *it, const IteratorOptions iter_options)
+  : Iterator(it, iter_options) {
+  Valid();
+  }
+
 void nemo::KIterator::LoadData() {
   rocksdb::Slice ks = Iterator::key();
   rocksdb::Slice vs = Iterator::value();
@@ -89,30 +94,28 @@ void nemo::KIterator::LoadData() {
   this->value_.assign(vs.data(), vs.size());
 }
 
-void nemo::KIterator::Valid() {
+bool nemo::KIterator::Valid() {
+  if (valid_) {
+    LoadData();
+  }
+  return valid_;
 }
 void nemo::KIterator::Next() {
   Iterator::Next();
   Valid();
-
- // if (valid_) {
- //   LoadData();
- // }
 }
 
 void nemo::KIterator::Skip(int64_t offset) {
   Iterator::Skip(offset);
 
   Valid();
- // if (valid_) {
- //   LoadData();
- // }
 }
 
 // HASH
 nemo::HIterator::HIterator(rocksdb::Iterator *it, const IteratorOptions iter_options, const rocksdb::Slice &key)
   : Iterator(it, iter_options) {
     this->key_.assign(key.data(), key.size());
+    Valid();
   }
 
 // check valid and load field_, value_
@@ -150,6 +153,7 @@ void nemo::HIterator::Skip(int64_t offset) {
 nemo::ZIterator::ZIterator(rocksdb::Iterator *it, const IteratorOptions iter_options, const rocksdb::Slice &key)
   : Iterator(it, iter_options) {
     this->key_.assign(key.data(), key.size());
+    Valid();
   }
 
 // check valid and assign member_ and score_
@@ -183,6 +187,7 @@ void nemo::ZIterator::Skip(int64_t offset) {
 nemo::ZLexIterator::ZLexIterator(rocksdb::Iterator *it, const IteratorOptions iter_options, const rocksdb::Slice &key)
   : Iterator(it, iter_options) {
     this->key_.assign(key.data(), key.size());
+    Valid();
   }
 
 bool nemo::ZLexIterator::Valid() {
@@ -216,6 +221,7 @@ void nemo::ZLexIterator::Skip(int64_t offset) {
 nemo::SIterator::SIterator(rocksdb::Iterator *it, const IteratorOptions iter_options, const rocksdb::Slice &key)
   : Iterator(it, iter_options) {
     this->key_.assign(key.data(), key.size());
+    Valid();
   }
 
 // check valid and assign member_
@@ -226,7 +232,7 @@ bool nemo::SIterator::Valid() {
     if (ks[0] == DataType::kSet) {
       std::string k;
       if (DecodeSetKey(ks, &k, &this->member_) != -1) {
-        if (k != this->key_) {
+        if (k == this->key_) {
           return true;
         }
       }

@@ -481,7 +481,7 @@ Status Nemo::ZRevrank(const std::string &key, const std::string &member, int64_t
 
     std::string db_key = EncodeZSetKey(key, member);
     s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
-    int64_t count = 0;
+    int64_t count = -1;
     if (s.ok()) {
         ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1, true);
         for (; iter->Valid() && iter->member().compare(member) != 0; iter->Next()) {
@@ -524,10 +524,10 @@ Status Nemo::ZRangebylex(const std::string &key, const std::string &min, const s
 
 Status Nemo::ZLexcount(const std::string &key, const std::string &min, const std::string &max, int64_t* count) {
 //    MutexLock l(&mutex_zset_);
-    count = 0;
+    *count = 0;
     ZLexIterator *iter = ZScanbylex(key, min, max, -1, true);
     for (; iter->Valid(); iter->Next()) {
-        count++;
+        (*count)++;
     }
     zset_db_->ReleaseSnapshot(iter->read_options().snapshot);
     delete iter;

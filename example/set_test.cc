@@ -37,13 +37,17 @@ int main()
     int64_t sadd_res;
     log_info("======Test SAdd======");
     s = n->SAdd("setKey", "member1", &sadd_res);
-    log_info("Test SAdd OK return %s", s.ToString().c_str());
+    log_info("Test SAdd OK return %s, sadd_res = %ld", s.ToString().c_str(), sadd_res);
     log_info("");
+    std::string str1;
+    s = n->SPop("setKey", str1);
+    log_info("After SAdd, SPop get %s", str1.c_str());
 
     /*
      *  Test Scard
      */
     log_info("======Test SCard======");
+    s = n->SAdd("setKey", "member1", &sadd_res);
     log_info("SCard with existed key return: %ld", n->SCard("setKey"));
     log_info("SCard with non-existe key return: %ld", n->SCard("non-exist"));
     log_info("");

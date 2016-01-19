@@ -58,6 +58,5 @@ class RecordLock {
   void operator=(const RecordLock&);
 };
 
-
 }
 #endif

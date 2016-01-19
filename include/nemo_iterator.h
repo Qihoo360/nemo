@@ -54,8 +54,7 @@ private:
 
 class KIterator : public Iterator {
 public:
-    KIterator(rocksdb::Iterator *it, const IteratorOptions iter_options)
-        : Iterator(it, iter_options) {}
+    KIterator(rocksdb::Iterator *it, const IteratorOptions iter_options);
     virtual void Next();
     virtual void Skip(int64_t offset);
     virtual bool Valid();

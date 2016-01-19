@@ -452,7 +452,8 @@ Status Nemo::LTrim(const std::string &key, const int64_t begin, const int64_t en
                     trim_num++;
                 }
                 if (next != 0) {
-                    *((int64_t *)(meta_val.data() + sizeof(int64_t))) = next;
+                    meta.left = next;
+                    //*((int64_t *)(meta_val.data() + sizeof(int64_t))) = next;
                     std::string l_key = EncodeListKey(key, next);
                     s = list_db_->Get(rocksdb::ReadOptions(), l_key, &en_val);
                     if (!s.ok()) {
@@ -473,7 +474,8 @@ Status Nemo::LTrim(const std::string &key, const int64_t begin, const int64_t en
                     trim_num++;
                 }
                 if (priv != 0) {
-                    *((int64_t *)(meta_val.data() + sizeof(int64_t) * 2)) = priv;
+                    meta.right = priv;
+                    //*((int64_t *)(meta_val.data() + sizeof(int64_t) * 2)) = priv;
                     std::string r_key = EncodeListKey(key, priv);
                     s = list_db_->Get(rocksdb::ReadOptions(), r_key, &en_val);
                     if (!s.ok()) {
@@ -658,7 +660,8 @@ Status Nemo::RPushx(const std::string &key, const std::string &val, int64_t *lle
     }
 }
 
-Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::string &val) {
+
+Status Nemo::RPopLPushInternal(const std::string &src, const std::string &dest, std::string &val) {
     Status s;
     rocksdb::WriteBatch batch;
     ListMeta meta;
@@ -669,9 +672,6 @@ Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::str
     std::string db_key_l;
     std::string meta_key_l = EncodeLMetaKey(dest);
 
-    //MutexLock l(&mutex_list_);
-    RecordLock l1(&mutex_list_record_, dest);
-    RecordLock l2(&mutex_list_record_, src);
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key_r, &meta_r);
     if (s.ok()) {
         if (ParseMeta(meta_r, meta) == 0) {
@@ -761,6 +761,15 @@ Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::str
         return s;
     } else {
         return Status::Corruption("get listmeta error");
+    }
+}
+Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::string &val) {
+    RecordLock l1(&mutex_list_record_, dest);
+    if (src == dest) {
+      return RPopLPushInternal(src, dest, val);
+    } else {
+      RecordLock l2(&mutex_list_record_, src);
+      return RPopLPushInternal(src, dest, val);
     }
 }
 

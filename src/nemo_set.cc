@@ -442,7 +442,7 @@ Status Nemo::SPop(const std::string &key, std::string &member) {
     int k = rand() % card + 1;
 
     SIterator *iter = SScan(key, -1, true);
-    for (int i = 0; i < k; i++) {
+    for (int i = 0; i < k - 1; i++) {
         iter->Next();
     }
     member = iter->member();

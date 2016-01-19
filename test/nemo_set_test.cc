@@ -91,6 +91,8 @@ TEST_F(NemoSetTest, TestSAdd) {
 	getMember = "";
 	n_->SPop(key, getMember);
 	EXPECT_EQ(member, getMember);
+  printf ("s_ is %s, res = %d, member.size()=%d getMember.size()=%d  %d\n", s_.ToString().c_str(), res, 
+          member.size(), getMember.size(), member == getMember);
 	if (s_.ok() && res == 1 && member == getMember) {
 		log_success("member取key的最大值，其他正常情况");
 	} else {

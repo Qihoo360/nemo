@@ -1431,7 +1431,7 @@ TEST_F(NemoKVTest, TestScan)
 	bool flag1, flag2, flag3;
 	string key, val;
 	string keyPre = "nemo_scan_test";
-	int64_t totalKeyNum = 100;
+	int64_t totalKeyNum = 3;
 	int64_t numPre = 10000;
 	for(int64_t index = 0; index < totalKeyNum; index++)
 	{
@@ -1442,7 +1442,6 @@ TEST_F(NemoKVTest, TestScan)
 
 	log_message("========keys from %s%lld to %s%lld========", keyPre.c_str(), numPre+0, keyPre.c_str(), numPre + totalKeyNum-1);
 
-
 	s_.OK();//start和end都在给定keys范围之内,limit=-1(这里测试头尾)
 	startInt = 0;
 	start=string("nemo_scan_test") + itoa(numPre + 0);
@@ -1451,22 +1450,22 @@ TEST_F(NemoKVTest, TestScan)
 	kIterPtr = n_->KScan(start, end, -1);
 	flag1 = false; flag2 = false; flag3 = false;
 	EXPECT_EQ(true, kIterPtr->Valid());
-	//EXPECT_EQ(true, kIterPtr->Next());
+
+  //Note: index should start at -1
 	index = 0;
 	EXPECT_EQ(string("nemo_scan_test") + itoa(numPre+index), kIterPtr->key());
 	if(keyPre + itoa(numPre+index) == kIterPtr->key())
 		flag1 = true;
   for (; kIterPtr->Valid(); kIterPtr->Next())
-	//while(kIterPtr->Next())
 	{
-		index++;
 		//EXPECT_EQ(string("nemo_scan_test") + itoa(numPre + index), kIterPtr->key());
+		index++;
 	}
 	EXPECT_EQ(string("nemo_scan_test") + itoa(numPre+totalKeyNum-1), kIterPtr->key());
 	if(keyPre + itoa(numPre+totalKeyNum-1) == kIterPtr->key())
 		flag2 = true;
-	EXPECT_EQ(totalKeyNum-1, index);
-	if(index == totalKeyNum-1)
+	EXPECT_EQ(totalKeyNum, index);
+	if(index == totalKeyNum)
 		flag3 = true;
 	if(flag1 && flag2 && flag3)
 		log_success("start和end都在keys范围内：start=%s, end=%s, limit=-1", start.c_str(), end.c_str());
@@ -1494,8 +1493,8 @@ TEST_F(NemoKVTest, TestScan)
 	EXPECT_EQ(string("nemo_scan_test") + itoa(numPre+totalKeyNum-1), kIterPtr->key());
 	if(string("nemo_scan_test") + itoa(numPre+totalKeyNum-1) == kIterPtr->key())
 		flag2 = true;
-	EXPECT_EQ(totalKeyNum-1, index);
-	if(index == totalKeyNum-1)
+	EXPECT_EQ(totalKeyNum, index);
+	if(index == totalKeyNum)
 		flag3 = true;
 	if(flag1 && flag2 && flag3)
 		log_success("start和end都不在keys范围内，但是包括住keys：start=%s, end=%s, limit=-1", start.c_str(), end.c_str());
@@ -1523,8 +1522,8 @@ TEST_F(NemoKVTest, TestScan)
 	EXPECT_EQ(keyPre + itoa(numPre + totalKeyNum - 1), kIterPtr->key());
 	if(keyPre + itoa(numPre + totalKeyNum - 1) == kIterPtr->key())
 		flag2 = true;
-	EXPECT_EQ(totalKeyNum-1, index);
-	if(index == totalKeyNum-1)
+	EXPECT_EQ(totalKeyNum, index);
+	if(index == totalKeyNum)
 		flag3 = true;
 	if(flag1 && flag2 && flag3)
 		log_success("start在keys范围内，end在keys范围外： start=%s, end=%s, limit=-1", start.c_str(), end.c_str());
@@ -1551,7 +1550,7 @@ TEST_F(NemoKVTest, TestScan)
 	EXPECT_EQ(keyPre + itoa(numPre + endInt), kIterPtr->key());
 	if(keyPre + itoa(numPre + endInt) == kIterPtr->key())
 		flag2 = true;
-	EXPECT_EQ(endInt, index);
+	EXPECT_EQ(endInt, index - 1);
 	if(endInt == index)
 		flag3 = true;
 	if(flag1 && flag2 && flag3)
@@ -1604,7 +1603,7 @@ TEST_F(NemoKVTest, TestScan)
 	flag1 = false; flag2 = false; flag3 = false;
 	startInt = 0;
 	endInt = totalKeyNum;
-	uint64_t limit = GetRandomUint_(0, totalKeyNum-2);
+	uint64_t limit = GetRandomUint_(1, totalKeyNum-2);
 	start = keyPre + itoa(numPre + startInt);
 	end = keyPre + itoa(numPre + endInt);
 	kIterPtr = n_->KScan(start, end, limit);
@@ -1621,7 +1620,7 @@ TEST_F(NemoKVTest, TestScan)
 	EXPECT_EQ(keyPre + itoa(numPre + limit -1 ), kIterPtr->key());
 	if(keyPre + itoa(numPre + limit -1 ) == kIterPtr->key())
 		flag2 = true;
-	EXPECT_EQ(limit-1, index);
+	EXPECT_EQ(limit, index);
 	if(limit-1 == index)
 		flag3 = true;
 	if(flag1 && flag2 && flag3)

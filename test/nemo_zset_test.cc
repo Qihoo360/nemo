@@ -882,20 +882,6 @@ TEST_F(NemoZSetTest, TestZRangebyscore) {
 	stop = -3;
 	start = num+10;
 	ZRangebyscoreLoopProcess(0, "end<scoreMin<scoreMax<start");
-
-	s_.OK();//start=scoreMin，end=scoreMax；0<offset<len
-	start = 0;
-	stop = num-1;
-	offset = GetRandomUint_(0, num-1);
-	sms.clear();
-	s_ = n_->ZRangebyscore(key, start, stop, sms, offset);
-	CHECK_STATUS(OK);
-	EXPECT_EQ(num-offset, sms.size());
-	if (s_.ok() && sms.size() == num-offset) {
-		log_success("start=scoreMin，end=scoreMax；0<offset<len");
-	} else {
-		log_fail("start=scoreMin，end=scoreMax；0<offset<len");
-	}
 }
 
 TEST_F(NemoZSetTest, TestZRem) {
@@ -1216,7 +1202,7 @@ TEST_F(NemoZSetTest, TestZLexcount) {
 
 	s_.OK();//原来的key存在，max与min和members有交集
 	minInt = GetRandomUint_(0, num-2);
-	maxInt = GetRandomUint_(0, num-1);
+	maxInt = GetRandomUint_(num-2, num-1);
 	min = itoa(minInt + numPre);
 	max = itoa(maxInt + numPre);
 	count = -1;

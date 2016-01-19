@@ -216,6 +216,8 @@ private:
     int32_t L2R(const std::string &key, const int64_t index, const int64_t left, int64_t *priv, int64_t *cur, int64_t *next);
     int32_t R2L(const std::string &key, const int64_t index, const int64_t right, int64_t *priv, int64_t *cur, int64_t *next);
 
+    Status RPopLPushInternal(const std::string &src, const std::string &dest, std::string &val);
+
     int IncrZLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
 
     int IncrSSize(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
