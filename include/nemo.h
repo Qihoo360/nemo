@@ -1,6 +1,9 @@
 #ifndef NEMO_INCLUDE_NEMO_H_
 #define NEMO_INCLUDE_NEMO_H_
 
+#include <list>
+#include <atomic>
+
 #include "rocksdb/db.h"
 #include "rocksdb/utilities/db_ttl.h"
 
@@ -14,6 +17,14 @@ namespace nemo {
 typedef rocksdb::Status Status;
 typedef const rocksdb::Snapshot Snapshot;
 typedef std::vector<const rocksdb::Snapshot *> Snapshots;
+
+template <typename T1, typename T2>
+struct ItemListMap{
+    int64_t cur_size_;
+    int64_t max_size_;
+    std::list<T1> list_;
+    std::map<T1, T2> map_;
+};
 
 class Nemo
 {
@@ -31,6 +42,8 @@ public:
         //delete zset_db_.get();
         //delete set_db_.get();
 
+        pthread_mutex_destroy(&(mutex_cursors_));
+        pthread_mutex_destroy(&(mutex_dump_));
     };
 
     Status Compact();
@@ -41,6 +54,7 @@ public:
     Status TTL(const std::string &key, int64_t *res);
     Status Persist(const std::string &key, int64_t *res);
     Status Expireat(const std::string &key, const int32_t timestamp, int64_t *res);
+    Status Type(const std::string &key, std::string* type);
 
     // =================KV=====================
     Status Set(const std::string &key, const std::string &val, const int32_t ttl = 0);
@@ -60,6 +74,7 @@ public:
     Status Setrange(const std::string key, const int64_t offset, const std::string &value, int64_t *len);
     Status Strlen(const std::string &key, int64_t *len);
     KIterator* KScan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
+    Status Scan(int64_t cursor, std::string &pattern, int64_t count, std::vector<std::string>& keys, int64_t* cursor_ret);
 
     Status Keys(const std::string &pattern, std::vector<std::string>& keys);
 
@@ -142,6 +157,7 @@ public:
     Status BGSaveGetSnapshot(Snapshots &snapshots);
     Status BGSaveSpecify(const std::string key_type, Snapshot* snapshot);
     Status BGSaveGetSpecifySnapshot(const std::string key_type, Snapshot *&snapshot);
+    Status BGSaveOff();
     //Status BGSaveReleaseSnapshot(Snapshots &snapshots);
 
     Status GetKeyNum(std::vector<uint64_t> &nums);
@@ -149,6 +165,8 @@ public:
     //Status ScanKeyNum(std::unique_ptr<rocksdb::DB> &db, const char kType, uint64_t &num);
     Status ScanKeyNum(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kType, uint64_t &num);
     Status ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t &num);
+    
+    rocksdb::DBWithTTL* GetDBByType(const std::string& type); 
 
 private:
 
@@ -195,9 +213,19 @@ private:
     Status LPersist(const std::string &key, int64_t *res);
     Status LExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
 
+    pthread_mutex_t mutex_cursors_;
+
+
+    ItemListMap<int64_t, std::string> cursors_store_;
+
     Status GetSnapshot(Snapshots &snapshots);
     Status ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys);
+    bool ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, std::string &start_key, const std::string &pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key);
     Status ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys);
+    bool ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kType, std::string &start_key, const std::string &pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key);
+    Status GetStartKey(int64_t cursor, std::string* start_key);
+    int64_t StoreAndGetCursor(int64_t cursor, const std::string& next_key);
+    Status SeekCursor(int64_t cursor, std::string* start_key);
 
     int DoHSet(const std::string &key, const std::string &field, const std::string &val, rocksdb::WriteBatch &writebatch);
     int DoHDel(const std::string &key, const std::string &field, rocksdb::WriteBatch &writebatch);
@@ -227,7 +255,11 @@ private:
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);
 
+    pthread_mutex_t mutex_dump_;
     std::string dump_path_;
+    std::atomic<bool> dump_to_terminate_;
+    std::map<std::string, pthread_t> dump_pthread_ts_;
+    Snapshots dump_snapshots_;
 };
 
 }

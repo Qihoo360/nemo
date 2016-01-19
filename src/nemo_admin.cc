@@ -6,6 +6,7 @@
 #include <string>
 
 #include "nemo.h"
+#include "nemo_mutex.h"
 #include "nemo_const.h"
 #include "nemo_iterator.h"
 #include "util.h"
@@ -19,7 +20,10 @@ Status Nemo::SaveDBWithTTL(const std::string &db_path, const std::string &key_ty
     //printf ("db_path=%s\n", db_path.c_str());
     
     rocksdb::DBWithTTL *dst_db;
-    rocksdb::Status s = rocksdb::DBWithTTL::Open(open_options_, db_path, &dst_db);
+    rocksdb::Options option(open_options_);
+    option.meta_prefix = meta_prefix;
+
+    rocksdb::Status s = rocksdb::DBWithTTL::Open(option, db_path, &dst_db);
     if (!s.ok()) {
         log_err("save db %s, open error %s", db_path.c_str(), s.ToString().c_str());
         return s;
@@ -32,7 +36,7 @@ Status Nemo::SaveDBWithTTL(const std::string &db_path, const std::string &key_ty
     iterate_options.fill_cache = false;
     
     rocksdb::Iterator* it = src_db->NewIterator(iterate_options);
-    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    for (it->SeekToFirst(); it->Valid() && !dump_to_terminate_; it->Next()) {
         std::string raw_key(it->key().data(), it->key().size());
 
         if (key_type == KV_DB) {
@@ -72,7 +76,6 @@ Status Nemo::SaveDBWithTTL(const std::string &db_path, const std::string &key_ty
                 s = STTL(key, &ttl);
             }
         }
-
         if (s.ok()) {
             if (ttl == -1) {
                 s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString());
@@ -82,7 +85,7 @@ Status Nemo::SaveDBWithTTL(const std::string &db_path, const std::string &key_ty
         }
     }
     delete it;
-    src_db->ReleaseSnapshot(iterate_options.snapshot);
+    //src_db->ReleaseSnapshot(iterate_options.snapshot);
     delete dst_db;
 
     return Status::OK();
@@ -213,12 +216,11 @@ struct SaveArgs {
 
 
 void* call_BGSaveSpecify(void *arg) {
+
     Nemo* p = (Nemo*)(((SaveArgs*)arg)->p);
     Snapshot* snapshot = ((SaveArgs*)arg)->snapshot;
     std::string key_type = ((SaveArgs*)arg)->key_type;
-
     Status s = p->BGSaveSpecify(key_type, snapshot);
-
     return nullptr;
 }
 
@@ -228,32 +230,27 @@ Status Nemo::BGSaveSpecify(const std::string key_type, Snapshot* snapshot) {
 
     if (key_type == KV_DB) {
       s = SaveDBWithTTL(dump_path_ + KV_DB, key_type, '\0', kv_db_, snapshot);
-      if (!s.ok()) return s;
     } else if (key_type == HASH_DB) {
       s = SaveDBWithTTL(dump_path_ + HASH_DB, key_type, DataType::kHSize, hash_db_, snapshot);
-      if (!s.ok()) return s;
-      //if (!s.ok()) return (void *)&s;
     } else if (key_type == ZSET_DB) {
       s = SaveDBWithTTL(dump_path_ + ZSET_DB, key_type, DataType::kZSize, zset_db_, snapshot);
-      if (!s.ok()) return s;
-      //if (!s.ok()) return (void *)&s;
     } else if (key_type == SET_DB) {
       s = SaveDBWithTTL(dump_path_ + SET_DB, key_type, DataType::kSSize, set_db_, snapshot);
-      if (!s.ok()) return s;
-      //if (!s.ok()) return (void *)&s;
     } else if (key_type == LIST_DB) {
       s = SaveDBWithTTL(dump_path_ + LIST_DB, key_type, DataType::kLMeta, list_db_, snapshot);
-      if (!s.ok()) return s;
-      //if (!s.ok()) return (void *)&s;
     } else {
-      return Status::InvalidArgument("");
+      s = Status::InvalidArgument("");
     }
-    return Status::OK();
+
+    {
+        MutexLock l(&mutex_dump_);
+        dump_pthread_ts_.erase(key_type);
+    }
+    return s;
 }
 
 
 Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
-
     std::string path = db_path;
     if (path.empty()) {
         path = DEFAULT_BG_PATH;
@@ -266,7 +263,15 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
         mkpath(path.c_str(), 0755);
     }
 
-    dump_path_ = path;
+    {
+        MutexLock l(&mutex_dump_);
+        if (dump_pthread_ts_.size() != 0 || dump_snapshots_.size() != 0) {
+            return Status::Corruption("DB dumping is performing.");
+        }
+        dump_path_ = path;
+        dump_to_terminate_ = false;
+    }
+
     Status s;
 
     pthread_t tid[5];
@@ -295,6 +300,16 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
         return Status::Corruption("pthead_create failed.");
     }
 
+    {
+        MutexLock l(&mutex_dump_);
+        dump_pthread_ts_[KV_DB] = tid[0];
+        dump_pthread_ts_[HASH_DB] = tid[1];
+        dump_pthread_ts_[ZSET_DB] = tid[2];
+        dump_pthread_ts_[SET_DB] = tid[3];
+        dump_pthread_ts_[LIST_DB] = tid[4];
+        dump_snapshots_ = snapshots;
+    }
+
     int ret;
     void *retval;
     for (int i = 0; i < 5; i++) {
@@ -304,12 +319,30 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
       }
     }
 
+    {
+        MutexLock l(&mutex_dump_);
+        kv_db_->ReleaseSnapshot(dump_snapshots_[0]);
+        hash_db_->ReleaseSnapshot(dump_snapshots_[1]);
+        zset_db_->ReleaseSnapshot(dump_snapshots_[2]);
+        set_db_->ReleaseSnapshot(dump_snapshots_[3]);
+        list_db_->ReleaseSnapshot(dump_snapshots_[4]);
+        dump_pthread_ts_.clear();
+        dump_snapshots_.clear();
+        dump_to_terminate_ = true;
+    }
+
     delete arg_kv;
     delete arg_hash;
     delete arg_zset;
     delete arg_set;
     delete arg_list;
 
+    return Status::OK();
+}
+
+Status Nemo::BGSaveOff() {
+    sleep(1);
+    dump_to_terminate_ = true;
     return Status::OK();
 }
 
@@ -367,7 +400,8 @@ Status Nemo::ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t
     rocksdb::Iterator *it = db->NewIterator(iterate_options);
 
     num = 0;
-    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    it->SeekToFirst();
+    for (; it->Valid(); it->Next()) {
         num++;
        //printf ("ScanDB key=(%s) value=(%s) val_size=%u num=%lu\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
        //       it->value().ToString().size(), num);
@@ -458,4 +492,19 @@ Status Nemo::Compact(){
     s = list_db_ -> CompactRange(NULL,NULL);
     if (!s.ok()) return s;
     return Status::OK();
+}
+
+rocksdb::DBWithTTL* Nemo::GetDBByType(const std::string& type) {
+    if (type == KV_DB)
+        return &(*kv_db_);
+    else if (type == HASH_DB)
+        return &(*hash_db_);
+    else if (type == LIST_DB)
+        return &(*list_db_);
+    else if (type == SET_DB)
+        return &(*set_db_);
+    else if (type == ZSET_DB)
+        return &(*zset_db_);
+    else
+        return NULL;
 }

@@ -210,6 +210,12 @@ class BackupEngine {
                      BackupEngine** backup_engine_ptr);
 
   virtual Status CreateNewBackup(DB* db, bool flush_before_backup = false) = 0;
+  virtual Status CreateNewBackupWithFiles(DB* db, 
+          std::vector<std::string>& live_files, VectorLogPtr& live_wal_files, 
+          uint64_t manifest_file_size, uint64_t sequence_number) = 0;
+  virtual Status GetBackupFiles(DB* db, bool flush_before_backup, 
+          std::vector<std::string>& live_files, VectorLogPtr& live_wal_files, 
+          uint64_t& manifest_file_size, uint64_t& sequence_number) = 0;
   virtual Status PurgeOldBackups(uint32_t num_backups_to_keep) = 0;
   virtual Status DeleteBackup(BackupID backup_id) = 0;
   virtual void StopBackup() = 0;
@@ -225,6 +231,7 @@ class BackupEngine {
       const RestoreOptions& restore_options = RestoreOptions()) = 0;
 
   virtual Status GarbageCollect() = 0;
+  virtual BackupID GetLatestBackupID() = 0;
 };
 
 // Stack your DB with BackupableDB to be able to backup the DB

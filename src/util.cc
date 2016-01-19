@@ -17,7 +17,7 @@
 #include <sys/stat.h>
 #include <string>
 #include <algorithm>
-
+#include <dirent.h>
 #include "util.h"
 
 namespace nemo {
@@ -328,4 +328,62 @@ int stringmatchlen(const char *pattern, int patternLen, const char *string, int 
     return 0;
 }
 
+int is_dir(const char* filename) {
+    struct stat buf;
+    int ret = stat(filename,&buf);
+    if (0 == ret) {
+        if (buf.st_mode & S_IFDIR) {
+            //folder
+            return 0;
+        } else {
+            //file
+            return 1;
+        }
+    }
+    return -1;
+}
+
+int delete_dir(const char* dirname)
+{
+    char chBuf[256];
+    DIR * dir = NULL;
+    struct dirent *ptr;
+    int ret = 0;
+    dir = opendir(dirname);
+    if (NULL == dir) {
+        return -1;
+    }
+    while((ptr = readdir(dir)) != NULL) {
+        ret = strcmp(ptr->d_name, ".");
+        if (0 == ret) {
+            continue;
+        }
+        ret = strcmp(ptr->d_name, "..");
+        if (0 == ret) {
+            continue;
+        }
+        snprintf(chBuf, 256, "%s/%s", dirname, ptr->d_name);
+        ret = is_dir(chBuf);
+        if (0 == ret) {
+            //is dir
+            ret = delete_dir(chBuf);
+            if (0 != ret) {
+                return -1;
+            }
+        }
+        else if (1 == ret) {
+            //is file
+            ret = remove(chBuf);
+            if(0 != ret) {
+                return -1;
+            }
+        }
+    }
+    (void)closedir(dir);
+    ret = remove(dirname);
+    if (0 != ret) {
+        return -1;
+    }
+    return 0;
+}
 }

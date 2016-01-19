@@ -14,13 +14,15 @@
 namespace nemo {
 
 Nemo::Nemo(const std::string &db_path, const Options &options) :
-    db_path_(db_path), save_flag_(false)
+    db_path_(db_path), save_flag_(false), dump_to_terminate_(false)
 {
    // pthread_mutex_init(&(mutex_kv_), NULL);
    // pthread_mutex_init(&(mutex_hash_), NULL);
    // pthread_mutex_init(&(mutex_list_), NULL);
    // pthread_mutex_init(&(mutex_zset_), NULL);
    // pthread_mutex_init(&(mutex_set_), NULL);
+    pthread_mutex_init(&(mutex_cursors_), NULL);
+    pthread_mutex_init(&(mutex_dump_), NULL);
 
     if (db_path_[db_path_.length() - 1] != '/') {
         db_path_.append("/");
@@ -33,8 +35,16 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
     mkpath((db_path_ + "zset").c_str(), 0755);
     mkpath((db_path_ + "set").c_str(), 0755);
 
+    cursors_store_.cur_size_ = 0;
+    cursors_store_.max_size_ = 5000;
+    cursors_store_.list_.clear();
+    cursors_store_.map_.clear();
+
     open_options_.create_if_missing = true;
     open_options_.write_buffer_size = options.write_buffer_size;
+    if (!options.compression) {
+        open_options_.compression = rocksdb::CompressionType::kNoCompression;
+    }
     if (options.target_file_size_base > 0) {
        open_options_.target_file_size_base = (uint64_t)options.target_file_size_base;
     }
