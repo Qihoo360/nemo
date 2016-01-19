@@ -120,10 +120,20 @@ class BackupEngineImpl : public BackupEngine {
                    bool read_only = false);
   ~BackupEngineImpl();
   Status CreateNewBackup(DB* db, bool flush_before_backup = false) override;
+  Status CreateNewBackupWithFiles(DB* db, 
+          std::vector<std::string>& live_files, VectorLogPtr& live_wal_files, 
+          uint64_t manifest_file_size, uint64_t sequence_number) override;
+  Status GetBackupFiles(DB* db, bool flush_before_backup, 
+          std::vector<std::string>& live_files, VectorLogPtr& live_wal_files, 
+          uint64_t &manifest_file_size, uint64_t &sequence_number) override;
+  BackupID GetLatestBackupID() override {
+    return latest_backup_id_;
+  }
+
   Status PurgeOldBackups(uint32_t num_backups_to_keep) override;
   Status DeleteBackup(BackupID backup_id) override;
   void StopBackup() override {
-    stop_backup_.store(true, std::memory_order_release);
+      stop_backup_.store(true, std::memory_order_release);
   }
   Status GarbageCollect() override;
 
@@ -490,12 +500,23 @@ BackupEngineImpl::BackupEngineImpl(Env* db_env,
 BackupEngineImpl::~BackupEngineImpl() { LogFlush(options_.info_log); }
 
 Status BackupEngineImpl::CreateNewBackup(DB* db, bool flush_before_backup) {
+    std::vector<std::string> live_files;
+    VectorLogPtr live_wal_files;
+    uint64_t manifest_file_size = 0;
+    uint64_t sequence_number = 0;
+    Status s = GetBackupFiles(db, flush_before_backup, live_files, live_wal_files, manifest_file_size, sequence_number);
+    if (!s.ok()) {
+        return s;
+    }
+    return CreateNewBackupWithFiles(db, live_files, live_wal_files, manifest_file_size, sequence_number);
+}
+
+Status BackupEngineImpl::GetBackupFiles(DB* db, bool flush_before_backup, 
+        std::vector<std::string>& live_files, VectorLogPtr& live_wal_files, 
+        uint64_t &manifest_file_size, uint64_t &sequence_number) {
   assert(!read_only_);
   Status s;
-  std::vector<std::string> live_files;
-  VectorLogPtr live_wal_files;
-  uint64_t manifest_file_size = 0;
-  uint64_t sequence_number = db->GetLatestSequenceNumber();
+  manifest_file_size = 0;
 
   s = db->DisableFileDeletions();
   if (s.ok()) {
@@ -509,9 +530,17 @@ Status BackupEngineImpl::CreateNewBackup(DB* db, bool flush_before_backup) {
   }
   if (!s.ok()) {
     db->EnableFileDeletions(false);
-    return s;
   }
+  sequence_number = db->GetLatestSequenceNumber();
 
+  return s;
+}
+
+Status BackupEngineImpl::CreateNewBackupWithFiles(DB* db, 
+        std::vector<std::string>& live_files, VectorLogPtr& live_wal_files, 
+        uint64_t manifest_file_size, uint64_t sequence_number) {
+  Status s;
+  //uint64_t sequence_number = db->GetLatestSequenceNumber();
   BackupID new_backup_id = latest_backup_id_ + 1;
   assert(backups_.find(new_backup_id) == backups_.end());
   auto ret = backups_.insert(std::move(

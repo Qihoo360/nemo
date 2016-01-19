@@ -492,3 +492,18 @@ Status Nemo::Compact(){
     if (!s.ok()) return s;
     return Status::OK();
 }
+
+rocksdb::DBWithTTL* Nemo::GetDBByType(const std::string& type) {
+    if (type == KV_DB)
+        return &(*kv_db_);
+    else if (type == HASH_DB)
+        return &(*hash_db_);
+    else if (type == LIST_DB)
+        return &(*list_db_);
+    else if (type == SET_DB)
+        return &(*set_db_);
+    else if (type == ZSET_DB)
+        return &(*zset_db_);
+    else
+        return NULL;
+}
