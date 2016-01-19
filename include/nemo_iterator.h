@@ -62,7 +62,7 @@ public:
     std::string value()     { return value_; };
     
 private:
-    void LoadData();
+    void CheckAndLoadData();
 
     std::string key_;
     std::string value_;
@@ -83,6 +83,8 @@ public:
     std::string value() { return value_; };
 
 private:
+    void CheckAndLoadData();
+
     std::string key_;
     std::string field_;
     std::string value_;
@@ -103,6 +105,8 @@ public:
     std::string member() { return member_; };
 
 private:
+    void CheckAndLoadData();
+
     std::string key_;
     double score_;
     std::string member_;
@@ -123,6 +127,8 @@ public:
     std::string member()    { return member_; };
 
 private:
+    void CheckAndLoadData();
+
     std::string key_;
     std::string member_;
 
@@ -141,6 +147,8 @@ public:
     std::string member()    { return member_; };
 
 private:
+    void CheckAndLoadData();
+
     std::string key_;
     std::string member_;
 

@@ -26,25 +26,18 @@ Status Nemo::Get(const std::string &key, std::string *val) {
 }
 
 // Note: no lock
-Status Nemo::KDel(const std::string &key, int64_t *res, bool is_lock) {
+Status Nemo::KDel(const std::string &key, int64_t *res) {
     Status s;
     std::string val;
 
-    if (is_lock) {
-      mutex_kv_record_.Lock(key);
-    }
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     *res = 0;
     if (s.ok()) {
         s = kv_db_->Delete(rocksdb::WriteOptions(), key);
         *res = 1;
     }
-    if (is_lock) {
-      mutex_kv_record_.Unlock(key);
-    }
     return s;
 }
-
 
 Status Nemo::MSet(const std::vector<KV> &kvs) {
     Status s;
@@ -608,25 +601,61 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
     int64_t del_cnt = 0;
     Status s;
     
-    s = KDel(key, count);
-    if (s.ok()) { ok_cnt++; del_cnt += *count; }
-    else if (!s.IsNotFound()) { return s; }
 
-    s = HDelKey(key, count);
-    if (s.ok()) { ok_cnt++; del_cnt += *count; }
-    else if (!s.IsNotFound()) { return s; }
+    {
+      RecordLock l(&mutex_kv_record_, key);
+      s = KDel(key, count);
+      if (s.ok()) {
+        ok_cnt++;
+        del_cnt += *count;
+      } else if (!s.IsNotFound()) {
+        return s;
+      }
+    }
 
-    s = ZDelKey(key, count);
-    if (s.ok()) { ok_cnt++; del_cnt += *count; }
-    else if (!s.IsNotFound()) { return s; }
+    {
+      RecordLock l(&mutex_hash_record_, key);
+      s = HDelKey(key, count);
+      if (s.ok()) {
+        ok_cnt++;
+        del_cnt += *count;
+      } else if (!s.IsNotFound()) {
+        return s;
+      }
+    }
 
-    s = SDelKey(key, count);
-    if (s.ok()) { ok_cnt++; del_cnt += *count; }
-    else if (!s.IsNotFound()) { return s; }
+    {
+      RecordLock l(&mutex_set_record_, key);
+      s = ZDelKey(key, count);
+      if (s.ok()) {
+        ok_cnt++;
+        del_cnt += *count;
+      } else if (!s.IsNotFound()) {
+        return s;
+      }
+    }
 
-    s = LDelKey(key, count);
-    if (s.ok()) { ok_cnt++; del_cnt += *count; }
-    else if (!s.IsNotFound()) { return s; }
+    {
+      RecordLock l(&mutex_set_record_, key);
+      s = SDelKey(key, count);
+      if (s.ok()) {
+        ok_cnt++;
+        del_cnt += *count;
+      } else if (!s.IsNotFound()) {
+        return s;
+      }
+    }
+
+    {
+      RecordLock l(&mutex_list_record_, key);
+      s = LDelKey(key, count);
+      if (s.ok()) {
+        ok_cnt++;
+        del_cnt += *count;
+      } else if (!s.IsNotFound()) {
+        return s;
+      }
+    }
 
     if (ok_cnt) {
       if (del_cnt > 0) {
@@ -643,24 +672,39 @@ Status Nemo::Expire(const std::string &key, const int32_t seconds, int64_t *res)
     Status s;
     
     s = KExpire(key, seconds, res);
-    if (s.ok()) { cnt++; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      cnt++;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     s = HExpire(key, seconds, res);
-    if (s.ok()) { cnt++; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      cnt++;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     s = ZExpire(key, seconds, res);
-    if (s.ok()) { cnt++; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      cnt++;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     s = SExpire(key, seconds, res);
-    if (s.ok()) { cnt++; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      cnt++;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     s = LExpire(key, seconds, res);
-    if (s.ok()) { cnt++; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      cnt++;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     if (cnt) {
       *res = 1;
@@ -697,24 +741,44 @@ Status Nemo::Persist(const std::string &key, int64_t *res) {
     Status s;
     
     s = KPersist(key, res);
-    if (s.ok()) { ok_cnt++; res_total += *res; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      ok_cnt++;
+      res_total += *res;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     s = HPersist(key, res);
-    if (s.ok()) { ok_cnt++; res_total += *res; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      ok_cnt++;
+      res_total += *res;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     s = ZPersist(key, res);
-    if (s.ok()) { ok_cnt++; res_total += *res; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      ok_cnt++;
+      res_total += *res;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     s = SPersist(key, res);
-    if (s.ok()) { ok_cnt++; res_total += *res; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      ok_cnt++;
+      res_total += *res;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     s = LPersist(key, res);
-    if (s.ok()) { ok_cnt++; res_total += *res; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      ok_cnt++;
+      res_total += *res;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     if (ok_cnt) {
       if (res_total > 0) {
@@ -733,24 +797,39 @@ Status Nemo::Expireat(const std::string &key, const int32_t timestamp, int64_t *
     Status s;
     
     s = KExpireat(key, timestamp, res);
-    if (s.ok()) { cnt++; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      cnt++;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     s = HExpireat(key, timestamp, res);
-    if (s.ok()) { cnt++; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      cnt++;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     s = ZExpireat(key, timestamp, res);
-    if (s.ok()) { cnt++; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      cnt++;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     s = SExpireat(key, timestamp, res);
-    if (s.ok()) { cnt++; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      cnt++;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     s = LExpireat(key, timestamp, res);
-    if (s.ok()) { cnt++; }
-    else if (!s.IsNotFound()) { return s; }
+    if (s.ok()) {
+      cnt++;
+    } else if (!s.IsNotFound()) {
+      return s;
+    }
 
     if (cnt) {
       *res = 1;

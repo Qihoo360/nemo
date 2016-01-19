@@ -551,7 +551,7 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
     return s;
 }
 
-Status Nemo::SDelKey(const std::string &key, int64_t *res, bool is_lock) {
+Status Nemo::SDelKey(const std::string &key, int64_t *res) {
     if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
@@ -561,10 +561,6 @@ Status Nemo::SDelKey(const std::string &key, int64_t *res, bool is_lock) {
     *res = 0;
 
     std::string size_key = EncodeSSizeKey(key);
-
-    if (is_lock) {
-      mutex_set_record_.Lock(key);
-    }
 
     s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
     if (s.ok()) {
@@ -577,10 +573,6 @@ Status Nemo::SDelKey(const std::string &key, int64_t *res, bool is_lock) {
         //MutexLock l(&mutex_set_);
         s = set_db_->PutWithKeyVersion(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
       }
-    }
-
-    if (is_lock) {
-      mutex_set_record_.Unlock(key);
     }
     return s;
 }
@@ -609,7 +601,7 @@ Status Nemo::SExpire(const std::string &key, const int32_t seconds, int64_t *res
         s = set_db_->PutWithKeyTTL(rocksdb::WriteOptions(), size_key, val, seconds);
       } else { 
         int64_t count;
-        s = SDelKey(key, &count, false);
+        s = SDelKey(key, &count);
       }
       *res = 1;
     }
@@ -686,7 +678,7 @@ Status Nemo::SExpireat(const std::string &key, const int32_t timestamp, int64_t 
       std::time_t cur = std::time(0);
       if (timestamp <= cur) {
         int64_t count;
-        s = SDelKey(key, &count, false);
+        s = SDelKey(key, &count);
       } else {
         //MutexLock l(&mutex_set_);
         s = set_db_->PutWithExpiredTime(rocksdb::WriteOptions(), size_key, val, timestamp);

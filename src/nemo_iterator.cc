@@ -84,42 +84,41 @@ void nemo::Iterator::Next() {
 // KV
 nemo::KIterator::KIterator(rocksdb::Iterator *it, const IteratorOptions iter_options)
   : Iterator(it, iter_options) {
-  Valid();
+  CheckAndLoadData();
   }
 
-void nemo::KIterator::LoadData() {
-  rocksdb::Slice ks = Iterator::key();
-  rocksdb::Slice vs = Iterator::value();
-  this->key_.assign(ks.data(), ks.size());
-  this->value_.assign(vs.data(), vs.size());
+void nemo::KIterator::CheckAndLoadData() {
+  if (valid_) {
+    rocksdb::Slice ks = Iterator::key();
+    rocksdb::Slice vs = Iterator::value();
+    this->key_.assign(ks.data(), ks.size());
+    this->value_.assign(vs.data(), vs.size());
+  }
 }
 
 bool nemo::KIterator::Valid() {
-  if (valid_) {
-    LoadData();
-  }
   return valid_;
 }
+
 void nemo::KIterator::Next() {
   Iterator::Next();
-  Valid();
+  CheckAndLoadData();
 }
 
 void nemo::KIterator::Skip(int64_t offset) {
   Iterator::Skip(offset);
-
-  Valid();
+  CheckAndLoadData();
 }
 
 // HASH
 nemo::HIterator::HIterator(rocksdb::Iterator *it, const IteratorOptions iter_options, const rocksdb::Slice &key)
   : Iterator(it, iter_options) {
     this->key_.assign(key.data(), key.size());
-    Valid();
+    CheckAndLoadData();
   }
 
 // check valid and load field_, value_
-bool nemo::HIterator::Valid() {
+void nemo::HIterator::CheckAndLoadData() {
   if (valid_) {
     rocksdb::Slice ks = Iterator::key();
 
@@ -129,68 +128,73 @@ bool nemo::HIterator::Valid() {
         if (k == this->key_) {
           rocksdb::Slice vs = Iterator::value();
           this->value_.assign(vs.data(), vs.size());
-          return true;
+          return ;
         }
       }
     }
   }
   valid_ = false;
-  return false;
+}
+
+bool nemo::HIterator::Valid() {
+  return valid_;
 }
 
 void nemo::HIterator::Next() {
   Iterator::Next();
-  Valid();
+  CheckAndLoadData();
 }
 
 void nemo::HIterator::Skip(int64_t offset) {
   Iterator::Skip(offset);
-  Valid();
+  CheckAndLoadData();
 }
-
 
 // ZSET
 nemo::ZIterator::ZIterator(rocksdb::Iterator *it, const IteratorOptions iter_options, const rocksdb::Slice &key)
   : Iterator(it, iter_options) {
     this->key_.assign(key.data(), key.size());
-    Valid();
+    CheckAndLoadData();
   }
 
 // check valid and assign member_ and score_
-bool nemo::ZIterator::Valid() {
+void nemo::ZIterator::CheckAndLoadData() {
   if (valid_) {
     rocksdb::Slice ks = Iterator::key();
     if (ks[0] == DataType::kZScore) {
       std::string k;
       if (DecodeZScoreKey(ks, &k, &this->member_, &this->score_) != -1) {
         if (k == this->key_) {
-          return true;
+          return ;
         }
       }
     }
   }
   valid_ = false;
-  return false;
+}
+
+bool nemo::ZIterator::Valid() {
+  return valid_;
 }
 
 void nemo::ZIterator::Next() {
   Iterator::Next();
-  Valid();
+  CheckAndLoadData();
 }
 
 void nemo::ZIterator::Skip(int64_t offset) {
   Iterator::Skip(offset);
-  Valid();
+  CheckAndLoadData();
 }
 
 // ZLexIterator
 nemo::ZLexIterator::ZLexIterator(rocksdb::Iterator *it, const IteratorOptions iter_options, const rocksdb::Slice &key)
   : Iterator(it, iter_options) {
     this->key_.assign(key.data(), key.size());
-    Valid();
+    CheckAndLoadData();
   }
 
-bool nemo::ZLexIterator::Valid() {
+void nemo::ZLexIterator::CheckAndLoadData() {
   if (valid_) {
     rocksdb::Slice ks = Iterator::key();
 
@@ -198,34 +202,37 @@ bool nemo::ZLexIterator::Valid() {
       std::string k;
       if (DecodeZSetKey(ks, &k, &this->member_) != -1) {
         if (k == this->key_) {
-          return true;
+          return ;
         }
       }
     }
   }
   valid_ = false;
-  return false;
+}
+
+bool nemo::ZLexIterator::Valid() {
+  return valid_;
 }
 
 void nemo::ZLexIterator::Next() {
   Iterator::Next();
-  Valid();
+  CheckAndLoadData();
 }
 
 void nemo::ZLexIterator::Skip(int64_t offset) {
   Iterator::Skip(offset);
-  Valid();
+  CheckAndLoadData();
 }
 
 // SET
 nemo::SIterator::SIterator(rocksdb::Iterator *it, const IteratorOptions iter_options, const rocksdb::Slice &key)
   : Iterator(it, iter_options) {
     this->key_.assign(key.data(), key.size());
-    Valid();
+    CheckAndLoadData();
   }
 
 // check valid and assign member_
-bool nemo::SIterator::Valid() {
+void nemo::SIterator::CheckAndLoadData() {
   if (valid_) {
     rocksdb::Slice ks = Iterator::key();
 
@@ -233,21 +240,24 @@ bool nemo::SIterator::Valid() {
       std::string k;
       if (DecodeSetKey(ks, &k, &this->member_) != -1) {
         if (k == this->key_) {
-          return true;
+          return ;
         }
       }
     }
   }
   valid_ = false;
-  return false;
+}
+
+bool nemo::SIterator::Valid() {
+  return valid_;
 }
 
 void nemo::SIterator::Next() {
   Iterator::Next();
-  Valid();
+  CheckAndLoadData();
 }
 
 void nemo::SIterator::Skip(int64_t offset) {
   Iterator::Skip(offset);
-  Valid();
+  CheckAndLoadData();
 }

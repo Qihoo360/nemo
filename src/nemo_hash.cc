@@ -85,7 +85,7 @@ Status Nemo::HDel(const std::string &key, const std::string &field) {
 }
 
 // Note: No lock, Internal use only!!
-Status Nemo::HDelKey(const std::string &key, int64_t *res, bool is_lock) {
+Status Nemo::HDelKey(const std::string &key, int64_t *res) {
     if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
     }
@@ -95,11 +95,6 @@ Status Nemo::HDelKey(const std::string &key, int64_t *res, bool is_lock) {
     std::string size_key = EncodeHsizeKey(key);
     *res = 0;
 
-    //RecordLock l(&mutex_hash_record_, key);
-    if (is_lock) {
-      mutex_hash_record_.Lock(key);
-    }
-
     s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
     if (s.ok()) {
       int64_t len = *(int64_t *)val.data();
@@ -108,14 +103,10 @@ Status Nemo::HDelKey(const std::string &key, int64_t *res, bool is_lock) {
       } else {
         *res = 1;
         len = 0;
-        //MutexLock l(&mutex_hash_);
         s = hash_db_->PutWithKeyVersion(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
       }
     }
 
-    if (is_lock) {
-      mutex_hash_record_.Unlock(key);
-    }
     return s;
 }
 
@@ -143,7 +134,7 @@ Status Nemo::HExpire(const std::string &key, const int32_t seconds, int64_t *res
         s = hash_db_->PutWithKeyTTL(rocksdb::WriteOptions(), size_key, val, seconds);
       } else { 
         int64_t count;
-        s = HDelKey(key, &count, false);
+        s = HDelKey(key, &count);
       }
       *res = 1;
     }
@@ -232,7 +223,7 @@ Status Nemo::HExpireat(const std::string &key, const int32_t timestamp, int64_t 
       std::time_t cur = std::time(0);
       if (timestamp <= cur) {
         int64_t count;
-        s = HDelKey(key, &count, false);
+        s = HDelKey(key, &count);
       } else {
         s = hash_db_->PutWithExpiredTime(rocksdb::WriteOptions(), size_key, val, timestamp);
       }
