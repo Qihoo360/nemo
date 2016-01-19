@@ -152,7 +152,7 @@ int32_t DBWithTTLImpl::GetTTLFromNow(const Slice& value, int32_t ttl, Env* env) 
 Status DBWithTTL::GetVersion(const Slice& key, int32_t *version) {
     // KV structure and data key of Hash, list, zset, set don't have version
     *version = 0;
-    if (db_->GetMetaPrefix() == kMetaPrefix_KV || db_->GetMetaPrefix() != (key.data())[0]) {
+    if (db_->GetMetaPrefix() == kMetaPrefix_KV || db_->GetMetaPrefix() != key[0]) {
       return Status::NotFound("Not meta key");
     }
 
@@ -334,9 +334,9 @@ Status DBWithTTL::SanityCheckVersionAndTimestamp(const Slice &key, const Slice &
 
   int32_t timestamp_value = DecodeFixed32(value.data() + value.size() - kTSLength);
   // data key
-  if (meta_prefix_ != (key.data())[0]) { 
+  if (meta_prefix_ != key[0]) {
     std::string meta_key(1, meta_prefix_);
-    int32_t len = *((uint8_t *)key.data() + 1);
+    int32_t len = *((uint8_t *)(key.data() + 1));
     meta_key.append(key.data() + 2, len);
 
     Status st = db_->Get(ReadOptions(), db_->DefaultColumnFamily(), meta_key, &meta_value);
@@ -400,26 +400,6 @@ Status DBWithTTLImpl::StripVersionAndTS(std::string* str) {
   str->erase(str->length() - kTSLength - kVersionLength, kTSLength + kVersionLength);
   return st;
 }
-
-// Get key version according to MetaKey;
-// Meta_key is meta_prefix + key
-//int32_t DBWithTTL::GetKeyVersion(const Slice& key) {
-//  int32_t version = 0;
-//  std::string value;
-//
-//  std::string meta_key;
-//  // KV do not have meta_prefix
-//  if (meta_prefix_ != '\0') {
-//    meta_key.append(1, meta_prefix_);
-//  }
-//  meta_key.append(key.data(), key.size());
-//
-//  Status st = db_->Get(ReadOptions(), DefaultColumnFamily(), meta_key, &value);
-//  if (st.ok()) {
-//      version = DecodeFixed32(value.data() + value.size() - kVersionLength - kTSLength);
-//  }
-//  return version;
-//}
 
 // We treat Put as live forever,
 // We will use 0 as a special TTL value and special appended TS
@@ -850,14 +830,14 @@ Iterator* DBWithTTLImpl::NewIterator(const ReadOptions& opts,
 
 bool TtlCompactionFilter::Filter(int level, const Slice& key, const Slice& old_val,
                       std::string* new_val, bool* value_changed) const {
-
-    if (db_->meta_prefix_ == kMetaPrefix_KV) {
+    char meta_prefix = db_->GetMetaPrefix();
+    if (meta_prefix == kMetaPrefix_KV) {
         if (DBWithTTLImpl::IsStale(old_val, 0, env_)) {
           return true;
         }
     } else {
       // reserve meta key for hash, list, zset, set
-      if ((key.data())[0] == db_->meta_prefix_) {
+      if (key[0] == meta_prefix) {
         return false;
       }
 
@@ -865,8 +845,8 @@ bool TtlCompactionFilter::Filter(int level, const Slice& key, const Slice& old_v
       std::string value;
 
       // Get meta key and value
-      std::string meta_key(1, db_->meta_prefix_);
-      int32_t len = *((uint8_t *)key.data() + 1);
+      std::string meta_key(1, meta_prefix);
+      int32_t len = *((uint8_t *)(key.data() + 1));
       meta_key.append(key.data() + 2, len);
 
       Status st = db_->Get(ReadOptions(), db_->DefaultColumnFamily(), meta_key, &value);

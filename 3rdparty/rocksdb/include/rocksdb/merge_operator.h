@@ -137,8 +137,6 @@ class MergeOperator {
   //       no checking is enforced. Client is responsible for providing
   //       consistent MergeOperator between DB opens.
   virtual const char* Name() const = 0;
-
-  DBImpl *db_;
 };
 
 // The simpler, associative merge operator.

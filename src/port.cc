@@ -64,14 +64,14 @@ void RecordMutex::Lock(const std::string &key) {
   std::unordered_map<std::string, Mutex *>::const_iterator it = records_.find(key);
 
   if (it != records_.end()) {
-    log_info ("tid=(%u) >Lock key=(%s) exist", pthread_self(), key.c_str());
+    //log_info ("tid=(%u) >Lock key=(%s) exist", pthread_self(), key.c_str());
     Mutex *mu = it->second;
     mutex_.Unlock();
 
     mu->Lock();
-    log_info ("tid=(%u) <Lock key=(%s) exist", pthread_self(), key.c_str());
+    //log_info ("tid=(%u) <Lock key=(%s) exist", pthread_self(), key.c_str());
   } else {
-    log_info ("tid=(%u) >Lock key=(%s) new", pthread_self(), key.c_str());
+    //log_info ("tid=(%u) >Lock key=(%s) new", pthread_self(), key.c_str());
 
     Mutex *mu = new Mutex();
 
@@ -80,7 +80,7 @@ void RecordMutex::Lock(const std::string &key) {
 
 
     mu->Lock();
-    log_info ("tid=(%u) <Lock key=(%s) new", pthread_self(), key.c_str());
+    //log_info ("tid=(%u) <Lock key=(%s) new", pthread_self(), key.c_str());
   }
 }
 
@@ -88,14 +88,14 @@ void RecordMutex::Unlock(const std::string &key) {
   mutex_.Lock();
   std::unordered_map<std::string, Mutex *>::const_iterator it = records_.find(key);
   
-  log_info ("tid=(%u) >Unlock key=(%s) new", pthread_self(), key.c_str());
+  //log_info ("tid=(%u) >Unlock key=(%s) new", pthread_self(), key.c_str());
   if (it != records_.end()) {
     Mutex *mu = it->second;
     mutex_.Unlock();
 
     mu->Unlock();
   }
-  log_info ("tid=(%u) <Unlock key=(%s) new", pthread_self(), key.c_str());
+  //log_info ("tid=(%u) <Unlock key=(%s) new", pthread_self(), key.c_str());
 }
 
 }  // namespace port

@@ -64,8 +64,6 @@ class ColumnFamilySet;
 class TableCache;
 class MergeIteratorBuilder;
 
-//class DBImpl;
-
 // Return the smallest index i such that file_level.files[i]->largest >= key.
 // Return file_level.num_files if there is no such file.
 // REQUIRES: "file_level.files" contains a sorted list of
@@ -655,7 +653,6 @@ class VersionSet {
 
   friend class Version;
   friend class DBImpl;
-
 
   struct LogReporter : public log::Reader::Reporter {
     Status* status;

@@ -299,16 +299,17 @@ void DBImpl::GetKeyVersionAndTS(const Slice& key, int32_t *version, int32_t *tim
   }
 
   std::string value;
-  std::string meta_key(1, meta_prefix_);
 
-  if (meta_prefix_ == (key.data())[0]) { 
-     meta_key.assign(key.data(), key.size());
+  Status st;
+  if (meta_prefix_ == key[0]) {
+     st = this->Get(ReadOptions(), DefaultColumnFamily(), key, &value);
   } else {
-    int32_t len = *((uint8_t *)key.data() + 1);
+    std::string meta_key(1, meta_prefix_);
+    int32_t len = *((uint8_t *)(key.data() + 1));
     meta_key.append(key.data() + 2, len);
+    st = this->Get(ReadOptions(), DefaultColumnFamily(), meta_key, &value);
   }
 
-  Status st = this->Get(ReadOptions(), DefaultColumnFamily(), meta_key, &value);
   if (st.ok()) {
       *version = DecodeFixed32(value.data() + value.size() - kVersionLength - kTSLength);
       *timestamp = DecodeFixed32(value.data() + value.size() - kTSLength);
@@ -4084,10 +4085,6 @@ Status DB::Open(const DBOptions& db_options, const std::string& dbname,
     impl->opened_successfully_ = true;
     Log(InfoLogLevel::INFO_LEVEL, impl->db_options_.info_log, "DB pointer %p",
         impl);
-
-    //@ADD by flabby
-    //impl->versions_->db_ = impl;
-
     *dbptr = impl;
   } else {
     for (auto* h : *handles) {

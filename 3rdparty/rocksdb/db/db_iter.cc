@@ -95,7 +95,6 @@ class DBIter: public Iterator {
   virtual void SetDB(DBImpl* db) {
     db_ = db;
   }
-  DBImpl* db_;
 
   virtual bool Valid() const override { return valid_; }
   virtual Slice key() const override {
@@ -141,6 +140,8 @@ class DBIter: public Iterator {
       saved_value_.clear();
     }
   }
+
+  DBImpl* db_;
 
   const SliceTransform* prefix_extractor_;
   bool arena_mode_;
@@ -244,17 +245,18 @@ void DBIter::FindNextUserEntryInternal(bool skipping) {
             case kTypeValue:
               {
               skipping = true;
+
+              char meta_prefix = db_->GetMetaPrefix();
               saved_key_.SetKey(ikey.user_key);
               //std::string user_key(ikey.user_key.data(), ikey.user_key.size());
               Slice val(iter_->value().data(), iter_->value().size());
 
               // KV structure only check timestamp;
-              if (db_->meta_prefix_ == kMetaPrefix_KV) {
+              if (meta_prefix == kMetaPrefix_KV) {
                 int32_t timestamp_value = DecodeFixed32(val.data() + val.size() - DBImpl::kTSLength);
                 if (timestamp_value != 0) {
-                  Env* env = db_->GetEnv();
                   int64_t curtime;
-                  if (env->GetCurrentTime(&curtime).ok() && timestamp_value < curtime) {
+                  if (env_->GetCurrentTime(&curtime).ok() && timestamp_value < curtime) {
                     break;
                   }
                 }
@@ -262,14 +264,12 @@ void DBIter::FindNextUserEntryInternal(bool skipping) {
                 saved_key_.SetKey(ikey.user_key);
                 return;
               } else {
-                // Multi structures' meta need check timestamp;
-                // Mutli Structures check version here
-                if ((ikey.user_key.data())[0] == db_->meta_prefix_) {
+                // Multi structures' meta need check timestamp and version
+                if (ikey.user_key[0] == meta_prefix) {
                   int32_t timestamp_value = DecodeFixed32(val.data() + val.size() - DBImpl::kTSLength);
                   if (timestamp_value != 0) {
-                    Env* env = db_->GetEnv();
                     int64_t curtime;
-                    if (env->GetCurrentTime(&curtime).ok() && timestamp_value < curtime) {
+                    if (env_->GetCurrentTime(&curtime).ok() && timestamp_value < curtime) {
                       break;
                     }
                   }
@@ -282,8 +282,8 @@ void DBIter::FindNextUserEntryInternal(bool skipping) {
                   std::string meta_val;
 
                   // Get meta_key and meta_value
-                  int32_t len = *((uint8_t *)ikey.user_key.data() + 1);
-                  std::string meta_key(1, db_->meta_prefix_);
+                  int32_t len = *((uint8_t *)(ikey.user_key.data() + 1));
+                  std::string meta_key(1, meta_prefix);
                   meta_key.append(ikey.user_key.data() + 2, len);
 
                   Status st = db_->Get(ReadOptions(), db_->DefaultColumnFamily(), meta_key, &meta_val);
@@ -293,9 +293,8 @@ void DBIter::FindNextUserEntryInternal(bool skipping) {
 
                   int32_t timestamp_value = DecodeFixed32(meta_val.data() + meta_val.size() - DBImpl::kTSLength);
                   if (timestamp_value != 0) {
-                    Env* env = db_->GetEnv();
                     int64_t curtime;
-                    if (env->GetCurrentTime(&curtime).ok() && timestamp_value < curtime) {
+                    if (env_->GetCurrentTime(&curtime).ok() && timestamp_value < curtime) {
                       break;
                     }
                   }
