@@ -124,6 +124,9 @@ class RefMutex {
   // should check refs before Unlock
   void Lock();
   void Unlock();
+
+  void Ref();
+  void Unref();
   bool IsLastRef() {
     return refs_ == 1;
   }

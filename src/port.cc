@@ -60,17 +60,22 @@ RefMutex::~RefMutex() {
   PthreadCall("destroy mutex", pthread_mutex_destroy(&mu_));
 }
 
-void RefMutex::Lock() {
+void RefMutex::Ref() {
   refs_++;
+}
+void RefMutex::Unref() {
+  --refs_;
+  if (refs_ == 0) {
+    delete this;
+  }
+}
+
+void RefMutex::Lock() {
   PthreadCall("lock", pthread_mutex_lock(&mu_));
 }
 
 void RefMutex::Unlock() {
   PthreadCall("unlock", pthread_mutex_unlock(&mu_));
-  --refs_;
-  if (refs_ == 0) {
-    delete this;
-  }
 }
 
 RecordMutex::~RecordMutex() {
@@ -91,16 +96,17 @@ void RecordMutex::Lock(const std::string &key) {
   if (it != records_.end()) {
     //log_info ("tid=(%u) >Lock key=(%s) exist, map_size=%u", pthread_self(), key.c_str(), records_.size());
     RefMutex *ref_mutex = it->second;
+    ref_mutex->Ref();
     mutex_.Unlock();
 
     ref_mutex->Lock();
     //log_info ("tid=(%u) <Lock key=(%s) exist", pthread_self(), key.c_str());
   } else {
     //log_info ("tid=(%u) >Lock key=(%s) new, map_size=%u ++", pthread_self(), key.c_str(), records_.size());
-
     RefMutex *ref_mutex = new RefMutex();
 
     records_.insert(std::make_pair(key, ref_mutex));
+    ref_mutex->Ref();
     mutex_.Unlock();
 
     ref_mutex->Lock();
@@ -120,8 +126,10 @@ void RecordMutex::Unlock(const std::string &key) {
       records_.erase(it);
     }
     ref_mutex->Unlock();
-    mutex_.Unlock();
+    ref_mutex->Unref();
   }
+
+  mutex_.Unlock();
   //log_info ("tid=(%u) <Unlock key=(%s) new", pthread_self(), key.c_str());
 }
 

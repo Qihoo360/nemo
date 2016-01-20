@@ -147,6 +147,8 @@ Status Nemo::LPush(const std::string &key, const std::string &val, int64_t *llen
     std::string meta_key = EncodeLMetaKey(key);
     //MutexLock l(&mutex_list_);
     RecordLock l(&mutex_list_record_, key);
+    //sleep(8);
+
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
     if (s.ok()) {
         if (ParseMeta(meta_val, meta) == 0) {
