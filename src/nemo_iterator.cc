@@ -45,16 +45,12 @@ rocksdb::Slice nemo::Iterator::value() {
 }
 
 bool nemo::Iterator::Valid() {
-  if (valid_) {
-    Check();
-  }
   return valid_;
 }
 
+//  non-positive offset don't skip at all
 void nemo::Iterator::Skip(int64_t offset) {
-  if (offset < 0) {
-    valid_ = false;
-  } else {
+  if (offset > 0) {
     while (offset-- > 0) {
       if (ioptions_.direction == kForward){
         it_->Next();
