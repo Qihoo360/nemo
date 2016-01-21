@@ -13,12 +13,13 @@ namespace nemo {
         // Wait all children threads
         StopBackup();
         WaitBackupPthread();
-        // Delete backup content
-        ClearBackupContent();
         // Delete engines
         for (auto& engine : engines_) {
-            delete engine.second;
+            if (engine.second != NULL)
+                delete engine.second;
+            engine.second = NULL;
         }
+        engines_.clear();
         pthread_mutex_destroy(&(mutex_));
     }
     
@@ -84,55 +85,42 @@ namespace nemo {
 
         Status s;
         for (auto& engine : engines_) {
-            BackupContent* bcontent = new BackupContent();
-            // Erase item and log if alread exist
-            std::map<std::string, BackupContent*>::iterator it = backup_content_.find(engine.first);
-            if (it != backup_content_.end()) { //If already exists
-                log_warn("backup_content get dupilicated, backup type: %s", it->first.c_str());
-                delete it->second;
-                backup_content_.erase(it);
-            }
-
             //Get backup content
+            BackupContent bcontent;
             rocksdb::DBWithTTL *tdb;
             if ((tdb = db->GetDBByType(engine.first)) == NULL) {
                 log_warn("failed to find db by type: %s", engine.first.c_str());
             }
+            VectorLogPtr vlptr;     //we don't need VectorLogPtr since we do flush before backup
             s = engine.second->GetBackupFiles(tdb, true, 
-                    bcontent->live_files, bcontent->live_wal_files, 
-                    bcontent->manifest_file_size, bcontent->sequence_number);
+                    bcontent.live_files, vlptr, 
+                    bcontent.manifest_file_size, bcontent.sequence_number);
             if (!s.ok()) {
                 log_warn("get backup files faild for type: %s", engine.first.c_str());
-                delete bcontent;
-                {
-                    MutexLock l(&mutex_);
-                    on_running_ = false;
-                }   
+                on_running_ = false;
                 return s;
             }
-            backup_content_.insert(std::make_pair(engine.first, bcontent));
+            backup_content_[engine.first] = bcontent;
         }
-        {
-            MutexLock l(&mutex_);
-            on_running_ = false;
-        }   
+        on_running_ = false;
         return s;
     }
 
     Status BackupEngine::CreateNewBackupSpecify(nemo::Nemo *db, const std::string &type) {
         rocksdb::DBWithTTL *tdb = db->GetDBByType(type);
         std::map<std::string, rocksdb::BackupEngine*>::iterator it_engine = engines_.find(type);
-        std::map<std::string, BackupContent*>::iterator it_content = backup_content_.find(type);
+        std::map<std::string, BackupContent>::iterator it_content = backup_content_.find(type);
 
+        VectorLogPtr vlptr;
         if (it_content != backup_content_.end() && 
                 it_engine != engines_.end() &&
                 tdb != NULL) {
             Status s = it_engine->second->CreateNewBackupWithFiles(
                     tdb, 
-                    it_content->second->live_files, 
-                    it_content->second->live_wal_files, 
-                    it_content->second->manifest_file_size,
-                    it_content->second->sequence_number);
+                    it_content->second.live_files, 
+                    vlptr, 
+                    it_content->second.manifest_file_size,
+                    it_content->second.sequence_number);
             if (!s.ok()) {
                 log_warn("backup engine create new failed, type: %s, error %s", 
                         type.c_str(), s.ToString().c_str());
@@ -144,13 +132,6 @@ namespace nemo {
             return Status::Corruption("invalid db type");
         }
         return Status::OK();
-    
-    }
-
-    void BackupEngine::PrintBackupContent() {
-        for (auto& content : backup_content_) {
-            log_info("backup content  type : %s", content.first.c_str());
-        }
     }
 
     Status BackupEngine::RestoreFromBackupSpecify(const std::string &type, BackupID id, const std::string &db_dir) {
@@ -174,34 +155,44 @@ namespace nemo {
     }
 
     void* ThreadFuncSaveSpecify(void *arg) {
-        BackupEngine* p = (BackupEngine*)(((BackupSaveArgs*)arg)->p_engine);
-        Nemo *pdb = (Nemo*)(((BackupSaveArgs*)arg)->p_nemo);
-        std::string key_type = ((BackupSaveArgs*)arg)->key_type;
+        BackupSaveArgs* arg_ptr = static_cast<BackupSaveArgs*>(arg);
+        BackupEngine* p = static_cast<BackupEngine*>(arg_ptr->p_engine);
+        Nemo *pdb = static_cast<Nemo*>(arg_ptr->p_nemo);
         
-        p->CreateNewBackupSpecify(pdb, key_type);
-        pthread_exit(NULL);
+        arg_ptr->res = p->CreateNewBackupSpecify(pdb, arg_ptr->key_type);
+
+        pthread_exit(&(arg_ptr->res));
     }
 
-    void * ThreadFuncRestoreSpecify(void *arg) {
-        BackupRestoreArgs* arg_ptr = (BackupRestoreArgs*)arg;
-        BackupEngine* p = (BackupEngine*)(arg_ptr->p_engine);
-        std::string key_type = arg_ptr->key_type;
-        std::string db_dir = arg_ptr->db_dir;
-        BackupID backup_id = arg_ptr->backup_id;
+    void* ThreadFuncRestoreSpecify(void *arg) {
+        BackupRestoreArgs* arg_ptr = static_cast<BackupRestoreArgs*>(arg);
+        BackupEngine* p = static_cast<BackupEngine*>(arg_ptr->p_engine);
 
-        p->RestoreFromBackupSpecify(key_type, backup_id, db_dir);
-        pthread_exit(NULL);
+        arg_ptr->res = p->RestoreFromBackupSpecify(arg_ptr->key_type, 
+                arg_ptr->backup_id, arg_ptr->db_dir);
+        
+        pthread_exit(&(arg_ptr->res));
     }
 
-    void BackupEngine::WaitBackupPthread() { 
+    Status BackupEngine::WaitBackupPthread() { 
         int ret;
+        Status s = Status::OK();
         for (auto& pthread : backup_pthread_ts_) {
-            if ((ret = pthread_join(pthread.second, NULL)) != 0) {
+            void *res;
+            if ((ret = pthread_join(pthread.second, &res)) != 0) {
                 log_warn("pthread_join failed with backup thread for key_type: %s, error %d", 
                         pthread.first.c_str(), ret);
             }
+            Status cur_s = *(static_cast<Status*>(res));
+            if (!cur_s.ok()) {
+                log_warn("pthread executed failed with key_type: %s, error %s", 
+                        pthread.first.c_str(), cur_s.ToString().c_str());
+                StopBackup(); //stop others when someone failed
+                s = cur_s;
+            }
         }
         backup_pthread_ts_.clear();
+        return s;
     }
 
 
@@ -214,7 +205,7 @@ namespace nemo {
             on_running_ = true;
         }
         Status s = Status::OK();
-        std::vector<BackupSaveArgs *> args;
+        std::vector<BackupSaveArgs*> args;
         for (auto& engine : engines_) {
             pthread_t tid;
             BackupSaveArgs *arg = new BackupSaveArgs(db, (void*)this, engine.first);
@@ -225,6 +216,7 @@ namespace nemo {
             }
             if (!(backup_pthread_ts_.insert(std::make_pair(engine.first, tid)).second)) {
                 log_warn("thread open dupilicated, type: %s", engine.first.c_str());
+                backup_pthread_ts_[engine.first] = tid;
             }
         }
  
@@ -232,31 +224,20 @@ namespace nemo {
         if (!s.ok()) {
            StopBackup();
         }
-        WaitBackupPthread();
-        // Clear backup content
-        ClearBackupContent();
+        s = WaitBackupPthread();
 
         for (auto& a : args) {
             delete a;
         }
-        {
-            MutexLock l(&mutex_);
-            on_running_ = false;
-        }
-        return Status::OK();
+        on_running_ = false;
+        return s;
     }
 
     void BackupEngine::StopBackup() {
         for (auto& engine : engines_) {
-            engine.second->StopBackup();  
+            if (engine.second != NULL)
+                engine.second->StopBackup();  
         }
-    }
-    
-    void BackupEngine::ClearBackupContent() {
-        for (auto& content : backup_content_) {
-            delete content.second;
-        }
-        backup_content_.clear();
     }
     
     Status BackupEngine::RestoreDBFromBackup(
@@ -268,8 +249,8 @@ namespace nemo {
             }
             on_running_ = true;
         }
-        std::vector<BackupRestoreArgs *> args;
         Status s = Status::OK();
+        std::vector<BackupRestoreArgs*> args;
         for (auto& engine : engines_) {
             pthread_t tid;
             BackupRestoreArgs *arg = new BackupRestoreArgs((void*)this, engine.first, 
@@ -281,20 +262,20 @@ namespace nemo {
             }
             if (!(backup_pthread_ts_.insert(std::make_pair(engine.first, tid)).second)) {
                 log_warn("thread open dupilicated, type: %s", engine.first.c_str());
+                backup_pthread_ts_[engine.first] = tid;
             }
         }
     
+        // Wait threads stop
         if (!s.ok()) {
             StopBackup();
         }
-        WaitBackupPthread();
+        s = WaitBackupPthread();
+
         for (auto& a : args) {
             delete a;
         }
-        {
-            MutexLock l(&mutex_);
-            on_running_ = false;
-        }
+        on_running_ = false;
         return s;
     }
 

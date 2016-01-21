@@ -52,9 +52,12 @@ namespace nemo {
         void *p_nemo;
         void *p_engine;
         const std::string key_type;
+        Status res;
 
-        BackupSaveArgs(void *_p_nemo, void *_p_engine, const std::string &_key_type)
-            : p_nemo(_p_nemo), p_engine(_p_engine), key_type(_key_type) {};
+        BackupSaveArgs(void *_p_nemo, void *_p_engine, 
+                const std::string &_key_type)
+            : p_nemo(_p_nemo), p_engine(_p_engine), 
+            key_type(_key_type) {}
     };
 
     // Arguments which will used by BackupRestore Thread
@@ -65,17 +68,18 @@ namespace nemo {
         const std::string key_type;
         BackupID backup_id;
         const std::string db_dir;
+        Status res;
 
         BackupRestoreArgs(void *_p_engine, const std::string &_key_type, 
                 BackupID _backup_id, const std::string &_db_dir)
             : p_engine(_p_engine), key_type(_key_type), 
-            backup_id(_backup_id), db_dir(_db_dir){};
+            backup_id(_backup_id), db_dir(_db_dir) {}
     };
 
     typedef std::vector<std::unique_ptr<rocksdb::LogFile>> VectorLogPtr;
     struct BackupContent {
         std::vector<std::string> live_files;
-        VectorLogPtr live_wal_files;
+        //VectorLogPtr live_wal_files;
         uint64_t manifest_file_size = 0;
         uint64_t sequence_number = 0;
     };
@@ -92,8 +96,6 @@ namespace nemo {
             
             void StopBackup();
     
-            void PrintBackupContent();
-
             Status RestoreDBFromBackup(
                     BackupID backup_id, const std::string& db_dir);
 
@@ -101,6 +103,9 @@ namespace nemo {
                     const std::string& db_dir) {
                 return RestoreDBFromBackup(latest_backup_id_, db_dir);
             }
+            
+            BackupID GetLatestBackupID() { return latest_backup_id_; }
+
             Status CreateNewBackupSpecify(nemo::Nemo *db, const std::string &type);
             Status RestoreFromBackupSpecify(const std::string &type, BackupID id, const std::string &db_dir);
         private:
@@ -112,20 +117,19 @@ namespace nemo {
             pthread_mutex_t mutex_;
 
             std::map<std::string, rocksdb::BackupEngine*> engines_;
-            std::map<std::string, BackupContent*> backup_content_;
+            std::map<std::string, BackupContent> backup_content_;
             std::map<std::string, pthread_t> backup_pthread_ts_;
             
-            inline std::string GetSaveDirByType(const std::string _dir, const std::string& _type) const {
+            std::string GetSaveDirByType(const std::string _dir, const std::string& _type) const {
                 std::string backup_dir = _dir.empty() ? DEFAULT_BK_PATH : _dir;
                 return backup_dir + ((backup_dir.back() != '/') ? "/" : "") + _type;
             }
-            inline std::string GetRestoreDirByType(const std::string _dir, const std::string& _type) const {
+            std::string GetRestoreDirByType(const std::string _dir, const std::string& _type) const {
                 std::string restore_dir = _dir.empty() ? DEFAULT_RS_PATH : _dir;
                 return restore_dir + ((restore_dir.back() != '/') ? "/" : "") + _type;
             }
             Status NewEngine(const BackupableOptions& options, const std::string &type);
-            void WaitBackupPthread();
-            void ClearBackupContent();
+            Status WaitBackupPthread();
             Status InitLatestBackupID();
     };
 }
