@@ -7,7 +7,7 @@
 
 #include "nemo.h"
 #include "xdebug.h"
-#include "nemo_zset.h"
+#include "../src/nemo_zset.h"
 
 using namespace nemo;
 

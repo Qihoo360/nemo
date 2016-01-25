@@ -91,6 +91,8 @@ TEST_F(NemoSetTest, TestSAdd) {
 	getMember = "";
 	n_->SPop(key, getMember);
 	EXPECT_EQ(member, getMember);
+  printf ("s_ is %s, res = %d, member.size()=%d getMember.size()=%d  %d\n", s_.ToString().c_str(), res, 
+          member.size(), getMember.size(), member == getMember);
 	if (s_.ok() && res == 1 && member == getMember) {
 		log_success("member取key的最大值，其他正常情况");
 	} else {
@@ -215,7 +217,7 @@ TEST_F(NemoSetTest, TestSScan) {
 #define SScanLoopProcess(limit, expectedNum, testMessage)\
 	siter = n_->SScan(key, limit);\
 	num = 0;\
-	while (siter->Next()) {\
+  for (; siter->Valid(); siter->Next()){\
 		num++;\
 	}\
 	EXPECT_EQ(expectedNum, num);\
@@ -1005,8 +1007,9 @@ TEST_F(NemoSetTest, TestSPop) {
 	s_.OK();//key存在，存的是Set结构
 	key = GetRandomKey_();
 	nemo::SIterator* siter = n_->SScan(key, -1);
-	while (siter->Next()) {
-		n_->SRem(key, siter->Member(), &resTemp);
+  for (; siter->Valid(); siter->Next()) {
+	//while (siter->Next()) {
+		n_->SRem(key, siter->member(), &resTemp);
 	}
 	delete siter;
 	member = GetRandomVal_();

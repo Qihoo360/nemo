@@ -5,6 +5,8 @@
 #include <algorithm>
 
 #include "nemo.h"
+//#include "nemo_options.h"
+
 #include "util.h"
 #include "xdebug.h"
 
@@ -14,11 +16,11 @@ namespace nemo {
 Nemo::Nemo(const std::string &db_path, const Options &options) :
     db_path_(db_path), save_flag_(false), dump_to_terminate_(false)
 {
-    pthread_mutex_init(&(mutex_kv_), NULL);
-    pthread_mutex_init(&(mutex_hash_), NULL);
-    pthread_mutex_init(&(mutex_list_), NULL);
-    pthread_mutex_init(&(mutex_zset_), NULL);
-    pthread_mutex_init(&(mutex_set_), NULL);
+   // pthread_mutex_init(&(mutex_kv_), NULL);
+   // pthread_mutex_init(&(mutex_hash_), NULL);
+   // pthread_mutex_init(&(mutex_list_), NULL);
+   // pthread_mutex_init(&(mutex_zset_), NULL);
+   // pthread_mutex_init(&(mutex_set_), NULL);
     pthread_mutex_init(&(mutex_cursors_), NULL);
     pthread_mutex_init(&(mutex_dump_), NULL);
 

@@ -351,12 +351,31 @@ int main()
     keys.push_back("tScanKey2");
 
     s = n->MSet(kvs);
-    KIterator *scan_iter = n->Scan("tScanKey1", "tScanKey2", -1);
+    KIterator *scan_iter = n->KScan("tScanKey1", "tScanKey2", -1);
+    log_info("    Test Scan[1, 2]  in [1, 2, 21, 3]:");
     if (scan_iter == NULL) {
         log_info("Scan error!");
     }
-    while (scan_iter->Next()) {
-        log_info("Test Scan key: %s, value: %s", scan_iter->Key().c_str(), scan_iter->Val().c_str());
+    for (; scan_iter->Valid(); scan_iter->Next()) {
+        log_info("        Test Scan key: %s, value: %s", scan_iter->key().c_str(), scan_iter->value().c_str());
+    }
+
+    scan_iter = n->KScan("tScanKey", "tScanKey2", -1);
+    log_info("    Test Scan[null, 2]  in [1, 2, 21, 3]:");
+    if (scan_iter == NULL) {
+        log_info("Scan error!");
+    }
+    for (; scan_iter->Valid(); scan_iter->Next()) {
+        log_info("        Test Scan key: %s, value: %s", scan_iter->key().c_str(), scan_iter->value().c_str());
+    }
+
+    scan_iter = n->KScan("tScanKey2", "", -1);
+    log_info("    Test Scan[2, null]  in [1, 2, 21, 3]:");
+    if (scan_iter == NULL) {
+        log_info("Scan error!");
+    }
+    for (; scan_iter->Valid(); scan_iter->Next()) {
+        log_info("        Test Scan key: %s, value: %s", scan_iter->key().c_str(), scan_iter->value().c_str());
     }
 
     //delete scan_iter;
@@ -369,8 +388,6 @@ int main()
     keys.clear();
     kvs.clear();
     kvss.clear();
-
-
 
     delete n;
 

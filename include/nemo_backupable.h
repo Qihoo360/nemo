@@ -7,7 +7,7 @@
 #include "rocksdb/utilities/backupable_db.h"
 #include "nemo.h"
 #include "nemo_const.h"
-#include "nemo_mutex.h"
+//#include "nemo_mutex.h"
 
 namespace nemo {
     const std::string DEFAULT_BK_PATH = "dump"; //Default backup root dir

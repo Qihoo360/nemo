@@ -13,38 +13,44 @@ using namespace nemo;
 Nemo *n;
 
 void* ThreadMain1(void *arg) {
-  Status s = n->HSet("tHSetKey", "field1", "value1");
-  log_info("Test HSet field1 OK return %s", s.ToString().c_str());
+  int64_t llen;
+  Status s = n->LPush("listKey", "value1", &llen);
+  log_info("Test LPush (key, value1) OK return %s, llen=%ld", s.ToString().c_str(), llen);
   return NULL;
 }
 
 void* ThreadMain2(void *arg) {
-  Status s = n->HSet("tHSetKey", "field2", "value2");
-  log_info("Test HSet field2 OK return %s", s.ToString().c_str());
+  int64_t llen;
+  Status s = n->LPush("listKey", "value2", &llen);
+  log_info("Test LPush (key, value2) OK return %s, llen=%ld", s.ToString().c_str(), llen);
   return NULL;
 }
 
 void* ThreadMain3(void *arg) {
-  Status s = n->HSet("tHSetKey", "field3", "value3");
-  log_info("Test HSet field3 OK return %s", s.ToString().c_str());
+  int64_t llen;
+  Status s = n->LPush("listKey", "value3", &llen);
+  log_info("Test LPush (key, value3) OK return %s, llen=%ld", s.ToString().c_str(), llen);
   return NULL;
 }
 
 void* ThreadMain4(void *arg) {
-  Status s = n->HSet("tHSetKey1", "field3", "value3");
-  log_info("Test HSet field3 OK return %s", s.ToString().c_str());
+  int64_t llen;
+  Status s = n->LPush("listKey", "value3", &llen);
+  log_info("Test LPush (key, value3) OK return %s, llen=%ld", s.ToString().c_str(), llen);
   return NULL;
 }
 
 void* ThreadMain5(void *arg) {
-  Status s = n->HSet("tHSetKey2", "field3", "value3");
-  log_info("Test HSet field3 OK return %s", s.ToString().c_str());
+  int64_t llen;
+  Status s = n->LPush("listKey1", "value3", &llen);
+  log_info("Test LPush (key1, value3) OK return %s, llen=%ld", s.ToString().c_str(), llen);
   return NULL;
 }
 
 void* ThreadMain6(void *arg) {
-  Status s = n->HSet("tHSetKey3", "field3", "value3");
-  log_info("Test HSet field3 OK return %s", s.ToString().c_str());
+  int64_t llen;
+  Status s = n->LPush("listKey2", "value3", &llen);
+  log_info("Test LPush (key2, value3) OK return %s, llen=%ld", s.ToString().c_str(), llen);
   return NULL;
 }
 
@@ -70,7 +76,7 @@ int main() {
   std::vector<FV> fvs;
   std::vector<FVS> fvss;
 
-  log_info("======Test HSet Same key======");
+  log_info("======Test LPush Same key======");
 
   pthread_t tid[3];
   pthread_create(&tid[0], NULL, &ThreadMain1, NULL);
@@ -81,7 +87,7 @@ int main() {
       pthread_join(tid[i], 0); 
   }
 
-  log_info("======Test HSet different key======");
+  log_info("======Test LPush different key======");
 
   pthread_create(&tid[0], NULL, &ThreadMain4, NULL);
   pthread_create(&tid[1], NULL, &ThreadMain5, NULL);
@@ -90,7 +96,7 @@ int main() {
       pthread_join(tid[i], 0); 
   }
 
-  log_info("======Test HSet different key with all the lru in use======");
+  //log_info("======Test LPush different key with all the lru in use======");
  // pthread_create(&tid[0], NULL, &ThreadMain4, NULL);
  // pthread_create(&tid[1], NULL, &ThreadMain5, NULL);
  // pthread_create(&tid[2], NULL, &ThreadMain6, NULL);
@@ -99,28 +105,7 @@ int main() {
  //     pthread_join(tid[i], 0); 
  // }
 
-  /*
-   *  Test HGetall
-   */
-  log_info("======Test HGetall======");
-  fvs.clear();
-  s = n->HGetall("tHSetKey", fvs);
-  log_info("Test HGetall OK return %s", s.ToString().c_str());
-  std::vector<FV>::iterator fv_iter;
-  for (fv_iter = fvs.begin(); fv_iter != fvs.end(); fv_iter++) {
-    log_info("Test HGetall, field: %s, val: %s", fv_iter->field.c_str(), fv_iter->val.c_str());
-  }
   log_info("");
-
-  HIterator *hit = n->HScan("tHSetKey", "", "", -1);
-  if (hit == NULL) {
-    log_info("HScan error!");
-  }
-  for (; hit->Valid(); hit->Next()) {
-    log_info("HScan key: %s, field: %s, value: %s", hit->key().c_str(), hit->field().c_str(), hit->value().c_str());
-  }
-  log_info("");
-  delete hit;
 
   delete n;
 

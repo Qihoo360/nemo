@@ -52,4 +52,5 @@ $(OBJS): %.o : %.cc
 clean:
 	rm -rf $(OBJECT)
 	rm -rf $(OBJS)
+	rm -rf tmp
 	make -C gtest_1.7.0 clean

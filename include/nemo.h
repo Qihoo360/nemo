@@ -7,10 +7,10 @@
 #include "rocksdb/db.h"
 #include "rocksdb/utilities/db_ttl.h"
 
-#include "nemo_mutex.h"
-#include "nemo_iterator.h"
-#include "nemo_const.h"
 #include "nemo_options.h"
+#include "nemo_const.h"
+#include "nemo_iterator.h"
+#include "port.h"
 
 namespace nemo {
 
@@ -42,11 +42,6 @@ public:
         //delete zset_db_.get();
         //delete set_db_.get();
 
-        pthread_mutex_destroy(&(mutex_kv_));
-        pthread_mutex_destroy(&(mutex_hash_));
-        pthread_mutex_destroy(&(mutex_list_));
-        pthread_mutex_destroy(&(mutex_zset_));
-        pthread_mutex_destroy(&(mutex_set_));
         pthread_mutex_destroy(&(mutex_cursors_));
         pthread_mutex_destroy(&(mutex_dump_));
     };
@@ -60,32 +55,6 @@ public:
     Status Persist(const std::string &key, int64_t *res);
     Status Expireat(const std::string &key, const int32_t timestamp, int64_t *res);
     Status Type(const std::string &key, std::string* type);
-
-    Status KDel(const std::string &key, int64_t *res);
-    Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
-    Status KTTL(const std::string &key, int64_t *res);
-    Status KPersist(const std::string &key, int64_t *res);
-    Status KExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
-    Status HDelKey(const std::string &key, int64_t *res);
-    Status HExpire(const std::string &key, const int32_t seconds, int64_t *res);
-    Status HTTL(const std::string &key, int64_t *res);
-    Status HPersist(const std::string &key, int64_t *res);
-    Status HExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
-    Status ZDelKey(const std::string &key, int64_t *res);
-    Status ZExpire(const std::string &key, const int32_t seconds, int64_t *res);
-    Status ZTTL(const std::string &key, int64_t *res);
-    Status ZPersist(const std::string &key, int64_t *res);
-    Status ZExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
-    Status SDelKey(const std::string &key, int64_t *res);
-    Status SExpire(const std::string &key, const int32_t seconds, int64_t *res);
-    Status STTL(const std::string &key, int64_t *res);
-    Status SPersist(const std::string &key, int64_t *res);
-    Status SExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
-    Status LDelKey(const std::string &key, int64_t *res);
-    Status LExpire(const std::string &key, const int32_t seconds, int64_t *res);
-    Status LTTL(const std::string &key, int64_t *res);
-    Status LPersist(const std::string &key, int64_t *res);
-    Status LExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
 
     // =================KV=====================
     Status Set(const std::string &key, const std::string &val, const int32_t ttl = 0);
@@ -104,7 +73,7 @@ public:
     Status Getrange(const std::string key, const int64_t start, const int64_t end, std::string &substr);
     Status Setrange(const std::string key, const int64_t offset, const std::string &value, int64_t *len);
     Status Strlen(const std::string &key, int64_t *len);
-    KIterator* Scan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
+    KIterator* KScan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
     Status Scan(int64_t cursor, std::string &pattern, int64_t count, std::vector<std::string>& keys, int64_t* cursor_ret);
 
     Status Keys(const std::string &pattern, std::vector<std::string>& keys);
@@ -146,7 +115,6 @@ public:
     Status LRem(const std::string &key, const int64_t count, const std::string &val, int64_t *rem_count);
 
     // ==============ZSet=====================
-    //Status ZAdd(const std::string &key, const int64_t score, const std::string &member);
     Status ZAdd(const std::string &key, const double score, const std::string &member, int64_t *res);
     int64_t ZCard(const std::string &key);
     int64_t ZCount(const std::string &key, const double begin, const double end, bool is_lo = false, bool is_ro = false);
@@ -211,14 +179,42 @@ private:
     std::unique_ptr<rocksdb::DBWithTTL> zset_db_;
     std::unique_ptr<rocksdb::DBWithTTL> set_db_;
 
-    pthread_mutex_t mutex_kv_;
-    pthread_mutex_t mutex_hash_;
-    pthread_mutex_t mutex_list_;
-    pthread_mutex_t mutex_zset_;
-    pthread_mutex_t mutex_set_;
-    pthread_mutex_t mutex_cursors_;
+    port::RecordMutex mutex_hash_record_;
+    port::RecordMutex mutex_kv_record_;
+    port::RecordMutex mutex_list_record_;
+    port::RecordMutex mutex_zset_record_;
+    port::RecordMutex mutex_set_record_;
 
     bool save_flag_;
+
+    Status KDel(const std::string &key, int64_t *res);
+    Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
+    Status KTTL(const std::string &key, int64_t *res);
+    Status KPersist(const std::string &key, int64_t *res);
+    Status KExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
+    Status HDelKey(const std::string &key, int64_t *res);
+    Status HExpire(const std::string &key, const int32_t seconds, int64_t *res);
+    Status HTTL(const std::string &key, int64_t *res);
+    Status HPersist(const std::string &key, int64_t *res);
+    Status HExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
+    Status ZDelKey(const std::string &key, int64_t *res);
+    Status ZExpire(const std::string &key, const int32_t seconds, int64_t *res);
+    Status ZTTL(const std::string &key, int64_t *res);
+    Status ZPersist(const std::string &key, int64_t *res);
+    Status ZExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
+    Status SDelKey(const std::string &key, int64_t *res);
+    Status SExpire(const std::string &key, const int32_t seconds, int64_t *res);
+    Status STTL(const std::string &key, int64_t *res);
+    Status SPersist(const std::string &key, int64_t *res);
+    Status SExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
+    Status LDelKey(const std::string &key, int64_t *res);
+    Status LExpire(const std::string &key, const int32_t seconds, int64_t *res);
+    Status LTTL(const std::string &key, int64_t *res);
+    Status LPersist(const std::string &key, int64_t *res);
+    Status LExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
+
+    pthread_mutex_t mutex_cursors_;
+
 
     ItemListMap<int64_t, std::string> cursors_store_;
 
@@ -242,6 +238,8 @@ private:
     int DoZSet(const std::string &key, const double score, const std::string &member, rocksdb::WriteBatch &writebatch);
     int32_t L2R(const std::string &key, const int64_t index, const int64_t left, int64_t *priv, int64_t *cur, int64_t *next);
     int32_t R2L(const std::string &key, const int64_t index, const int64_t right, int64_t *priv, int64_t *cur, int64_t *next);
+
+    Status RPopLPushInternal(const std::string &src, const std::string &dest, std::string &val);
 
     int IncrZLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &writebatch);
 

@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 #include <utility>
+
+#include "nemo_mutex.h"
 #include "nemo_backupable.h"
 #include "xdebug.h"
 #include "util.h"

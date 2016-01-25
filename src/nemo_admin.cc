@@ -6,6 +6,7 @@
 #include <string>
 
 #include "nemo.h"
+#include "nemo_mutex.h"
 #include "nemo_const.h"
 #include "nemo_iterator.h"
 #include "util.h"

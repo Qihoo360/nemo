@@ -87,8 +87,8 @@ int main()
       if (hit == NULL) {
         log_info("HScan error!");
       }
-      while (hit->Next()) {
-        log_info("HScan key: %s, field: %s, value: %s", hit->Key().c_str(), hit->Field().c_str(), hit->Val().c_str());
+      for (; hit->Valid(); hit->Next()) {
+        log_info("HScan key: %s, field: %s, value: %s", hit->key().c_str(), hit->field().c_str(), hit->value().c_str());
       }
       log_info("");
       delete hit;
@@ -100,9 +100,9 @@ int main()
       //       log_info("HScan error!");
       //   }
       //   while (hit->Valid()) {
-      //       log_info("HScan key: %s, field: %s, value: %s", hit->Key().c_str(), hit->Field().c_str(), hit->Val().c_str());
+      //       log_info("HScan key: %s, field: %s, value: %s", hit->key().c_str(), hit->field().c_str(), hit->value().c_str());
       //       bool next_ret = hit->Next();
-      //       log_info("  After hit->Next HScan key: %s, field: %s, value: %s", hit->Key().c_str(), hit->Field().c_str(), hit->Val().c_str());
+      //       log_info("  After hit->Next HScan key: %s, field: %s, value: %s", hit->key().c_str(), hit->field().c_str(), hit->value().c_str());
       //   }
       //   log_info("");
 
@@ -119,8 +119,8 @@ int main()
       if (hit == NULL) {
         log_info("HScan error!");
       }
-      while (hit->Next()) {
-        log_info("HScan key: %s, field: %s, value: %s", hit->Key().c_str(), hit->Field().c_str(), hit->Val().c_str());
+      for (; hit->Valid(); hit->Next()) {
+        log_info("HScan key: %s, field: %s, value: %s", hit->key().c_str(), hit->field().c_str(), hit->value().c_str());
       }
       log_info("");
       delete hit;

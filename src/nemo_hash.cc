@@ -1,11 +1,15 @@
 #include <climits>
 #include <ctime>
 
-#include "nemo.h"
 #include "nemo_hash.h"
+
+#include "nemo.h"
 #include "nemo_iterator.h"
+#include "nemo_mutex.h"
 #include "util.h"
 #include "xdebug.h"
+
+#include <unistd.h>
 
 using namespace nemo;
 
@@ -15,16 +19,23 @@ Status Nemo::HSet(const std::string &key, const std::string &field, const std::s
     }
 
     Status s;
-    MutexLock l(&mutex_hash_);
+
+    RecordLock l(&mutex_hash_record_, key);
+    //MutexLock l(&mutex_hash_);
     rocksdb::WriteBatch writebatch;
+
+    //sleep(8);
 
     int ret = DoHSet(key, field, val, writebatch);
     if (ret > 0) {
         if (IncrHLen(key, ret, writebatch) == -1) {
+            //hash_record_.Unlock(key);
             return Status::Corruption("incrhlen error");
         }
     }
     s = hash_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+
+    //hash_record_.Unlock(key);
     return s;
 }
 
@@ -57,7 +68,7 @@ Status Nemo::HDel(const std::string &key, const std::string &field) {
     }
 
     Status s;
-    MutexLock l(&mutex_hash_);
+    RecordLock l(&mutex_hash_record_, key);
     rocksdb::WriteBatch writebatch;
     int ret = DoHDel(key, field, writebatch);
     if (ret > 0) {
@@ -73,6 +84,7 @@ Status Nemo::HDel(const std::string &key, const std::string &field) {
     }
 }
 
+// Note: No lock, Internal use only!!
 Status Nemo::HDelKey(const std::string &key, int64_t *res) {
     if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
@@ -84,19 +96,16 @@ Status Nemo::HDelKey(const std::string &key, int64_t *res) {
     *res = 0;
 
     s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
-    if (!s.ok()) {
-        return s;
+    if (s.ok()) {
+      int64_t len = *(int64_t *)val.data();
+      if (len <= 0) {
+        s = Status::NotFound("");
+      } else {
+        *res = 1;
+        len = 0;
+        s = hash_db_->PutWithKeyVersion(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
+      }
     }
-
-    int64_t len = *(int64_t *)val.data();
-    if (len <= 0) {
-      return Status::NotFound("");
-    }
-
-    *res = 1;
-    len = 0;
-    MutexLock l(&mutex_hash_);
-    s = hash_db_->PutWithKeyVersion(rocksdb::WriteOptions(), size_key, rocksdb::Slice((char *)&len, sizeof(int64_t)));
 
     return s;
 }
@@ -109,6 +118,7 @@ Status Nemo::HExpire(const std::string &key, const int32_t seconds, int64_t *res
     Status s;
     std::string val;
 
+    RecordLock l(&mutex_hash_record_, key);
     std::string size_key = EncodeHsizeKey(key);
     s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
     if (s.IsNotFound()) {
@@ -120,7 +130,7 @@ Status Nemo::HExpire(const std::string &key, const int32_t seconds, int64_t *res
       }
 
       if (seconds > 0) {
-        MutexLock l(&mutex_hash_);
+        //MutexLock l(&mutex_hash_);
         s = hash_db_->PutWithKeyTTL(rocksdb::WriteOptions(), size_key, val, seconds);
       } else { 
         int64_t count;
@@ -171,6 +181,8 @@ Status Nemo::HPersist(const std::string &key, int64_t *res) {
     Status s;
     std::string val;
 
+    RecordLock l(&mutex_hash_record_, key);
+
     *res = 0;
     std::string size_key = EncodeHsizeKey(key);
     s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
@@ -179,7 +191,7 @@ Status Nemo::HPersist(const std::string &key, int64_t *res) {
         int32_t ttl;
         s = hash_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
         if (s.ok() && ttl >= 0) {
-            MutexLock l(&mutex_hash_);
+            //MutexLock l(&mutex_hash_);
             s = hash_db_->Put(rocksdb::WriteOptions(), size_key, val);
             *res = 1;
         }
@@ -194,6 +206,9 @@ Status Nemo::HExpireat(const std::string &key, const int32_t timestamp, int64_t 
 
     Status s;
     std::string val;
+
+    //MutexLock l(&mutex_hash_);
+    RecordLock l(&mutex_hash_record_, key);
 
     std::string size_key = EncodeHsizeKey(key);
     s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
@@ -210,7 +225,6 @@ Status Nemo::HExpireat(const std::string &key, const int32_t timestamp, int64_t 
         int64_t count;
         s = HDelKey(key, &count);
       } else {
-        MutexLock l(&mutex_hash_);
         s = hash_db_->PutWithExpiredTime(rocksdb::WriteOptions(), size_key, val, timestamp);
       }
       *res = 1;
@@ -229,7 +243,7 @@ Status Nemo::HKeys(const std::string &key, std::vector<std::string> &fields) {
     it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
     while (it->Valid()) {
-       if ((it->key()).data()[0] != DataType::kHash) {
+       if ((it->key())[0] != DataType::kHash) {
            break;
        }
        DecodeHashKey(it->key(), &dbkey, &dbfield);
@@ -275,7 +289,7 @@ Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
     it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
     while (it->Valid()) {
-       if ((it->key()).data()[0] != DataType::kHash) {
+       if ((it->key())[0] != DataType::kHash) {
            break;
        }
        DecodeHashKey(it->key(), &dbkey, &dbfield);
@@ -290,31 +304,6 @@ Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
     delete it;
     return Status::OK();
 }
-
-//int64_t Nemo::HLen(const std::string &key) {
-//    int64_t len = 0;
-//    std::string dbkey;
-//    std::string dbfield;
-//    std::string key_start = EncodeHashKey(key, "");
-//    rocksdb::Iterator *it;
-//    rocksdb::ReadOptions iterate_options;
-//    iterate_options.fill_cache = false;
-//    it = hash_db_->NewIterator(iterate_options);
-//    it->Seek(key_start);
-//    while (it->Valid()) {
-//       if((it->key()).data()[0] != DataType::kHash) { 
-//           break;
-//       }
-//       DecodeHashKey(it->key(), &dbkey, &dbfield);
-//       if (dbkey == key) {
-//           len++;
-//       } else {
-//           break;
-//       }
-//       it->Next();
-//    }
-//    return len;
-//}
 
 Status Nemo::HMSet(const std::string &key, const std::vector<FV> &fvs) {
     if (key.size() >= KEY_MAX_LENGTH) {
@@ -348,21 +337,26 @@ HIterator* Nemo::HScan(const std::string &key, const std::string &start, const s
     } else {
         key_end = EncodeHashKey(key, end);
     }
-    rocksdb::Iterator *it;
-    rocksdb::ReadOptions iterate_options;
+
+
+    rocksdb::ReadOptions read_options;
     if (use_snapshot) {
-        iterate_options.snapshot = hash_db_->GetSnapshot();
+        read_options.snapshot = hash_db_->GetSnapshot();
     }
-    iterate_options.fill_cache = false;
-    it = hash_db_->NewIterator(iterate_options);
+    read_options.fill_cache = false;
+
+    IteratorOptions iter_options(key_end, limit, read_options);
+    
+    rocksdb::Iterator *it = hash_db_->NewIterator(read_options);
     it->Seek(key_start);
-    return new HIterator(new Iterator(it, key_end, limit, iterate_options), key); 
+    return new HIterator(it, iter_options, key); 
 }
 
 Status Nemo::HSetnx(const std::string &key, const std::string &field, const std::string &val) {
     Status s;
     std::string str_val;
-    MutexLock l(&mutex_hash_);
+    //MutexLock l(&mutex_hash_);
+    RecordLock l(&mutex_hash_record_, key);
     s = HGet(key, field, &str_val);
     if (s.IsNotFound()) {
         rocksdb::WriteBatch writebatch;
@@ -405,7 +399,7 @@ Status Nemo::HVals(const std::string &key, std::vector<std::string> &vals) {
     it = hash_db_->NewIterator(iterate_options);
     it->Seek(key_start);
     while (it->Valid()) {
-       if ((it->key()).data()[0] != DataType::kHash) {
+       if ((it->key())[0] != DataType::kHash) {
            break;
        }
        DecodeHashKey(it->key(), &dbkey, &dbfield);
@@ -424,7 +418,8 @@ Status Nemo::HVals(const std::string &key, std::vector<std::string> &vals) {
 Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t by, std::string &new_val) {
     Status s;
     std::string val;
-    MutexLock l(&mutex_hash_);
+    //MutexLock l(&mutex_hash_);
+    RecordLock l(&mutex_hash_record_, key);
     s = HGet(key, field, &val);
     if (s.IsNotFound()) {
         new_val = std::to_string(by);
@@ -448,7 +443,8 @@ Status Nemo::HIncrbyfloat(const std::string &key, const std::string &field, doub
     Status s;
     std::string val;
     std::string res;
-    MutexLock l(&mutex_hash_);
+    //MutexLock l(&mutex_hash_);
+    RecordLock l(&mutex_hash_record_, key);
     s = HGet(key, field, &val);
     if (s.IsNotFound()) {
         res = std::to_string(by);
