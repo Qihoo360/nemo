@@ -4,7 +4,7 @@ ifeq ($(__PERF), 1)
 	CXXFLAGS = -O0 -g -gstabs+ -pg -pipe -fPIC -D__XDEBUG__ -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -Wconversion -D_GNU_SOURCE
 else
 	# CXXFLAGS = -O2 -g -pipe -fPIC -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -Wconversion -D_GNU_SOURCE
-	CXXFLAGS = -Wall -W -DDEBUG -g -gstabs+ -O0 -D__XDEBUG__ -D__STDC_FORMAT_MACROS -fPIC -std=c++11
+	CXXFLAGS = -Wall -W -g -O2 -D__XDEBUG__ -D__STDC_FORMAT_MACROS -fPIC -std=c++11
 endif
 
 OBJECT = nemo

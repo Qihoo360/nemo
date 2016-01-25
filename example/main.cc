@@ -1633,6 +1633,18 @@ int main()
     s = n->SAdd("moveKey2", "member1", &sadd_res);
 
     int64_t smove_res;
+    s = n->SMove("moveKey1", "moveKey1", "member2", &smove_res);
+    log_info("Test SMove(key1, key1, member2) return %s, expect key1=%ld [member1 member2] ",
+             s.ToString().c_str(), n->SCard("moveKey1"));
+
+    values.clear();
+    s = n->SMembers("moveKey1", values);
+    for (smit = values.begin(); smit != values.end(); smit++) {
+        log_info("    moveKey1 member: %s", smit->c_str());
+    }
+    values.clear();
+    log_info("");
+
     s = n->SMove("moveKey1", "moveKey2", "member2", &smove_res);
     log_info("Test SMove(key1, key2, member2) return %s, expect key1=%ld [member1]  key2= %ld [member1, member2]",
              s.ToString().c_str(), n->SCard("moveKey1"), n->SCard("moveKey2"));

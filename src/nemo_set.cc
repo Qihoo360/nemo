@@ -515,6 +515,12 @@ Status Nemo::SRandMember(const std::string &key, std::vector<std::string> &membe
 
 Status Nemo::SMove(const std::string &source, const std::string &destination, const std::string &member, int64_t *res) {
     Status s;
+
+    if (source == destination) {
+      *res = 1;
+      return Status::OK();
+    }
+
     //MutexLock l(&mutex_set_);
     rocksdb::WriteBatch writebatch;
     std::string source_key = EncodeSetKey(source, member);
