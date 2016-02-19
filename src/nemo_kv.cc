@@ -816,7 +816,7 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
     }
 
     {
-      RecordLock l(&mutex_set_record_, key);
+      RecordLock l(&mutex_zset_record_, key);
       s = ZDelKey(key, count);
       if (s.ok()) {
         ok_cnt++;

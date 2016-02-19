@@ -97,6 +97,13 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
         log_err("open set db %s error %s", db_path_.c_str(), s.ToString().c_str());
     }
     set_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
+
+    // Add separator of Meta and data
+    hash_db_->Put(rocksdb::WriteOptions(), "h", "");
+    list_db_->Put(rocksdb::WriteOptions(), "l", "");
+    zset_db_->Put(rocksdb::WriteOptions(), "y", "");
+    zset_db_->Put(rocksdb::WriteOptions(), "z", "");
+    set_db_->Put(rocksdb::WriteOptions(), "s", "");
 }
 };
 

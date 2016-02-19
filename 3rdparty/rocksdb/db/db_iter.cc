@@ -278,7 +278,7 @@ void DBIter::FindNextUserEntryInternal(bool skipping) {
                   if ( *((int64_t *)val.data()) <= 0) {
                     break;
                   }
-                } else {
+                } else if (ikey.user_key.size() > 1) { // treat the separator as valid
                   std::string meta_val;
 
                   // Get meta_key and meta_value

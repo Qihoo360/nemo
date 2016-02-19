@@ -304,6 +304,13 @@ void DBImpl::GetKeyVersionAndTS(const Slice& key, int32_t *version, int32_t *tim
   if (meta_prefix_ == key[0]) {
      st = this->Get(ReadOptions(), DefaultColumnFamily(), key, &value);
   } else {
+    // separator of meta and data
+    if (key.size() == 1) {
+      *version = 0;
+      *timestamp = 0;
+      return;
+    }
+
     std::string meta_key(1, meta_prefix_);
     int32_t len = *((uint8_t *)(key.data() + 1));
     meta_key.append(key.data() + 2, len);
