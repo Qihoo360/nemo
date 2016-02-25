@@ -16,6 +16,9 @@ LIBS = -lpthread
 
 ROCKSDB_PATH = ./3rdparty/rocksdb/
 
+# tools
+TOOLS_COMPACT_PATH = ./tools/compact
+TOOLS_COMPACT_OBJ = compact
 
 INCLUDE_PATH = -I./include/ \
 			   -I$(ROCKSDB_PATH)/include/
@@ -40,12 +43,16 @@ $(LIBRARY): $(OBJS)
 	mkdir $(OUTPUT)
 	mkdir $(OUTPUT)/include
 	mkdir $(OUTPUT)/lib
+	mkdir $(OUTPUT)/tools
 	rm -rf $@
 	ar -rcs $@ $(OBJS)
 	cp -rf $(ROCKSDB_PATH)/include/* $(OUTPUT)/include
 	cp -rf ./include/* $(OUTPUT)/include
 	mv ./libnemo.a $(OUTPUT)/lib/
 	cp $(ROCKSDB_PATH)/librocksdb.a $(OUTPUT)/lib
+	# tools
+	$(MAKE) -C $(TOOLS_COMPACT_PATH) $(TOOLS_COMPACT_OBJ)
+	mv $(TOOLS_COMPACT_PATH)/$(TOOLS_COMPACT_OBJ) $(OUTPUT)/tools
 	make -C example
 
 $(OBJECT): $(OBJS)
@@ -60,6 +67,7 @@ $(TOBJS): %.o : %.cc
 clean: 
 #	make -C $(ROCKSDB_PATH) clean
 	make -C example clean
+	$(MAKE) -C $(TOOLS_COMPACT_PATH) clean
 	rm -rf $(SRC_DIR)/*.o
 	rm -rf $(OUTPUT)
 	rm -rf $(LIBRARY)

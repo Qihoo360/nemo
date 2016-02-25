@@ -47,6 +47,7 @@ public:
     };
 
     Status Compact();
+    Status CompactSpecify(const std::string &db_type);
     // =================String=====================
     Status Del(const std::string &key, int64_t *count);
     Status MDel(const std::vector<std::string> &keys, int64_t* count);

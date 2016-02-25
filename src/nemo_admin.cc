@@ -479,19 +479,43 @@ Status Nemo::GetKeyNum(std::vector<uint64_t>& nums) {
     return Status::OK();
 }
 
+Status Nemo::CompactSpecify(const std::string &db_type) {
+    Status s;
+    if (db_type == KV_DB) {
+        s = kv_db_->CompactRange(NULL, NULL);
+    } else if (db_type == HASH_DB) {
+        s = hash_db_->CompactRange(NULL, NULL);
+    } else if (db_type == ZSET_DB) {
+        s = zset_db_->CompactRange(NULL, NULL);
+    } else if (db_type == SET_DB) {
+        s = set_db_->CompactRange(NULL, NULL);
+    } else if (db_type == LIST_DB) {
+        s = list_db_->CompactRange(NULL, NULL);
+    } else {
+        s = Status::InvalidArgument("");
+    }
+    return s;
+}
+
 Status Nemo::Compact(){
     Status s;
-    s = kv_db_ -> CompactRange(NULL,NULL);
-    if (!s.ok()) return s;
-    s = hash_db_ -> CompactRange(NULL,NULL);
-    if (!s.ok()) return s;
-    s = zset_db_ -> CompactRange(NULL,NULL);
-    if (!s.ok()) return s;
-    s = set_db_ -> CompactRange(NULL,NULL);
-    if (!s.ok()) return s;
-    s = list_db_ -> CompactRange(NULL,NULL);
-    if (!s.ok()) return s;
-    return Status::OK();
+    s = CompactSpecify(KV_DB);
+    if (!s.ok()) {
+        return s;
+    }
+    s = CompactSpecify(HASH_DB);
+    if (!s.ok()) {
+        return s;
+    }
+    s = CompactSpecify(ZSET_DB);
+    if (!s.ok()) {
+        return s;
+    }
+    s = CompactSpecify(SET_DB);
+    if (!s.ok()) {
+        return s;
+    }
+    return CompactSpecify(LIST_DB);
 }
 
 rocksdb::DBWithTTL* Nemo::GetDBByType(const std::string& type) {
