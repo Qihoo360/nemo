@@ -19,6 +19,8 @@ ROCKSDB_PATH = ./3rdparty/rocksdb/
 # tools
 TOOLS_COMPACT_PATH = ./tools/compact
 TOOLS_COMPACT_OBJ = compact
+TOOLS_METASCAN_PATH = ./tools/meta_scan
+TOOLS_METASCAN_OBJ = meta_scan
 
 INCLUDE_PATH = -I./include/ \
 			   -I$(ROCKSDB_PATH)/include/
@@ -52,7 +54,9 @@ $(LIBRARY): $(OBJS)
 	cp $(ROCKSDB_PATH)/librocksdb.a $(OUTPUT)/lib
 	# tools
 	$(MAKE) -C $(TOOLS_COMPACT_PATH) $(TOOLS_COMPACT_OBJ)
+	$(MAKE) -C $(TOOLS_METASCAN_PATH) $(TOOLS_METASCAN_OBJ)
 	mv $(TOOLS_COMPACT_PATH)/$(TOOLS_COMPACT_OBJ) $(OUTPUT)/tools
+	mv $(TOOLS_METASCAN_PATH)/$(TOOLS_METASCAN_OBJ) $(OUTPUT)/tools
 	make -C example
 
 $(OBJECT): $(OBJS)
@@ -68,6 +72,7 @@ clean:
 #	make -C $(ROCKSDB_PATH) clean
 	make -C example clean
 	$(MAKE) -C $(TOOLS_COMPACT_PATH) clean
+	$(MAKE) -C $(TOOLS_METACAN_PATH) clean
 	rm -rf $(SRC_DIR)/*.o
 	rm -rf $(OUTPUT)
 	rm -rf $(LIBRARY)

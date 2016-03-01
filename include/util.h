@@ -43,6 +43,7 @@ int StrToInt64(const char *s, size_t slen, int64_t *value);
 int StrToInt32(const char *s, size_t slen, int32_t *val); 
 int StrToUint32(const char *s, size_t slen, uint32_t *val); 
 int StrToDouble(const char *s, size_t slen, double *dval);
+int Int64ToStr(char* dst, size_t dstlen, int64_t svalue);
 
 int do_mkdir(const char *path, mode_t mode);
 int mkpath(const char *path, mode_t mode);

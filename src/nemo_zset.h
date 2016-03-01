@@ -1,5 +1,5 @@
-#ifndef NEMO_INCLUDE_NEMO_LIST_H_
-#define NEMO_INCLUDE_NEMO_LIST_H_
+#ifndef NEMO_INCLUDE_NEMO_ZSET_H_
+#define NEMO_INCLUDE_NEMO_ZSET_H_
 
 #include <stdint.h>
 
@@ -9,6 +9,8 @@
 #include "decoder.h"
 
 namespace nemo {
+
+typedef DefaultMeta ZSetMeta;
 
 inline uint64_t EncodeScore(const double score) {
     int64_t iscore;

@@ -7,6 +7,8 @@
 
 namespace nemo {
 
+typedef DefaultMeta HashMeta;
+
 inline std::string EncodeHsizeKey(const rocksdb::Slice &name) {
     std::string buf;
     buf.append(1, DataType::kHSize);

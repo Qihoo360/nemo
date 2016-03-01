@@ -10,11 +10,19 @@ const int64_t ZSET_SCORE_MAX = 10000000000000LL;
 const int64_t ZSET_SCORE_MIN = -ZSET_SCORE_MAX;
 const double eps = 1e-5;
 
-static const std::string KV_DB = "kv";
-static const std::string HASH_DB = "hash";
-static const std::string LIST_DB = "list";
-static const std::string ZSET_DB = "zset";
-static const std::string SET_DB = "set";
+const std::string KV_DB = "kv";
+const std::string HASH_DB = "hash";
+const std::string LIST_DB = "list";
+const std::string ZSET_DB = "zset";
+const std::string SET_DB = "set";
+
+enum DBType {
+  kKV_DB = 0,
+  kHASH_DB,
+  kLIST_DB,
+  kZSET_DB,
+  kSET_DB,
+};
 
 const uint32_t KEY_MAX_LENGTH = 255;
 

@@ -2,7 +2,9 @@
 #define NEMO_INCLUDE_NEMO_H_
 
 #include <list>
+#include <map>
 #include <atomic>
+#include <memory>
 
 #include "rocksdb/db.h"
 #include "rocksdb/utilities/db_ttl.h"
@@ -11,6 +13,7 @@
 #include "nemo_const.h"
 #include "nemo_iterator.h"
 #include "port.h"
+#include "util.h"
 
 namespace nemo {
 
@@ -24,6 +27,46 @@ struct ItemListMap{
     int64_t max_size_;
     std::list<T1> list_;
     std::map<T1, T2> map_;
+};
+
+class NemoMeta;
+typedef std::shared_ptr<NemoMeta> MetaPtr;
+class NemoMeta {
+public:
+  virtual ~NemoMeta() {}
+  // Construct NemoMeta from string
+  virtual bool DecodeFrom(const std::string& raw_meta) = 0;
+  // Encode MemoMeta to string
+  virtual bool EncodeTo(std::string& meta) = 0;
+  virtual std::string ToString() = 0;
+
+  static bool Create(DBType type, MetaPtr &p_meta);
+};
+
+struct DefaultMeta : public NemoMeta {
+  int64_t len;
+
+  DefaultMeta() : len(0) {}
+  explicit DefaultMeta(int64_t _len):len(_len) {}
+  virtual bool DecodeFrom(const std::string& raw_meta) {
+    if (raw_meta.size() != sizeof(uint64_t)) {
+      return false;
+    }
+    len = *(int64_t *)raw_meta.data();
+    return true;
+  }
+  virtual bool EncodeTo(std::string& raw_meta) {
+    raw_meta.clear();
+    raw_meta.append((char *)&len, sizeof(int64_t));
+    return true;
+  }
+  virtual std::string ToString() {
+    char buf[32];
+    std::string res("Len : ");
+    Int64ToStr(buf, 32, len);
+    res.append(buf);
+    return res;
+  }
 };
 
 class Nemo
@@ -168,6 +211,8 @@ public:
     Status ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t &num);
     
     rocksdb::DBWithTTL* GetDBByType(const std::string& type); 
+    Status ScanMetas(DBType type, const std::string &pattern,
+        std::map<std::string, MetaPtr>& metas);
 
 private:
 
@@ -253,6 +298,12 @@ private:
     Status SaveDBWithTTL(const std::string &db_path, const std::string &key_type, const char meta_prefix, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
     //Status SaveDBWithTTL(const std::string &db_path, const std::string &key_type, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
     Status SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &src_db, const rocksdb::Snapshot *snapshot);
+
+    //Meta
+    std::string GetMetaPrefix(DBType type);
+    Status ScanDBMetas(std::unique_ptr<rocksdb::DBWithTTL> &db,
+        DBType type, const std::string &pattern, std::map<std::string, MetaPtr>& metas);
+
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);
 

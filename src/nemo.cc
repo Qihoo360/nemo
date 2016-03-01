@@ -5,6 +5,10 @@
 #include <algorithm>
 
 #include "nemo.h"
+#include "nemo_hash.h"
+#include "nemo_list.h"
+#include "nemo_set.h"
+#include "nemo_zset.h"
 //#include "nemo_options.h"
 
 #include "util.h"
@@ -105,5 +109,26 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
     zset_db_->Put(rocksdb::WriteOptions(), "z", "");
     set_db_->Put(rocksdb::WriteOptions(), "s", "");
 }
+
+
+bool NemoMeta::Create(DBType type, MetaPtr &p_meta){
+  switch (type) {
+  case kHASH_DB:
+    p_meta.reset(new HashMeta());
+    break;
+  case kLIST_DB:
+    p_meta.reset(new ListMeta());
+    break;
+  case kSET_DB:
+    p_meta.reset(new SetMeta());
+    break;
+  case kZSET_DB:
+    p_meta.reset(new ZSetMeta());
+  default:
+    return false;
+  }
+  return true;
+}
+
 };
 

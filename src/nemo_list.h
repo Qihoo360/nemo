@@ -7,7 +7,7 @@
 
 namespace nemo {
 
-struct ListMeta {
+struct ListMeta : public NemoMeta {
   int64_t len;
   int64_t left;
   int64_t right;
@@ -16,9 +16,10 @@ struct ListMeta {
   ListMeta() : len(0), left(0), right(0), cur_seq(1) {}
   ListMeta(int64_t _len, int64_t _left, int64_t _right, int64_t cseq)
       : len(_len), left(_left), right(_right), cur_seq(cseq) {}
+  virtual bool DecodeFrom(const std::string& raw_meta);
+  virtual bool EncodeTo(std::string& raw_meta);
+  virtual std::string ToString();
 };
-
-
 
 inline std::string EncodeLMetaKey(const rocksdb::Slice &key) {
     std::string buf;
