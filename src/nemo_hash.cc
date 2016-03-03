@@ -1,15 +1,13 @@
-#include <climits>
-#include <ctime>
-
 #include "nemo_hash.h"
 
+#include <climits>
+#include <ctime>
+#include <unistd.h>
 #include "nemo.h"
 #include "nemo_iterator.h"
 #include "nemo_mutex.h"
 #include "util.h"
 #include "xdebug.h"
-
-#include <unistd.h>
 
 using namespace nemo;
 

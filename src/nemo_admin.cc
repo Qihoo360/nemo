@@ -4,11 +4,17 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <string>
+#include <errno.h>
 
 #include "nemo.h"
 #include "nemo_mutex.h"
 #include "nemo_const.h"
 #include "nemo_iterator.h"
+#include "nemo_hash.h"
+#include "nemo_zset.h"
+#include "nemo_set.h"
+#include "nemo_list.h"
+
 #include "util.h"
 #include "xdebug.h"
 
@@ -491,6 +497,137 @@ Status Nemo::Compact(){
     if (!s.ok()) return s;
     s = list_db_ -> CompactRange(NULL,NULL);
     if (!s.ok()) return s;
+    return Status::OK();
+}
+
+// BGTask related
+
+Status Nemo::CompactKey(const DB_TYPE type, const rocksdb::Slice& key) {
+  std::string key_begin;
+  std::string key_end;
+  std::string str(1, (char)255);
+
+  if (type == DB_TYPE::kALL || type == DB_TYPE::kHASH) {
+      key_begin = EncodeHashKey(key, "");
+      key_end = key_begin;
+      key_end.append(str);
+      rocksdb::Slice sb(key_begin);
+      rocksdb::Slice se(key_end);
+
+      int result = memcmp(sb.data(), se.data(), sb.size());
+      //printf ("Hash Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
+      //printf (" Slice.compare return %d\n", sb.compare(se));
+      hash_db_->CompactRange(&sb, &se);
+  }
+
+  if (type == DB_TYPE::kALL || type == DB_TYPE::kLIST) {
+      key_begin = EncodeListKey(key, 0);
+      key_end = key_begin;
+      key_end.append(str);
+      rocksdb::Slice sb(key_begin);
+      rocksdb::Slice se(key_end);
+      int result = memcmp(sb.data(), se.data(), sb.size());
+      //printf ("LIST Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
+      //printf (" Slice.compare return %d\n", sb.compare(se));
+      list_db_->CompactRange(&sb, &se);
+  }
+
+  if (type == DB_TYPE::kALL || type == DB_TYPE::kSET) {
+      key_begin = EncodeSetKey(key, "");
+      key_end = key_begin;
+      key_end.append(str);
+      rocksdb::Slice sb(key_begin);
+      rocksdb::Slice se(key_end);
+      int result = memcmp(sb.data(), se.data(), sb.size());
+      //printf ("SET Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
+      //printf (" Slice.compare return %d\n", sb.compare(se));
+      set_db_->CompactRange(&sb, &se);
+  }
+
+  if (type == DB_TYPE::kALL || type == DB_TYPE::kZSET) {
+      key_begin = EncodeZSetKey(key, "");
+      key_end = key_begin;
+      key_end.append(str);
+      rocksdb::Slice sb(key_begin);
+      rocksdb::Slice se(key_end);
+      int result = memcmp(sb.data(), se.data(), sb.size());
+      //printf ("ZSET Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
+      //printf (" Slice.compare return %d\n", sb.compare(se));
+      zset_db_->CompactRange(&sb, &se);
+
+      key_begin = EncodeZScoreKey(key, "", ZSET_SCORE_MIN);
+      key_end = EncodeZScoreKey(key, "", ZSET_SCORE_MAX);
+      rocksdb::Slice zb(key_begin);
+      rocksdb::Slice ze(key_end);
+      result = memcmp(sb.data(), se.data(), sb.size());
+      //printf ("ZSET score Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
+      //printf (" Slice.compare return %d\n", sb.compare(se));
+      zset_db_->CompactRange(&zb, &ze);
+  }
+
+  return Status::OK();
+}
+
+Status Nemo::AddBGTask(const BGTask& task) {
+  //printf ("AddBGTask task{ type=%d, op=%d argv1= %s}\n", task.type, task.op, task.argv1.c_str());
+  mutex_bgtask_.Lock();
+  bg_tasks_.push(task);
+  //printf ("AddBGTask push task{ type=%d, op=%d argv1= %s}, Signal\n", task.type, task.op, task.argv1.c_str());
+  bg_cv_.Signal();
+  mutex_bgtask_.Unlock();
+  //printf ("AddBGTask push task{ type=%d, op=%d argv1= %s}, after Signal\n", task.type, task.op, task.argv1.c_str());
+
+  return Status::OK();
+}
+
+Status Nemo::RunBGTask() {
+    BGTask task;
+
+    while (bgtask_flag_) {
+      //printf ("RunBGTask main loop\n");
+      mutex_bgtask_.Lock();
+      //printf ("RunBGTask main loop mutex-lock\n");
+      if (bg_tasks_.empty()) {
+        //printf ("RunBGTask main loop task.empty, bg_cv_ will Wait\n");
+        bg_cv_.Wait();
+        //printf ("RunBGTask main loop task.empty, bg_cv_ startup\n");
+      }
+
+      task = bg_tasks_.front();
+      bg_tasks_.pop();
+      mutex_bgtask_.Unlock();
+
+      switch (task.op) {
+        case kDEL_KEY:
+          printf ("BGTask run task { type=%d, argv1=%s}\n", task.type, task.argv1.c_str());
+          CompactKey(task.type, task.argv1);
+          break;
+        case kCLEAN_RANGE:
+          break;
+        default:
+          break;
+      }
+    }
+
+    return Status::OK();
+}
+
+static void* StartBGThreadWrapper(void* arg) {
+  Nemo* n = reinterpret_cast<Nemo*>(arg);
+  n->RunBGTask();
+  return NULL;
+}
+
+Status Nemo::StartBGThread() {
+    bgtask_flag_ = true;
+
+    int result = pthread_create(&bg_tid_, NULL,  &StartBGThreadWrapper, this);
+    if (result != 0) {
+      char msg[128];
+      snprintf (msg, 128, "pthread create: %s", strerror(result));
+      return Status::Corruption(msg);
+    }
+
     return Status::OK();
 }
 

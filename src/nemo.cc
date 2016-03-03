@@ -1,12 +1,13 @@
+#include "nemo.h"
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <iostream>
 #include <algorithm>
-
-#include "nemo.h"
 //#include "nemo_options.h"
 
+#include "port.h"
 #include "util.h"
 #include "xdebug.h"
 
@@ -14,7 +15,11 @@
 namespace nemo {
 
 Nemo::Nemo(const std::string &db_path, const Options &options) :
-    db_path_(db_path), save_flag_(false), dump_to_terminate_(false)
+    db_path_(db_path),
+    bgtask_flag_(false),
+    bg_cv_(&mutex_bgtask_),
+    save_flag_(false),
+    dump_to_terminate_(false)
 {
    // pthread_mutex_init(&(mutex_kv_), NULL);
    // pthread_mutex_init(&(mutex_hash_), NULL);
@@ -23,6 +28,7 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
    // pthread_mutex_init(&(mutex_set_), NULL);
     pthread_mutex_init(&(mutex_cursors_), NULL);
     pthread_mutex_init(&(mutex_dump_), NULL);
+    //pthread_mutex_init(&(mutex_bgtask_), NULL);
 
     if (db_path_[db_path_.length() - 1] != '/') {
         db_path_.append("/");
@@ -104,6 +110,7 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
     zset_db_->Put(rocksdb::WriteOptions(), "y", "");
     zset_db_->Put(rocksdb::WriteOptions(), "z", "");
     set_db_->Put(rocksdb::WriteOptions(), "s", "");
+
 }
 };
 

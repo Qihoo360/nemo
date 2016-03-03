@@ -16,6 +16,22 @@ static const std::string LIST_DB = "list";
 static const std::string ZSET_DB = "zset";
 static const std::string SET_DB = "set";
 
+enum DB_TYPE {
+  kNONE_TYPE = 0,
+  kKV,
+  kHASH,
+  kLIST,
+  kZSET,
+  kSET,
+  kALL
+};
+
+enum OPERATION {
+  kNONE_OP = 0,
+  kDEL_KEY,
+  kCLEAN_RANGE,
+};
+
 const uint32_t KEY_MAX_LENGTH = 255;
 
 enum Position {

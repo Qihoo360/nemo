@@ -773,8 +773,6 @@ Status Nemo::MDel(const std::vector<std::string> &keys, int64_t* count) {
         //s = kv_db_->Get(rocksdb::ReadOptions(), *it, &val);
         if (s.ok()) {
             (*count) += res;
-        } else if (!s.IsNotFound()) {
-          return s;
         }
     }
 
@@ -792,6 +790,7 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
     int64_t del_cnt = 0;
     Status s;
     
+    std::string tmp;
 
     {
       RecordLock l(&mutex_kv_record_, key);
@@ -799,6 +798,9 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
       if (s.ok()) {
         ok_cnt++;
         del_cnt += *count;
+        //if (bgtask_flag_) {
+        //  AddBGTask({DB_TYPE::kKV, OPERATION::kDEL_KEY, key, tmp});
+        //}
       } else if (!s.IsNotFound()) {
         return s;
       }
@@ -810,6 +812,9 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
       if (s.ok()) {
         ok_cnt++;
         del_cnt += *count;
+        if (bgtask_flag_) {
+          AddBGTask({DB_TYPE::kHASH, OPERATION::kDEL_KEY, key, tmp});
+        }
       } else if (!s.IsNotFound()) {
         return s;
       }
@@ -821,6 +826,9 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
       if (s.ok()) {
         ok_cnt++;
         del_cnt += *count;
+        if (bgtask_flag_) {
+          AddBGTask({DB_TYPE::kZSET, OPERATION::kDEL_KEY, key, tmp});
+        }
       } else if (!s.IsNotFound()) {
         return s;
       }
@@ -832,6 +840,9 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
       if (s.ok()) {
         ok_cnt++;
         del_cnt += *count;
+        if (bgtask_flag_) {
+          AddBGTask({DB_TYPE::kSET, OPERATION::kDEL_KEY, key, tmp});
+        }
       } else if (!s.IsNotFound()) {
         return s;
       }
@@ -843,6 +854,9 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
       if (s.ok()) {
         ok_cnt++;
         del_cnt += *count;
+        if (bgtask_flag_) {
+          AddBGTask({DB_TYPE::kLIST, OPERATION::kDEL_KEY, key, tmp});
+        }
       } else if (!s.IsNotFound()) {
         return s;
       }

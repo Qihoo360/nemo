@@ -1,6 +1,7 @@
 #ifndef NEMO_INCLUDE_NEMO_H_
 #define NEMO_INCLUDE_NEMO_H_
 
+#include <queue>
 #include <list>
 #include <atomic>
 
@@ -26,6 +27,22 @@ struct ItemListMap{
     std::map<T1, T2> map_;
 };
 
+/*
+ * There are two type OP: DEL_KEY and CLEAN_RANGE;
+ * DEL_KEY use only the first parameter argv1;
+ * CLEAN_RANGE will compact the range [argv1, argv2];
+ */
+struct BGTask {
+  DB_TYPE     type;
+  OPERATION   op;
+  std::string argv1;
+  std::string argv2;
+
+  BGTask() : type(DB_TYPE::kNONE_TYPE), op(OPERATION::kNONE_OP) { }
+  BGTask(const DB_TYPE _type, const OPERATION _op, const std::string &_argv1, const std::string &_argv2)
+      : type(_type), op(_op), argv1(_argv1), argv2(_argv2) {}
+};
+
 class Nemo
 {
 public:
@@ -44,9 +61,13 @@ public:
 
         pthread_mutex_destroy(&(mutex_cursors_));
         pthread_mutex_destroy(&(mutex_dump_));
+        //pthread_mutex_destroy(&(mutex_bgtask_));
     };
 
     Status Compact();
+    Status StartBGThread();
+    Status RunBGTask();
+
     // =================String=====================
     Status Del(const std::string &key, int64_t *count);
     Status MDel(const std::vector<std::string> &keys, int64_t* count);
@@ -187,6 +208,16 @@ private:
 
     bool save_flag_;
 
+    //pthread_mutex_t mutex_bgtask_;
+    port::Mutex mutex_bgtask_;
+    std::atomic<bool> bgtask_flag_;
+    pthread_t bg_tid_;
+    std::queue<BGTask> bg_tasks_;
+    port::CondVar bg_cv_;
+
+    Status AddBGTask(const BGTask& task);
+    Status CompactKey(const DB_TYPE type, const rocksdb::Slice& key);
+
     Status KDel(const std::string &key, int64_t *res);
     Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status KTTL(const std::string &key, int64_t *res);
@@ -214,7 +245,6 @@ private:
     Status LExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
 
     pthread_mutex_t mutex_cursors_;
-
 
     ItemListMap<int64_t, std::string> cursors_store_;
 
