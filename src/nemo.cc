@@ -97,6 +97,13 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
    zset_db_->Put(rocksdb::WriteOptions(), "y", "");
    zset_db_->Put(rocksdb::WriteOptions(), "z", "");
    set_db_->Put(rocksdb::WriteOptions(), "s", "");
+
+   // Start BGThread
+   s = StartBGThread();
+   if (!s.ok()) {
+     log_err("start bg thread error: %s", s.ToString().c_str());
+   }
+
 }
 
 

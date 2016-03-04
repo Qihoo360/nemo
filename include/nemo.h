@@ -106,9 +106,6 @@ public:
         //pthread_mutex_destroy(&(mutex_bgtask_));
     };
 
-    Status StartBGThread();
-    Status RunBGTask();
-
     // Used for pika
     Status Compact(DBType type, bool sync = false);
 
@@ -266,6 +263,8 @@ private:
     Status DoCompact(DBType type);
     Status AddBGTask(const BGTask& task);
     Status CompactKey(const DBType type, const rocksdb::Slice& key);
+    Status StartBGThread();
+    Status RunBGTask();
 
     Status KDel(const std::string &key, int64_t *res);
     Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
