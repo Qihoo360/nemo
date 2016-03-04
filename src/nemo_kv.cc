@@ -799,7 +799,7 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
         ok_cnt++;
         del_cnt += *count;
         //if (bgtask_flag_) {
-        //  AddBGTask({DB_TYPE::kKV, OPERATION::kDEL_KEY, key, tmp});
+        //  AddBGTask({DBType::kKV, OPERATION::kDEL_KEY, key, tmp});
         //}
       } else if (!s.IsNotFound()) {
         return s;
@@ -813,7 +813,7 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
         ok_cnt++;
         del_cnt += *count;
         if (bgtask_flag_) {
-          AddBGTask({DB_TYPE::kHASH, OPERATION::kDEL_KEY, key, tmp});
+          AddBGTask({DBType::kHASH_DB, OPERATION::kDEL_KEY, key, tmp});
         }
       } else if (!s.IsNotFound()) {
         return s;
@@ -827,7 +827,7 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
         ok_cnt++;
         del_cnt += *count;
         if (bgtask_flag_) {
-          AddBGTask({DB_TYPE::kZSET, OPERATION::kDEL_KEY, key, tmp});
+          AddBGTask({DBType::kZSET_DB, OPERATION::kDEL_KEY, key, tmp});
         }
       } else if (!s.IsNotFound()) {
         return s;
@@ -841,7 +841,7 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
         ok_cnt++;
         del_cnt += *count;
         if (bgtask_flag_) {
-          AddBGTask({DB_TYPE::kSET, OPERATION::kDEL_KEY, key, tmp});
+          AddBGTask({DBType::kSET_DB, OPERATION::kDEL_KEY, key, tmp});
         }
       } else if (!s.IsNotFound()) {
         return s;
@@ -855,7 +855,7 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
         ok_cnt++;
         del_cnt += *count;
         if (bgtask_flag_) {
-          AddBGTask({DB_TYPE::kLIST, OPERATION::kDEL_KEY, key, tmp});
+          AddBGTask({DBType::kLIST_DB, OPERATION::kDEL_KEY, key, tmp});
         }
       } else if (!s.IsNotFound()) {
         return s;

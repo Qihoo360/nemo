@@ -3,7 +3,9 @@
 
 #include <queue>
 #include <list>
+#include <map>
 #include <atomic>
+#include <memory>
 
 #include "rocksdb/db.h"
 #include "rocksdb/utilities/db_ttl.h"
@@ -12,6 +14,7 @@
 #include "nemo_const.h"
 #include "nemo_iterator.h"
 #include "port.h"
+#include "util.h"
 
 namespace nemo {
 
@@ -33,18 +36,57 @@ struct ItemListMap{
  * CLEAN_RANGE will compact the range [argv1, argv2];
  */
 struct BGTask {
-  DB_TYPE     type;
+  DBType     type;
   OPERATION   op;
   std::string argv1;
   std::string argv2;
 
-  BGTask() : type(DB_TYPE::kNONE_TYPE), op(OPERATION::kNONE_OP) { }
-  BGTask(const DB_TYPE _type, const OPERATION _op, const std::string &_argv1, const std::string &_argv2)
+  BGTask() : type(DBType::kNONE_DB), op(OPERATION::kNONE_OP) { }
+  BGTask(const DBType _type, const OPERATION _op, const std::string &_argv1, const std::string &_argv2)
       : type(_type), op(_op), argv1(_argv1), argv2(_argv2) {}
 };
 
-class Nemo
-{
+class NemoMeta;
+typedef std::shared_ptr<NemoMeta> MetaPtr;
+class NemoMeta {
+public:
+  virtual ~NemoMeta() {}
+  // Construct NemoMeta from string
+  virtual bool DecodeFrom(const std::string& raw_meta) = 0;
+  // Encode MemoMeta to string
+  virtual bool EncodeTo(std::string& meta) = 0;
+  virtual std::string ToString() = 0;
+
+  static bool Create(DBType type, MetaPtr &p_meta);
+};
+
+struct DefaultMeta : public NemoMeta {
+  int64_t len;
+
+  DefaultMeta() : len(0) {}
+  explicit DefaultMeta(int64_t _len):len(_len) {}
+  virtual bool DecodeFrom(const std::string& raw_meta) {
+    if (raw_meta.size() != sizeof(uint64_t)) {
+      return false;
+    }
+    len = *(int64_t *)raw_meta.data();
+    return true;
+  }
+  virtual bool EncodeTo(std::string& raw_meta) {
+    raw_meta.clear();
+    raw_meta.append((char *)&len, sizeof(int64_t));
+    return true;
+  }
+  virtual std::string ToString() {
+    char buf[32];
+    std::string res("Len : ");
+    Int64ToStr(buf, 32, len);
+    res.append(buf);
+    return res;
+  }
+};
+
+class Nemo {
 public:
     Nemo(const std::string &db_path, const Options &options);
     ~Nemo() {
@@ -64,9 +106,10 @@ public:
         //pthread_mutex_destroy(&(mutex_bgtask_));
     };
 
-    Status Compact();
     Status StartBGThread();
     Status RunBGTask();
+    Status Compact();
+    Status CompactSpecify(const std::string &DBType);
 
     // =================String=====================
     Status Del(const std::string &key, int64_t *count);
@@ -188,6 +231,8 @@ public:
     Status ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t &num);
     
     rocksdb::DBWithTTL* GetDBByType(const std::string& type); 
+    Status ScanMetas(DBType type, const std::string &pattern,
+        std::map<std::string, MetaPtr>& metas);
 
 private:
 
@@ -216,7 +261,7 @@ private:
     port::CondVar bg_cv_;
 
     Status AddBGTask(const BGTask& task);
-    Status CompactKey(const DB_TYPE type, const rocksdb::Slice& key);
+    Status CompactKey(const DBType type, const rocksdb::Slice& key);
 
     Status KDel(const std::string &key, int64_t *res);
     Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
@@ -282,6 +327,12 @@ private:
     Status SaveDBWithTTL(const std::string &db_path, const std::string &key_type, const char meta_prefix, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
     //Status SaveDBWithTTL(const std::string &db_path, const std::string &key_type, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
     Status SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &src_db, const rocksdb::Snapshot *snapshot);
+
+    //Meta
+    std::string GetMetaPrefix(DBType type);
+    Status ScanDBMetas(std::unique_ptr<rocksdb::DBWithTTL> &db,
+        DBType type, const std::string &pattern, std::map<std::string, MetaPtr>& metas);
+
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);
 

@@ -14,7 +14,6 @@
 #include "nemo_zset.h"
 #include "nemo_set.h"
 #include "nemo_list.h"
-
 #include "util.h"
 #include "xdebug.h"
 
@@ -23,111 +22,111 @@ using namespace nemo;
 const std::string DEFAULT_BG_PATH = "dump";
 
 Status Nemo::SaveDBWithTTL(const std::string &db_path, const std::string &key_type, const char meta_prefix, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot) {
-    //printf ("db_path=%s\n", db_path.c_str());
-    
-    rocksdb::DBWithTTL *dst_db;
-    rocksdb::Options option(open_options_);
-    option.meta_prefix = meta_prefix;
+  //printf ("db_path=%s\n", db_path.c_str());
 
-    rocksdb::Status s = rocksdb::DBWithTTL::Open(option, db_path, &dst_db);
-    if (!s.ok()) {
-        log_err("save db %s, open error %s", db_path.c_str(), s.ToString().c_str());
-        return s;
+  rocksdb::DBWithTTL *dst_db;
+  rocksdb::Options option(open_options_);
+  option.meta_prefix = meta_prefix;
+
+  rocksdb::Status s = rocksdb::DBWithTTL::Open(option, db_path, &dst_db);
+  if (!s.ok()) {
+    log_err("save db %s, open error %s", db_path.c_str(), s.ToString().c_str());
+    return s;
+  }
+
+  //printf ("\nSaveDBWithTTL seqnumber=%d\n", snapshot->GetSequenceNumber());
+  int64_t ttl;
+  rocksdb::ReadOptions iterate_options;
+  iterate_options.snapshot = snapshot;
+  iterate_options.fill_cache = false;
+
+  rocksdb::Iterator* it = src_db->NewIterator(iterate_options);
+  for (it->SeekToFirst(); it->Valid() && !dump_to_terminate_; it->Next()) {
+    std::string raw_key(it->key().data(), it->key().size());
+
+    if (key_type == KV_DB) {
+      s = KTTL(it->key().ToString(), &ttl);
+    } else if (key_type == HASH_DB) {
+      if (raw_key[0] == meta_prefix) {
+        s = HTTL(raw_key.substr(1), &ttl);
+        //printf ("0.1 DB:%s meta_prefix=%c raw_key(%s) ttl return %s, ttl is %ld\n", key_type.c_str(), meta_prefix, raw_key.c_str(), s.ToString().c_str(), ttl);
+      } else {
+        int32_t len = *((uint8_t *)(raw_key.data() + 1));
+        std::string key(raw_key.data() + 2, len);
+        s = HTTL(key, &ttl);
+        //printf ("0.2 DB:%s meta_prefix=%c raw_key(%s) key(%s) ttl return %s, ttl is %ld\n", key_type.c_str(), meta_prefix, raw_key.c_str(), key.c_str(), s.ToString().c_str(), ttl);
+      }
+    } else if (key_type == LIST_DB) {
+      if (raw_key[0] == meta_prefix) {
+        s = LTTL(raw_key.substr(1), &ttl);
+      } else {
+        int32_t len = *((uint8_t *)(raw_key.data() + 1));
+        std::string key(raw_key.data() + 2, len);
+        s = LTTL(key, &ttl);
+      }
+    } else if (key_type == ZSET_DB) {
+      if (raw_key[0] == meta_prefix) {
+        s = ZTTL(raw_key.substr(1), &ttl);
+      } else {
+        int32_t len = *((uint8_t *)(raw_key.data() + 1));
+        std::string key(raw_key.data() + 2, len);
+        s = ZTTL(key, &ttl);
+      }
+    } else if (key_type == SET_DB) {
+      if (raw_key[0] == meta_prefix) {
+        s = STTL(raw_key.substr(1), &ttl);
+      } else {
+        int32_t len = *((uint8_t *)(raw_key.data() + 1));
+        std::string key(raw_key.data() + 2, len);
+        s = STTL(key, &ttl);
+      }
     }
-
-    //printf ("\nSaveDBWithTTL seqnumber=%d\n", snapshot->GetSequenceNumber());
-    int64_t ttl;
-    rocksdb::ReadOptions iterate_options;
-    iterate_options.snapshot = snapshot;
-    iterate_options.fill_cache = false;
-    
-    rocksdb::Iterator* it = src_db->NewIterator(iterate_options);
-    for (it->SeekToFirst(); it->Valid() && !dump_to_terminate_; it->Next()) {
-        std::string raw_key(it->key().data(), it->key().size());
-
-        if (key_type == KV_DB) {
-            s = KTTL(it->key().ToString(), &ttl);
-        } else if (key_type == HASH_DB) {
-            if (raw_key[0] == meta_prefix) {
-                s = HTTL(raw_key.substr(1), &ttl);
-                //printf ("0.1 DB:%s meta_prefix=%c raw_key(%s) ttl return %s, ttl is %ld\n", key_type.c_str(), meta_prefix, raw_key.c_str(), s.ToString().c_str(), ttl);
-            } else {
-                int32_t len = *((uint8_t *)(raw_key.data() + 1));
-                std::string key(raw_key.data() + 2, len);
-                s = HTTL(key, &ttl);
-                //printf ("0.2 DB:%s meta_prefix=%c raw_key(%s) key(%s) ttl return %s, ttl is %ld\n", key_type.c_str(), meta_prefix, raw_key.c_str(), key.c_str(), s.ToString().c_str(), ttl);
-            }
-        } else if (key_type == LIST_DB) {
-            if (raw_key[0] == meta_prefix) {
-                s = LTTL(raw_key.substr(1), &ttl);
-            } else {
-                int32_t len = *((uint8_t *)(raw_key.data() + 1));
-                std::string key(raw_key.data() + 2, len);
-                s = LTTL(key, &ttl);
-            }
-        } else if (key_type == ZSET_DB) {
-            if (raw_key[0] == meta_prefix) {
-                s = ZTTL(raw_key.substr(1), &ttl);
-            } else {
-                int32_t len = *((uint8_t *)(raw_key.data() + 1));
-                std::string key(raw_key.data() + 2, len);
-                s = ZTTL(key, &ttl);
-            }
-        } else if (key_type == SET_DB) {
-            if (raw_key[0] == meta_prefix) {
-                s = STTL(raw_key.substr(1), &ttl);
-            } else {
-                int32_t len = *((uint8_t *)(raw_key.data() + 1));
-                std::string key(raw_key.data() + 2, len);
-                s = STTL(key, &ttl);
-            }
-        }
-        if (s.ok()) {
-            if (ttl == -1) {
-                s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString());
-            } else if (ttl > 0) {
-                s = dst_db->PutWithKeyTTL(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString(), ttl);
-            }
-        }
+    if (s.ok()) {
+      if (ttl == -1) {
+        s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString());
+      } else if (ttl > 0) {
+        s = dst_db->PutWithKeyTTL(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString(), ttl);
+      }
     }
-    delete it;
-    //src_db->ReleaseSnapshot(iterate_options.snapshot);
-    delete dst_db;
+  }
+  delete it;
+  //src_db->ReleaseSnapshot(iterate_options.snapshot);
+  delete dst_db;
 
-    return Status::OK();
+  return Status::OK();
 }
 
 Status Nemo::SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &src_db, const rocksdb::Snapshot *snapshot) {
-    if (opendir(db_path.c_str()) == NULL) {
-        mkdir(db_path.c_str(), 0755);
-    }
+  if (opendir(db_path.c_str()) == NULL) {
+    mkdir(db_path.c_str(), 0755);
+  }
 
-    //printf ("db_path=%s\n", db_path.c_str());
-    
-    rocksdb::DB* dst_db;
-    rocksdb::Status s = rocksdb::DB::Open(open_options_, db_path, &dst_db);
-    if (!s.ok()) {
-        log_err("save db %s, open error %s", db_path.c_str(), s.ToString().c_str());
-        return s;
-    }
+  //printf ("db_path=%s\n", db_path.c_str());
 
-    //printf ("\nSaveDB seqnumber=%d\n", snapshot->GetSequenceNumber());
-    rocksdb::ReadOptions iterate_options;
-    iterate_options.snapshot = snapshot;
-    iterate_options.fill_cache = false;
-    
-    rocksdb::Iterator* it = src_db->NewIterator(iterate_options);
-    for (it->SeekToFirst(); it->Valid(); it->Next()) {
-       // printf ("SaveDB key=(%s) value=(%s) val_size=%u\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
-        //        it->value().ToString().size());
+  rocksdb::DB* dst_db;
+  rocksdb::Status s = rocksdb::DB::Open(open_options_, db_path, &dst_db);
+  if (!s.ok()) {
+    log_err("save db %s, open error %s", db_path.c_str(), s.ToString().c_str());
+    return s;
+  }
 
-        s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString());
-    }
-    delete it;
-    src_db->ReleaseSnapshot(iterate_options.snapshot);
-    delete dst_db;
+  //printf ("\nSaveDB seqnumber=%d\n", snapshot->GetSequenceNumber());
+  rocksdb::ReadOptions iterate_options;
+  iterate_options.snapshot = snapshot;
+  iterate_options.fill_cache = false;
 
-    return Status::OK();
+  rocksdb::Iterator* it = src_db->NewIterator(iterate_options);
+  for (it->SeekToFirst(); it->Valid(); it->Next()) {
+    // printf ("SaveDB key=(%s) value=(%s) val_size=%u\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
+    //        it->value().ToString().size());
+
+    s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString());
+  }
+  delete it;
+  src_db->ReleaseSnapshot(iterate_options.snapshot);
+  delete dst_db;
+
+  return Status::OK();
 }
 
 //Status Nemo::BGSaveReleaseSnapshot(Snapshots &snapshots) {
@@ -144,71 +143,71 @@ Status Nemo::SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &sr
 
 Status Nemo::BGSaveGetSpecifySnapshot(const std::string key_type, Snapshot * &snapshot) {
 
-    if (key_type == KV_DB) {
-      snapshot = kv_db_->GetSnapshot();
-      if (snapshot == nullptr) {
-        return Status::Corruption("GetSnapshot failed");
-      }
-    } else if (key_type == HASH_DB) {
-      snapshot = hash_db_->GetSnapshot();
-      if (snapshot == nullptr) {
-        return Status::Corruption("GetSnapshot failed");
-      }
-    } else if (key_type == LIST_DB) {
-      snapshot = list_db_->GetSnapshot();
-      if (snapshot == nullptr) {
-        return Status::Corruption("GetSnapshot failed");
-      }
-    } else if (key_type == ZSET_DB) {
-      snapshot = zset_db_->GetSnapshot();
-      if (snapshot == nullptr) {
-        return Status::Corruption("GetSnapshot failed");
-      }
-    } else if (key_type == SET_DB) {
-      snapshot = set_db_->GetSnapshot();
-      if (snapshot == nullptr) {
-        return Status::Corruption("GetSnapshot failed");
-      }
-    } else {
-        return Status::InvalidArgument("");
+  if (key_type == KV_DB) {
+    snapshot = kv_db_->GetSnapshot();
+    if (snapshot == nullptr) {
+      return Status::Corruption("GetSnapshot failed");
     }
-    return Status::OK();
+  } else if (key_type == HASH_DB) {
+    snapshot = hash_db_->GetSnapshot();
+    if (snapshot == nullptr) {
+      return Status::Corruption("GetSnapshot failed");
+    }
+  } else if (key_type == LIST_DB) {
+    snapshot = list_db_->GetSnapshot();
+    if (snapshot == nullptr) {
+      return Status::Corruption("GetSnapshot failed");
+    }
+  } else if (key_type == ZSET_DB) {
+    snapshot = zset_db_->GetSnapshot();
+    if (snapshot == nullptr) {
+      return Status::Corruption("GetSnapshot failed");
+    }
+  } else if (key_type == SET_DB) {
+    snapshot = set_db_->GetSnapshot();
+    if (snapshot == nullptr) {
+      return Status::Corruption("GetSnapshot failed");
+    }
+  } else {
+    return Status::InvalidArgument("");
+  }
+  return Status::OK();
 }
 
 Status Nemo::BGSaveGetSnapshot(Snapshots &snapshots) {
-    const rocksdb::Snapshot* psnap;
+  const rocksdb::Snapshot* psnap;
 
-    psnap = kv_db_->GetSnapshot();
-    if (psnap == nullptr) {
-        return Status::Corruption("GetSnapshot failed");
-    }
-    snapshots.push_back(psnap);
+  psnap = kv_db_->GetSnapshot();
+  if (psnap == nullptr) {
+    return Status::Corruption("GetSnapshot failed");
+  }
+  snapshots.push_back(psnap);
 
-    psnap = hash_db_->GetSnapshot();
-    if (psnap == nullptr) {
-        return Status::Corruption("GetSnapshot failed");
-    }
-    snapshots.push_back(psnap);
+  psnap = hash_db_->GetSnapshot();
+  if (psnap == nullptr) {
+    return Status::Corruption("GetSnapshot failed");
+  }
+  snapshots.push_back(psnap);
 
-    psnap = zset_db_->GetSnapshot();
-    if (psnap == nullptr) {
-        return Status::Corruption("GetSnapshot failed");
-    }
-    snapshots.push_back(psnap);
+  psnap = zset_db_->GetSnapshot();
+  if (psnap == nullptr) {
+    return Status::Corruption("GetSnapshot failed");
+  }
+  snapshots.push_back(psnap);
 
-    psnap = set_db_->GetSnapshot();
-    if (psnap == nullptr) {
-        return Status::Corruption("GetSnapshot failed");
-    }
-    snapshots.push_back(psnap);
+  psnap = set_db_->GetSnapshot();
+  if (psnap == nullptr) {
+    return Status::Corruption("GetSnapshot failed");
+  }
+  snapshots.push_back(psnap);
 
-    psnap = list_db_->GetSnapshot();
-    if (psnap == nullptr) {
-        return Status::Corruption("GetSnapshot failed");
-    }
-    snapshots.push_back(psnap);
+  psnap = list_db_->GetSnapshot();
+  if (psnap == nullptr) {
+    return Status::Corruption("GetSnapshot failed");
+  }
+  snapshots.push_back(psnap);
 
-    return Status::OK();
+  return Status::OK();
 }
 
 struct SaveArgs {
@@ -223,346 +222,465 @@ struct SaveArgs {
 
 void* call_BGSaveSpecify(void *arg) {
 
-    Nemo* p = (Nemo*)(((SaveArgs*)arg)->p);
-    Snapshot* snapshot = ((SaveArgs*)arg)->snapshot;
-    std::string key_type = ((SaveArgs*)arg)->key_type;
-    Status s = p->BGSaveSpecify(key_type, snapshot);
-    return nullptr;
+  Nemo* p = (Nemo*)(((SaveArgs*)arg)->p);
+  Snapshot* snapshot = ((SaveArgs*)arg)->snapshot;
+  std::string key_type = ((SaveArgs*)arg)->key_type;
+  Status s = p->BGSaveSpecify(key_type, snapshot);
+  return nullptr;
 }
 
 Status Nemo::BGSaveSpecify(const std::string key_type, Snapshot* snapshot) {
-//void* Nemo::BGSaveSpecify(void *arg) {
-    Status s;
+  //void* Nemo::BGSaveSpecify(void *arg) {
+  Status s;
 
-    if (key_type == KV_DB) {
-      s = SaveDBWithTTL(dump_path_ + KV_DB, key_type, '\0', kv_db_, snapshot);
-    } else if (key_type == HASH_DB) {
-      s = SaveDBWithTTL(dump_path_ + HASH_DB, key_type, DataType::kHSize, hash_db_, snapshot);
-    } else if (key_type == ZSET_DB) {
-      s = SaveDBWithTTL(dump_path_ + ZSET_DB, key_type, DataType::kZSize, zset_db_, snapshot);
-    } else if (key_type == SET_DB) {
-      s = SaveDBWithTTL(dump_path_ + SET_DB, key_type, DataType::kSSize, set_db_, snapshot);
-    } else if (key_type == LIST_DB) {
-      s = SaveDBWithTTL(dump_path_ + LIST_DB, key_type, DataType::kLMeta, list_db_, snapshot);
-    } else {
-      s = Status::InvalidArgument("");
-    }
+  if (key_type == KV_DB) {
+    s = SaveDBWithTTL(dump_path_ + KV_DB, key_type, '\0', kv_db_, snapshot);
+  } else if (key_type == HASH_DB) {
+    s = SaveDBWithTTL(dump_path_ + HASH_DB, key_type, DataType::kHSize, hash_db_, snapshot);
+  } else if (key_type == ZSET_DB) {
+    s = SaveDBWithTTL(dump_path_ + ZSET_DB, key_type, DataType::kZSize, zset_db_, snapshot);
+  } else if (key_type == SET_DB) {
+    s = SaveDBWithTTL(dump_path_ + SET_DB, key_type, DataType::kSSize, set_db_, snapshot);
+  } else if (key_type == LIST_DB) {
+    s = SaveDBWithTTL(dump_path_ + LIST_DB, key_type, DataType::kLMeta, list_db_, snapshot);
+  } else {
+    s = Status::InvalidArgument("");
+  }
 
-    {
-        MutexLock l(&mutex_dump_);
-        dump_pthread_ts_.erase(key_type);
-    }
-    return s;
+  {
+    MutexLock l(&mutex_dump_);
+    dump_pthread_ts_.erase(key_type);
+  }
+  return s;
 }
 
 
 Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
-    std::string path = db_path;
-    if (path.empty()) {
-        path = DEFAULT_BG_PATH;
+  std::string path = db_path;
+  if (path.empty()) {
+    path = DEFAULT_BG_PATH;
+  }
+
+  if (path[path.length() - 1] != '/') {
+    path.append("/");
+  }
+  if (opendir(path.c_str()) == NULL) {
+    mkpath(path.c_str(), 0755);
+  }
+
+  {
+    MutexLock l(&mutex_dump_);
+    if (dump_pthread_ts_.size() != 0 || dump_snapshots_.size() != 0) {
+      return Status::Corruption("DB dumping is performing.");
     }
+    dump_path_ = path;
+    dump_to_terminate_ = false;
+  }
 
-    if (path[path.length() - 1] != '/') {
-        path.append("/");
+  Status s;
+
+  pthread_t tid[5];
+  SaveArgs *arg_kv = new SaveArgs(this, KV_DB, snapshots[0]);
+  if (pthread_create(&tid[0], NULL, &call_BGSaveSpecify, arg_kv) != 0) {
+    return Status::Corruption("pthead_create failed.");
+  }
+
+  SaveArgs *arg_hash = new SaveArgs(this, HASH_DB, snapshots[1]);
+  if (pthread_create(&tid[1], NULL, &call_BGSaveSpecify, arg_hash) != 0) {
+    return Status::Corruption("pthead_create failed.");
+  }
+
+  SaveArgs *arg_zset = new SaveArgs(this, ZSET_DB, snapshots[2]);
+  if (pthread_create(&tid[2], NULL, &call_BGSaveSpecify, arg_zset) != 0) {
+    return Status::Corruption("pthead_create failed.");
+  }
+
+  SaveArgs *arg_set = new SaveArgs(this, SET_DB, snapshots[3]);
+  if (pthread_create(&tid[3], NULL, &call_BGSaveSpecify, arg_set) != 0) {
+    return Status::Corruption("pthead_create failed.");
+  }
+
+  SaveArgs *arg_list = new SaveArgs(this, LIST_DB, snapshots[4]);
+  if (pthread_create(&tid[4], NULL, &call_BGSaveSpecify, arg_list) != 0) {
+    return Status::Corruption("pthead_create failed.");
+  }
+
+  {
+    MutexLock l(&mutex_dump_);
+    dump_pthread_ts_[KV_DB] = tid[0];
+    dump_pthread_ts_[HASH_DB] = tid[1];
+    dump_pthread_ts_[ZSET_DB] = tid[2];
+    dump_pthread_ts_[SET_DB] = tid[3];
+    dump_pthread_ts_[LIST_DB] = tid[4];
+    dump_snapshots_ = snapshots;
+  }
+
+  int ret;
+  void *retval;
+  for (int i = 0; i < 5; i++) {
+    if ((ret = pthread_join(tid[i], &retval)) != 0) {
+      std::string msg = std::to_string(ret);
+      return Status::Corruption("pthead_join failed with " + msg);
     }
-    if (opendir(path.c_str()) == NULL) {
-        mkpath(path.c_str(), 0755);
-    }
+  }
 
-    {
-        MutexLock l(&mutex_dump_);
-        if (dump_pthread_ts_.size() != 0 || dump_snapshots_.size() != 0) {
-            return Status::Corruption("DB dumping is performing.");
-        }
-        dump_path_ = path;
-        dump_to_terminate_ = false;
-    }
+  {
+    MutexLock l(&mutex_dump_);
+    kv_db_->ReleaseSnapshot(dump_snapshots_[0]);
+    hash_db_->ReleaseSnapshot(dump_snapshots_[1]);
+    zset_db_->ReleaseSnapshot(dump_snapshots_[2]);
+    set_db_->ReleaseSnapshot(dump_snapshots_[3]);
+    list_db_->ReleaseSnapshot(dump_snapshots_[4]);
+    dump_pthread_ts_.clear();
+    dump_snapshots_.clear();
+    dump_to_terminate_ = true;
+  }
 
-    Status s;
+  delete arg_kv;
+  delete arg_hash;
+  delete arg_zset;
+  delete arg_set;
+  delete arg_list;
 
-    pthread_t tid[5];
-    SaveArgs *arg_kv = new SaveArgs(this, KV_DB, snapshots[0]);
-    if (pthread_create(&tid[0], NULL, &call_BGSaveSpecify, arg_kv) != 0) {
-        return Status::Corruption("pthead_create failed.");
-    }
-
-    SaveArgs *arg_hash = new SaveArgs(this, HASH_DB, snapshots[1]);
-    if (pthread_create(&tid[1], NULL, &call_BGSaveSpecify, arg_hash) != 0) {
-        return Status::Corruption("pthead_create failed.");
-    }
-
-    SaveArgs *arg_zset = new SaveArgs(this, ZSET_DB, snapshots[2]);
-    if (pthread_create(&tid[2], NULL, &call_BGSaveSpecify, arg_zset) != 0) {
-        return Status::Corruption("pthead_create failed.");
-    }
-
-    SaveArgs *arg_set = new SaveArgs(this, SET_DB, snapshots[3]);
-    if (pthread_create(&tid[3], NULL, &call_BGSaveSpecify, arg_set) != 0) {
-        return Status::Corruption("pthead_create failed.");
-    }
-
-    SaveArgs *arg_list = new SaveArgs(this, LIST_DB, snapshots[4]);
-    if (pthread_create(&tid[4], NULL, &call_BGSaveSpecify, arg_list) != 0) {
-        return Status::Corruption("pthead_create failed.");
-    }
-
-    {
-        MutexLock l(&mutex_dump_);
-        dump_pthread_ts_[KV_DB] = tid[0];
-        dump_pthread_ts_[HASH_DB] = tid[1];
-        dump_pthread_ts_[ZSET_DB] = tid[2];
-        dump_pthread_ts_[SET_DB] = tid[3];
-        dump_pthread_ts_[LIST_DB] = tid[4];
-        dump_snapshots_ = snapshots;
-    }
-
-    int ret;
-    void *retval;
-    for (int i = 0; i < 5; i++) {
-      if ((ret = pthread_join(tid[i], &retval)) != 0) {
-          std::string msg = std::to_string(ret);
-          return Status::Corruption("pthead_join failed with " + msg);
-      }
-    }
-
-    {
-        MutexLock l(&mutex_dump_);
-        kv_db_->ReleaseSnapshot(dump_snapshots_[0]);
-        hash_db_->ReleaseSnapshot(dump_snapshots_[1]);
-        zset_db_->ReleaseSnapshot(dump_snapshots_[2]);
-        set_db_->ReleaseSnapshot(dump_snapshots_[3]);
-        list_db_->ReleaseSnapshot(dump_snapshots_[4]);
-        dump_pthread_ts_.clear();
-        dump_snapshots_.clear();
-        dump_to_terminate_ = true;
-    }
-
-    delete arg_kv;
-    delete arg_hash;
-    delete arg_zset;
-    delete arg_set;
-    delete arg_list;
-
-    return Status::OK();
+  return Status::OK();
 }
 
 Status Nemo::BGSaveOff() {
-    sleep(1);
-    dump_to_terminate_ = true;
-    return Status::OK();
+  sleep(1);
+  dump_to_terminate_ = true;
+  return Status::OK();
 }
 
 #if 0
 Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
-    if (save_flag_) {
-        return Status::Corruption("Already saving");
-    }
+  if (save_flag_) {
+    return Status::Corruption("Already saving");
+  }
 
-    // maybe need lock
-    save_flag_ = true;
+  // maybe need lock
+  save_flag_ = true;
 
-    std::string path = db_path;
-    if (path.empty()) {
-        path = DEFAULT_BG_PATH;
-    }
-    
-    if (path[path.length() - 1] != '/') {
-        path.append("/");
-    }
-    if (opendir(path.c_str()) == NULL) {
-        mkpath(path.c_str(), 0755);
-    }
+  std::string path = db_path;
+  if (path.empty()) {
+    path = DEFAULT_BG_PATH;
+  }
 
-    Status s;
-    s = SaveDBWithTTL(path + KV_DB, kv_db_, snapshots[0]);
-    if (!s.ok()) return s;
-    
-    s = SaveDB(path + HASH_DB, hash_db_, snapshots[1]);
-    if (!s.ok()) return s;
+  if (path[path.length() - 1] != '/') {
+    path.append("/");
+  }
+  if (opendir(path.c_str()) == NULL) {
+    mkpath(path.c_str(), 0755);
+  }
 
-    s = SaveDB(path + ZSET_DB, zset_db_, snapshots[2]);
-    if (!s.ok()) return s;
+  Status s;
+  s = SaveDBWithTTL(path + KV_DB, kv_db_, snapshots[0]);
+  if (!s.ok()) return s;
 
-    s = SaveDB(path + SET_DB, set_db_, snapshots[3]);
-    if (!s.ok()) return s;
+  s = SaveDB(path + HASH_DB, hash_db_, snapshots[1]);
+  if (!s.ok()) return s;
 
-    s = SaveDB(path + LIST_DB, list_db_, snapshots[4]);
-    if (!s.ok()) return s;
-    
-    save_flag_ = false;
+  s = SaveDB(path + ZSET_DB, zset_db_, snapshots[2]);
+  if (!s.ok()) return s;
 
-    //BGSaveReleaseSnapshot(snapshots);
-    
-    return Status::OK();
+  s = SaveDB(path + SET_DB, set_db_, snapshots[3]);
+  if (!s.ok()) return s;
+
+  s = SaveDB(path + LIST_DB, list_db_, snapshots[4]);
+  if (!s.ok()) return s;
+
+  save_flag_ = false;
+
+  //BGSaveReleaseSnapshot(snapshots);
+
+  return Status::OK();
 }
 #endif
 
 Status Nemo::ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t &num) {
-    rocksdb::ReadOptions iterate_options;
+  rocksdb::ReadOptions iterate_options;
 
-    iterate_options.snapshot = db->GetSnapshot();
-    iterate_options.fill_cache = false;
+  iterate_options.snapshot = db->GetSnapshot();
+  iterate_options.fill_cache = false;
 
-    rocksdb::Iterator *it = db->NewIterator(iterate_options);
+  rocksdb::Iterator *it = db->NewIterator(iterate_options);
 
-    num = 0;
-    it->SeekToFirst();
-    for (; it->Valid(); it->Next()) {
-        num++;
-       //printf ("ScanDB key=(%s) value=(%s) val_size=%u num=%lu\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
-       //       it->value().ToString().size(), num);
-    }
+  num = 0;
+  it->SeekToFirst();
+  for (; it->Valid(); it->Next()) {
+    num++;
+    //printf ("ScanDB key=(%s) value=(%s) val_size=%u num=%lu\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
+    //       it->value().ToString().size(), num);
+  }
 
-    db->ReleaseSnapshot(iterate_options.snapshot);
-    delete it;
+  db->ReleaseSnapshot(iterate_options.snapshot);
+  delete it;
 
-    return Status::OK();
+  return Status::OK();
 }
 
 Status Nemo::ScanKeyNum(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kType, uint64_t &num) {
-    rocksdb::ReadOptions iterate_options;
+  rocksdb::ReadOptions iterate_options;
 
-    iterate_options.snapshot = db->GetSnapshot();
-    iterate_options.fill_cache = false;
+  iterate_options.snapshot = db->GetSnapshot();
+  iterate_options.fill_cache = false;
 
-    rocksdb::Iterator *it = db->NewIterator(iterate_options);
-    std::string key_start = "a";
-    key_start[0] = kType;
-    it->Seek(key_start);
+  rocksdb::Iterator *it = db->NewIterator(iterate_options);
+  std::string key_start = "a";
+  key_start[0] = kType;
+  it->Seek(key_start);
 
-    num = 0;
-    for (; it->Valid(); it->Next()) {
-      if (kType != it->key().ToString().at(0)) {
-        break;
-      }
-      num++;
-       //printf ("ScanDB key=(%s) value=(%s) val_size=%u num=%lu\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
-       //       it->value().ToString().size(), num);
+  num = 0;
+  for (; it->Valid(); it->Next()) {
+    if (kType != it->key().ToString().at(0)) {
+      break;
     }
+    num++;
+    //printf ("ScanDB key=(%s) value=(%s) val_size=%u num=%lu\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
+    //       it->value().ToString().size(), num);
+  }
 
-    db->ReleaseSnapshot(iterate_options.snapshot);
-    delete it;
+  db->ReleaseSnapshot(iterate_options.snapshot);
+  delete it;
 
-    return Status::OK();
+  return Status::OK();
 }
 
 Status Nemo::GetSpecifyKeyNum(const std::string type, uint64_t &num) {
-    if (type == KV_DB) {
-      ScanKeyNumWithTTL(kv_db_, num);
-    } else if (type == HASH_DB) {
-      ScanKeyNum(hash_db_, DataType::kHSize, num);
-    } else if (type == LIST_DB) {
-      ScanKeyNum(list_db_,  DataType::kLMeta, num);
-    } else if (type == ZSET_DB) {
-      ScanKeyNum(zset_db_, DataType::kZSize, num);
-    } else if (type == SET_DB) {
-      ScanKeyNum(set_db_, DataType::kSSize, num);
-    } else {
-      return Status::InvalidArgument("");
-    }
+  if (type == KV_DB) {
+    ScanKeyNumWithTTL(kv_db_, num);
+  } else if (type == HASH_DB) {
+    ScanKeyNum(hash_db_, DataType::kHSize, num);
+  } else if (type == LIST_DB) {
+    ScanKeyNum(list_db_,  DataType::kLMeta, num);
+  } else if (type == ZSET_DB) {
+    ScanKeyNum(zset_db_, DataType::kZSize, num);
+  } else if (type == SET_DB) {
+    ScanKeyNum(set_db_, DataType::kSSize, num);
+  } else {
+    return Status::InvalidArgument("");
+  }
 
-    return Status::OK();
+  return Status::OK();
 }
 
 Status Nemo::GetKeyNum(std::vector<uint64_t>& nums) {
-    uint64_t num;
+  uint64_t num;
 
-    ScanKeyNumWithTTL(kv_db_, num);
-    nums.push_back(num);
+  ScanKeyNumWithTTL(kv_db_, num);
+  nums.push_back(num);
 
-    ScanKeyNum(hash_db_, DataType::kHSize, num);
-    nums.push_back(num);
+  ScanKeyNum(hash_db_, DataType::kHSize, num);
+  nums.push_back(num);
 
-    ScanKeyNum(list_db_,  DataType::kLMeta, num);
-    nums.push_back(num);
+  ScanKeyNum(list_db_,  DataType::kLMeta, num);
+  nums.push_back(num);
 
-    ScanKeyNum(zset_db_, DataType::kZSize, num);
-    nums.push_back(num);
+  ScanKeyNum(zset_db_, DataType::kZSize, num);
+  nums.push_back(num);
 
-    ScanKeyNum(set_db_, DataType::kSSize, num);
-    nums.push_back(num);
+  ScanKeyNum(set_db_, DataType::kSSize, num);
+  nums.push_back(num);
 
-    return Status::OK();
+  return Status::OK();
+}
+
+Status Nemo::CompactSpecify(const std::string &DBType) {
+  Status s;
+  if (DBType == KV_DB) {
+    s = kv_db_->CompactRange(NULL, NULL);
+  } else if (DBType == HASH_DB) {
+    s = hash_db_->CompactRange(NULL, NULL);
+  } else if (DBType == ZSET_DB) {
+    s = zset_db_->CompactRange(NULL, NULL);
+  } else if (DBType == SET_DB) {
+    s = set_db_->CompactRange(NULL, NULL);
+  } else if (DBType == LIST_DB) {
+    s = list_db_->CompactRange(NULL, NULL);
+  } else {
+    s = Status::InvalidArgument("");
+  }
+  return s;
 }
 
 Status Nemo::Compact(){
-    Status s;
-    s = kv_db_ -> CompactRange(NULL,NULL);
-    if (!s.ok()) return s;
-    s = hash_db_ -> CompactRange(NULL,NULL);
-    if (!s.ok()) return s;
-    s = zset_db_ -> CompactRange(NULL,NULL);
-    if (!s.ok()) return s;
-    s = set_db_ -> CompactRange(NULL,NULL);
-    if (!s.ok()) return s;
-    s = list_db_ -> CompactRange(NULL,NULL);
-    if (!s.ok()) return s;
-    return Status::OK();
+  Status s;
+  s = CompactSpecify(KV_DB);
+  if (!s.ok()) {
+    return s;
+  }
+  s = CompactSpecify(HASH_DB);
+  if (!s.ok()) {
+    return s;
+  }
+  s = CompactSpecify(ZSET_DB);
+  if (!s.ok()) {
+    return s;
+  }
+  s = CompactSpecify(SET_DB);
+  if (!s.ok()) {
+    return s;
+  }
+  return CompactSpecify(LIST_DB);
 }
 
-// BGTask related
+// should be replaced by the one with DBType parameter
+rocksdb::DBWithTTL* Nemo::GetDBByType(const std::string& type) {
+  if (type == KV_DB)
+    return kv_db_.get();
+  else if (type == HASH_DB)
+    return hash_db_.get();
+  else if (type == LIST_DB)
+    return list_db_.get();
+  else if (type == SET_DB)
+    return set_db_.get();
+  else if (type == ZSET_DB)
+    return zset_db_.get();
+  else
+    return NULL;
+}
 
-Status Nemo::CompactKey(const DB_TYPE type, const rocksdb::Slice& key) {
+Status Nemo::ScanMetas(DBType type, const std::string &pattern,
+                       std::map<std::string, MetaPtr>& metas) {
+  switch (type) {
+    case kHASH_DB:
+      return ScanDBMetas(kv_db_, type, pattern, metas);
+    case kLIST_DB:
+      return ScanDBMetas(list_db_, type, pattern, metas);
+    case kSET_DB:
+      return ScanDBMetas(set_db_, type, pattern, metas);
+    case kZSET_DB:
+      return ScanDBMetas(zset_db_, type, pattern, metas);
+    default:
+      return Status::InvalidArgument("error db type");
+  }
+}
+
+std::string Nemo::GetMetaPrefix(DBType type) {
+  switch (type) {
+    case kHASH_DB:
+      return std::string(1, DataType::kHSize);
+    case kLIST_DB:
+      return std::string(1, DataType::kLMeta);
+    case kSET_DB:
+      return std::string(1, DataType::kSSize);
+    case kZSET_DB:
+      return std::string(1, DataType::kZSize);
+    default:
+      return std::string();
+  }
+}
+
+Status Nemo::ScanDBMetas(std::unique_ptr<rocksdb::DBWithTTL> &db,
+                         DBType type, const std::string &pattern, std::map<std::string, MetaPtr>& metas) {
+  // Get meta prefix and db handler
+  std::string prefix = GetMetaPrefix(type);
+  if (prefix.empty()) {
+    return Status::InvalidArgument("Error db type");
+  }
+
+  // Get Current Snapshot
+  const rocksdb::Snapshot* psnap;
+  psnap = db->GetSnapshot();
+  if (psnap == nullptr) {
+    return Status::Corruption("GetSnapshot failed");
+  }
+
+  // Create Iterator
+  rocksdb::ReadOptions iterate_options;
+  iterate_options.snapshot = psnap;
+  iterate_options.fill_cache = false;
+  rocksdb::Iterator *it = db->NewIterator(iterate_options);
+
+  it->Seek(prefix);
+  MetaPtr p_meta;
+  NemoMeta::Create(type, p_meta);
+  for (; it->Valid(); it->Next()) {
+    if (prefix.at(0) != it->key().ToString().at(0)) {
+      break;
+    }
+    std::string key = it->key().ToString().substr(1);
+    if (stringmatchlen(pattern.data(), pattern.size(), key.data(), key.size(), 0)) {
+      p_meta->DecodeFrom(it->value().ToString());
+      metas.insert(std::make_pair(key, p_meta));
+    }
+  }
+
+  db->ReleaseSnapshot(psnap);
+  delete it;
+  return Status::OK();
+}
+
+
+void FindLongSuccessor(std::string* key) {
+  size_t n = key->size();
+  for (size_t i = n - 1; i > 0; i--) {
+    const uint8_t byte = (*key)[i];
+    if (byte != static_cast<uint8_t>(0xff)) {
+      (*key)[i] = byte + 1;
+      key->resize(i+1);
+      return;
+    }
+  }
+}
+
+//
+// BGTask related 
+Status Nemo::CompactKey(const DBType type, const rocksdb::Slice& key) {
   std::string key_begin;
   std::string key_end;
-  std::string str(1, (char)255);
 
-  if (type == DB_TYPE::kALL || type == DB_TYPE::kHASH) {
-      key_begin = EncodeHashKey(key, "");
-      key_end = key_begin;
-      key_end.append(str);
-      rocksdb::Slice sb(key_begin);
-      rocksdb::Slice se(key_end);
+  if (type == DBType::kALL || type == DBType::kHASH_DB) {
+    key_begin = EncodeHashKey(key, "");
+    key_end = key_begin;
+    FindLongSuccessor(&key_end);
+    rocksdb::Slice sb(key_begin);
+    rocksdb::Slice se(key_end);
 
-      int result = memcmp(sb.data(), se.data(), sb.size());
-      //printf ("Hash Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
-      //printf (" Slice.compare return %d\n", sb.compare(se));
-      hash_db_->CompactRange(&sb, &se);
+    hash_db_->CompactRange(&sb, &se);
   }
 
-  if (type == DB_TYPE::kALL || type == DB_TYPE::kLIST) {
-      key_begin = EncodeListKey(key, 0);
-      key_end = key_begin;
-      key_end.append(str);
-      rocksdb::Slice sb(key_begin);
-      rocksdb::Slice se(key_end);
-      int result = memcmp(sb.data(), se.data(), sb.size());
-      //printf ("LIST Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
-      //printf (" Slice.compare return %d\n", sb.compare(se));
-      list_db_->CompactRange(&sb, &se);
+  if (type == DBType::kALL || type == DBType::kLIST_DB) {
+    key_begin = EncodeListKey(key, 0);
+    key_end = EncodeListKey(key, -1);
+    //key_end = key_begin;
+    //key_end.append(str);
+    //FindLongSuccessor(key_end);
+    rocksdb::Slice sb(key_begin);
+    rocksdb::Slice se(key_end);
+    //int result = memcmp(sb.data(), se.data(), sb.size());
+    //printf ("LIST Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
+    //printf (" Slice.compare return %d\n", sb.compare(se));
+
+    list_db_->CompactRange(&sb, &se);
   }
 
-  if (type == DB_TYPE::kALL || type == DB_TYPE::kSET) {
-      key_begin = EncodeSetKey(key, "");
-      key_end = key_begin;
-      key_end.append(str);
-      rocksdb::Slice sb(key_begin);
-      rocksdb::Slice se(key_end);
-      int result = memcmp(sb.data(), se.data(), sb.size());
-      //printf ("SET Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
-      //printf (" Slice.compare return %d\n", sb.compare(se));
-      set_db_->CompactRange(&sb, &se);
+  if (type == DBType::kALL || type == DBType::kSET_DB) {
+    key_begin = EncodeSetKey(key, "");
+    key_end = key_begin;
+    FindLongSuccessor(&key_end);
+    rocksdb::Slice sb(key_begin);
+    rocksdb::Slice se(key_end);
+
+    set_db_->CompactRange(&sb, &se);
   }
 
-  if (type == DB_TYPE::kALL || type == DB_TYPE::kZSET) {
-      key_begin = EncodeZSetKey(key, "");
-      key_end = key_begin;
-      key_end.append(str);
-      rocksdb::Slice sb(key_begin);
-      rocksdb::Slice se(key_end);
-      int result = memcmp(sb.data(), se.data(), sb.size());
-      //printf ("ZSET Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
-      //printf (" Slice.compare return %d\n", sb.compare(se));
-      zset_db_->CompactRange(&sb, &se);
+  if (type == DBType::kALL || type == DBType::kZSET_DB) {
+    key_begin = EncodeZSetKey(key, "");
+    key_end = key_begin;
+    FindLongSuccessor(&key_end);
+    rocksdb::Slice sb(key_begin);
+    rocksdb::Slice se(key_end);
+    //int result = memcmp(sb.data(), se.data(), sb.size());
+    //printf ("ZSET Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
+    //printf (" Slice.compare return %d\n", sb.compare(se));
+    zset_db_->CompactRange(&sb, &se);
 
-      key_begin = EncodeZScoreKey(key, "", ZSET_SCORE_MIN);
-      key_end = EncodeZScoreKey(key, "", ZSET_SCORE_MAX);
-      rocksdb::Slice zb(key_begin);
-      rocksdb::Slice ze(key_end);
-      result = memcmp(sb.data(), se.data(), sb.size());
-      //printf ("ZSET score Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
-      //printf (" Slice.compare return %d\n", sb.compare(se));
-      zset_db_->CompactRange(&zb, &ze);
+    key_begin = EncodeZScoreKey(key, "", ZSET_SCORE_MIN);
+    key_end = EncodeZScoreKey(key, "", ZSET_SCORE_MAX);
+    rocksdb::Slice zb(key_begin);
+    rocksdb::Slice ze(key_end);
+
+    zset_db_->CompactRange(&zb, &ze);
   }
 
   return Status::OK();
@@ -581,35 +699,36 @@ Status Nemo::AddBGTask(const BGTask& task) {
 }
 
 Status Nemo::RunBGTask() {
-    BGTask task;
+  BGTask task;
 
-    while (bgtask_flag_) {
-      //printf ("RunBGTask main loop\n");
-      mutex_bgtask_.Lock();
-      //printf ("RunBGTask main loop mutex-lock\n");
-      if (bg_tasks_.empty()) {
-        //printf ("RunBGTask main loop task.empty, bg_cv_ will Wait\n");
-        bg_cv_.Wait();
-        //printf ("RunBGTask main loop task.empty, bg_cv_ startup\n");
-      }
+  while (bgtask_flag_) {
+    //printf ("RunBGTask main loop\n");
+    mutex_bgtask_.Lock();
+    //printf ("RunBGTask main loop mutex-lock\n");
 
-      task = bg_tasks_.front();
-      bg_tasks_.pop();
-      mutex_bgtask_.Unlock();
-
-      switch (task.op) {
-        case kDEL_KEY:
-          printf ("BGTask run task { type=%d, argv1=%s}\n", task.type, task.argv1.c_str());
-          CompactKey(task.type, task.argv1);
-          break;
-        case kCLEAN_RANGE:
-          break;
-        default:
-          break;
-      }
+    while (bg_tasks_.empty()) {
+      //printf ("RunBGTask main loop task.empty, bg_cv_ will Wait\n");
+      bg_cv_.Wait();
+      //printf ("RunBGTask main loop task.empty, bg_cv_ startup\n");
     }
 
-    return Status::OK();
+    task = bg_tasks_.front();
+    bg_tasks_.pop();
+    mutex_bgtask_.Unlock();
+
+    switch (task.op) {
+      case kDEL_KEY:
+        //printf ("BGTask run task { type=%d, argv1=%s}\n", task.type, task.argv1.c_str());
+        CompactKey(task.type, task.argv1);
+        break;
+      case kCLEAN_RANGE:
+        break;
+      default:
+        break;
+    }
+  }
+
+  return Status::OK();
 }
 
 static void* StartBGThreadWrapper(void* arg) {
@@ -619,29 +738,14 @@ static void* StartBGThreadWrapper(void* arg) {
 }
 
 Status Nemo::StartBGThread() {
-    bgtask_flag_ = true;
+  bgtask_flag_ = true;
 
-    int result = pthread_create(&bg_tid_, NULL,  &StartBGThreadWrapper, this);
-    if (result != 0) {
-      char msg[128];
-      snprintf (msg, 128, "pthread create: %s", strerror(result));
-      return Status::Corruption(msg);
-    }
+  int result = pthread_create(&bg_tid_, NULL,  &StartBGThreadWrapper, this);
+  if (result != 0) {
+    char msg[128];
+    snprintf (msg, 128, "pthread create: %s", strerror(result));
+    return Status::Corruption(msg);
+  }
 
-    return Status::OK();
-}
-
-rocksdb::DBWithTTL* Nemo::GetDBByType(const std::string& type) {
-    if (type == KV_DB)
-        return kv_db_.get();
-    else if (type == HASH_DB)
-        return hash_db_.get();
-    else if (type == LIST_DB)
-        return list_db_.get();
-    else if (type == SET_DB)
-        return set_db_.get();
-    else if (type == ZSET_DB)
-        return zset_db_.get();
-    else
-        return NULL;
+  return Status::OK();
 }

@@ -51,14 +51,13 @@ int main()
 //    }
 
 
-
     std::string res;
 
     /*
      * test CompactKey
      */
     
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 1; i++) {
       log_info("====== i: %3d ======", i);
       log_info("======Test CompactKey======");
       s = n->Set("key", "setval1");
