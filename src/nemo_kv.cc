@@ -874,40 +874,40 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
 
 Status Nemo::Expire(const std::string &key, const int32_t seconds, int64_t *res) {
     int cnt = 0;
-    Status s;
+    Status kv_result, s;
     
-    s = KExpire(key, seconds, res);
-    if (s.ok()) {
+    kv_result = KExpire(key, seconds, res);
+    if (kv_result.ok()) {
       cnt++;
-    } else if (!s.IsNotFound()) {
-      return s;
+    } else if (!kv_result.IsNotFound()) {
+      return kv_result;
     }
 
     s = HExpire(key, seconds, res);
     if (s.ok()) {
       cnt++;
-    } else if (!s.IsNotFound()) {
+    } else if (!kv_result.ok() && !s.IsNotFound()) {
       return s;
     }
 
     s = ZExpire(key, seconds, res);
     if (s.ok()) {
       cnt++;
-    } else if (!s.IsNotFound()) {
+    } else if (!kv_result.ok() && !s.IsNotFound()) {
       return s;
     }
 
     s = SExpire(key, seconds, res);
     if (s.ok()) {
       cnt++;
-    } else if (!s.IsNotFound()) {
+    } else if (!kv_result.ok() && !s.IsNotFound()) {
       return s;
     }
 
     s = LExpire(key, seconds, res);
     if (s.ok()) {
       cnt++;
-    } else if (!s.IsNotFound()) {
+    } else if (!kv_result.ok() && !s.IsNotFound()) {
       return s;
     }
 

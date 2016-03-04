@@ -12,7 +12,7 @@
 using namespace nemo;
 
 Status Nemo::HSet(const std::string &key, const std::string &field, const std::string &val) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -51,7 +51,7 @@ Status Nemo::HSetNoLock(const std::string &key, const std::string &field, const 
 }
 
 Status Nemo::HGet(const std::string &key, const std::string &field, std::string *val) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -61,7 +61,7 @@ Status Nemo::HGet(const std::string &key, const std::string &field, std::string 
 }
 
 Status Nemo::HDel(const std::string &key, const std::string &field) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -84,7 +84,7 @@ Status Nemo::HDel(const std::string &key, const std::string &field) {
 
 // Note: No lock, Internal use only!!
 Status Nemo::HDelKey(const std::string &key, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -109,7 +109,7 @@ Status Nemo::HDelKey(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::HExpire(const std::string &key, const int32_t seconds, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -140,7 +140,7 @@ Status Nemo::HExpire(const std::string &key, const int32_t seconds, int64_t *res
 }
 
 Status Nemo::HTTL(const std::string &key, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -172,7 +172,7 @@ bool Nemo::HExists(const std::string &key, const std::string &field) {
 }
 
 Status Nemo::HPersist(const std::string &key, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -198,7 +198,7 @@ Status Nemo::HPersist(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::HExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -277,6 +277,10 @@ int64_t Nemo::HLen(const std::string &key) {
 }
 
 Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     std::string dbkey;
     std::string dbfield;
     std::string key_start = EncodeHashKey(key, "");
@@ -304,7 +308,7 @@ Status Nemo::HGetall(const std::string &key, std::vector<FV> &fvs) {
 }
 
 Status Nemo::HMSet(const std::string &key, const std::vector<FV> &fvs) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
     Status s;
@@ -387,6 +391,9 @@ int64_t Nemo::HStrlen(const std::string &key, const std::string &field) {
 }
 
 Status Nemo::HVals(const std::string &key, std::vector<std::string> &vals) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
     std::string dbkey;
     std::string dbfield;
     std::string key_start = EncodeHashKey(key, "");
@@ -414,6 +421,9 @@ Status Nemo::HVals(const std::string &key, std::vector<std::string> &vals) {
 }
 
 Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t by, std::string &new_val) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
     Status s;
     std::string val;
     //MutexLock l(&mutex_hash_);
@@ -438,6 +448,10 @@ Status Nemo::HIncrby(const std::string &key, const std::string &field, int64_t b
 }
 
 Status Nemo::HIncrbyfloat(const std::string &key, const std::string &field, double by, std::string &new_val) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     std::string val;
     std::string res;

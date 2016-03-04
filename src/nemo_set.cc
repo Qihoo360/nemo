@@ -10,7 +10,7 @@
 using namespace nemo;
 
 Status Nemo::SAdd(const std::string &key, const std::string &member, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -64,7 +64,7 @@ Status Nemo::SAddNoLock(const std::string &key, const std::string &member, int64
 }
 
 Status Nemo::SRem(const std::string &key, const std::string &member, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -203,10 +203,11 @@ Status Nemo::SUnion(const std::vector<std::string> &keys, std::vector<std::strin
 }
 
 Status Nemo::SUnionStore(const std::string &destination, const std::vector<std::string> &keys, int64_t *res) {
+
     int numkey = keys.size();
     //MutexLock l(&mutex_set_);
     if (numkey <= 0) {
-        return Status::Corruption("invalid parameter, no keys");
+        return Status::InvalidArgument("invalid parameter, no keys");
     }
 
     std::map<std::string, int> member_result;
@@ -264,7 +265,7 @@ bool Nemo::SIsMember(const std::string &key, const std::string &member) {
 Status Nemo::SInter(const std::vector<std::string> &keys, std::vector<std::string>& members) {
     int numkey = keys.size();
     if (numkey <= 0) {
-        return Status::Corruption("SInter invalid parameter, no keys");
+        return Status::InvalidArgument("SInter invalid parameter, no keys");
     }
 
     SIterator *iter = SScan(keys[0], -1, true);
@@ -453,6 +454,10 @@ Status Nemo::SPop(const std::string &key, std::string &member) {
 
 //Note: no lock
 Status Nemo::SRandMember(const std::string &key, std::vector<std::string> &members, const int count) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     members.clear();
 
     if (count == 0) {
@@ -514,6 +519,9 @@ Status Nemo::SRandMember(const std::string &key, std::vector<std::string> &membe
 }
 
 Status Nemo::SMove(const std::string &source, const std::string &destination, const std::string &member, int64_t *res) {
+    if (source.size() >= KEY_MAX_LENGTH || source.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
     Status s;
 
     if (source == destination) {
@@ -558,7 +566,7 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
 }
 
 Status Nemo::SDelKey(const std::string &key, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -584,7 +592,7 @@ Status Nemo::SDelKey(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::SExpire(const std::string &key, const int32_t seconds, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -615,7 +623,7 @@ Status Nemo::SExpire(const std::string &key, const int32_t seconds, int64_t *res
 }
 
 Status Nemo::STTL(const std::string &key, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -636,7 +644,7 @@ Status Nemo::STTL(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::SPersist(const std::string &key, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -662,7 +670,7 @@ Status Nemo::SPersist(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::SExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
