@@ -110,10 +110,8 @@ public:
     Status RunBGTask();
 
     // Used for pika
-    Status Compact(bool sync = true);
+    Status Compact(DBType type, bool sync = false);
 
-    // Used for compact tools and internal
-    Status CompactSpecify(const std::string &DBType);
 
     // =================String=====================
     Status Del(const std::string &key, int64_t *count);
@@ -264,6 +262,8 @@ private:
     std::queue<BGTask> bg_tasks_;
     port::CondVar bg_cv_;
 
+    // Used for compact tools and internal
+    Status DoCompact(DBType type);
     Status AddBGTask(const BGTask& task);
     Status CompactKey(const DBType type, const rocksdb::Slice& key);
 

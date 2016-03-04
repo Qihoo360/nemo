@@ -484,37 +484,38 @@ Status Nemo::GetKeyNum(std::vector<uint64_t>& nums) {
   return Status::OK();
 }
 
-Status Nemo::CompactSpecify(const std::string &type) {
+Status Nemo::DoCompact(DBType type) {
+  if (type != kALL && type != kKV_DB && type != kHASH_DB &&
+      type != kZSET_DB && type != kSET_DB && type != kLIST_DB) {
+      return Status::InvalidArgument("");
+  }
   Status s;
-  if (type == ALL_DB || type == KV_DB) {
+  if (type == kALL || type == kKV_DB) {
     s = kv_db_->CompactRange(NULL, NULL);
   }
-  if (type == ALL_DB || type == HASH_DB) {
+  if (type == kALL || type == kHASH_DB) {
     s = hash_db_->CompactRange(NULL, NULL);
   }
-  if (type == ALL_DB || type == ZSET_DB) {
+  if (type == kALL || type == kZSET_DB) {
     s = zset_db_->CompactRange(NULL, NULL);
   }
-  if (type == ALL_DB || type == ZSET_DB) {
+  if (type == kALL || type == kSET_DB) {
     s = set_db_->CompactRange(NULL, NULL);
   }
-  if (type == ALL_DB || type == LIST_DB) {
+  if (type == kALL || type == kLIST_DB) {
     s = list_db_->CompactRange(NULL, NULL);
-  }
-  if (type != ALL_DB && type != KV_DB && type != HASH_DB && type != ZSET_DB && type != LIST_DB) {
-    s = Status::InvalidArgument("");
   }
   return s;
 }
 
-Status Nemo::Compact(bool sync){
+Status Nemo::Compact(DBType type, bool sync){
   Status s;
 
   if (sync) {
-    s = CompactSpecify(ALL_DB);
+    s = DoCompact(type);
   } else {
     std::string tmp;
-    AddBGTask({DBType::kALL, OPERATION::kCLEAN_ALL, tmp, tmp});
+    AddBGTask({type, OPERATION::kCLEAN_ALL, tmp, tmp});
   }
   return s;
 }
@@ -720,7 +721,7 @@ Status Nemo::RunBGTask() {
       case kCLEAN_RANGE:
         break;
       case kCLEAN_ALL:
-        CompactSpecify(ALL_DB);
+        DoCompact(task.type);
         break;
       default:
         break;

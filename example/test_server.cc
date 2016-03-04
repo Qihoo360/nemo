@@ -5,6 +5,7 @@
 #include <inttypes.h>
 
 #include "nemo.h"
+#include "nemo_const.h"
 #include "xdebug.h"
 
 using namespace nemo;
@@ -60,11 +61,11 @@ int main()
       log_info("======Test Compact======");
 
       // Compact 
-      s = n->Compact();
+      s = n->Compact(nemo::kALL, true);
       log_info("  Compact(sync=true) return %s", s.ToString().c_str());
 
       // Compact 
-      s = n->Compact(false);
+      s = n->Compact(nemo::kALL);
       log_info("  Compact(sync=false) return %s", s.ToString().c_str());
     }
     
