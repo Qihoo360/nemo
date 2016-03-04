@@ -30,11 +30,12 @@ int main(int argc, char **argv)
   log_info("Compact Begin");
 
   nemo::Status s;
-  if (db_type == "all") {
-    s = db->Compact();
-  } else {
-    s = db->CompactSpecify(db_type);
-  }
+  s = db->CompactSpecify(db_type);
+ // if (db_type == "all") {
+ //   s = db->Compact();
+ // } else {
+ //   s = db->CompactSpecify(db_type);
+ // }
   delete db;
 
   if (!s.ok()) {

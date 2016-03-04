@@ -10,6 +10,7 @@ const int64_t ZSET_SCORE_MAX = 10000000000000LL;
 const int64_t ZSET_SCORE_MIN = -ZSET_SCORE_MAX;
 const double eps = 1e-5;
 
+const std::string ALL_DB = "all";
 const std::string KV_DB = "kv";
 const std::string HASH_DB = "hash";
 const std::string LIST_DB = "list";
@@ -30,6 +31,7 @@ enum OPERATION {
   kNONE_OP = 0,
   kDEL_KEY,
   kCLEAN_RANGE,
+  kCLEAN_ALL,
 };
 
 const uint32_t KEY_MAX_LENGTH = 255;

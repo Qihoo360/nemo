@@ -108,7 +108,11 @@ public:
 
     Status StartBGThread();
     Status RunBGTask();
-    Status Compact();
+
+    // Used for pika
+    Status Compact(bool sync = true);
+
+    // Used for compact tools and internal
     Status CompactSpecify(const std::string &DBType);
 
     // =================String=====================

@@ -484,43 +484,39 @@ Status Nemo::GetKeyNum(std::vector<uint64_t>& nums) {
   return Status::OK();
 }
 
-Status Nemo::CompactSpecify(const std::string &DBType) {
+Status Nemo::CompactSpecify(const std::string &type) {
   Status s;
-  if (DBType == KV_DB) {
+  if (type == ALL_DB || type == KV_DB) {
     s = kv_db_->CompactRange(NULL, NULL);
-  } else if (DBType == HASH_DB) {
+  }
+  if (type == ALL_DB || type == HASH_DB) {
     s = hash_db_->CompactRange(NULL, NULL);
-  } else if (DBType == ZSET_DB) {
+  }
+  if (type == ALL_DB || type == ZSET_DB) {
     s = zset_db_->CompactRange(NULL, NULL);
-  } else if (DBType == SET_DB) {
+  }
+  if (type == ALL_DB || type == ZSET_DB) {
     s = set_db_->CompactRange(NULL, NULL);
-  } else if (DBType == LIST_DB) {
+  }
+  if (type == ALL_DB || type == LIST_DB) {
     s = list_db_->CompactRange(NULL, NULL);
-  } else {
+  }
+  if (type != ALL_DB && type != KV_DB && type != HASH_DB && type != ZSET_DB && type != LIST_DB) {
     s = Status::InvalidArgument("");
   }
   return s;
 }
 
-Status Nemo::Compact(){
+Status Nemo::Compact(bool sync){
   Status s;
-  s = CompactSpecify(KV_DB);
-  if (!s.ok()) {
-    return s;
+
+  if (sync) {
+    s = CompactSpecify(ALL_DB);
+  } else {
+    std::string tmp;
+    AddBGTask({DBType::kALL, OPERATION::kCLEAN_ALL, tmp, tmp});
   }
-  s = CompactSpecify(HASH_DB);
-  if (!s.ok()) {
-    return s;
-  }
-  s = CompactSpecify(ZSET_DB);
-  if (!s.ok()) {
-    return s;
-  }
-  s = CompactSpecify(SET_DB);
-  if (!s.ok()) {
-    return s;
-  }
-  return CompactSpecify(LIST_DB);
+  return s;
 }
 
 // should be replaced by the one with DBType parameter
@@ -722,6 +718,9 @@ Status Nemo::RunBGTask() {
         CompactKey(task.type, task.argv1);
         break;
       case kCLEAN_RANGE:
+        break;
+      case kCLEAN_ALL:
+        CompactSpecify(ALL_DB);
         break;
       default:
         break;

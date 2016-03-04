@@ -50,8 +50,26 @@ int main()
 //        printf ("FAILED, return ok, should failed\n");
 //    }
 
-
+    /*
+     * test Compact
+     */
     std::string res;
+
+    for (int i = 0; i < 1; i++) {
+      log_info("====== i: %3d ======", i);
+      log_info("======Test Compact======");
+
+      // Compact 
+      s = n->Compact();
+      log_info("  Compact(sync=true) return %s", s.ToString().c_str());
+
+      // Compact 
+      s = n->Compact(false);
+      log_info("  Compact(sync=false) return %s", s.ToString().c_str());
+    }
+    
+    char a;
+    scanf ("%c", &a);
 
     /*
      * test CompactKey
