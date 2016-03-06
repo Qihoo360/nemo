@@ -16,7 +16,6 @@ int main()
     Nemo *n = new Nemo("./tmp", options); 
     Status s;
 
-    n->StartBGThread();
 
     std::vector<uint64_t> nums;
     int64_t llen, za_res, sadd_res;

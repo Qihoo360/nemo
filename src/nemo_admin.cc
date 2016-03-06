@@ -703,15 +703,21 @@ Status Nemo::RunBGTask() {
     mutex_bgtask_.Lock();
     //printf ("RunBGTask main loop mutex-lock\n");
 
-    while (bg_tasks_.empty()) {
+    while (bg_tasks_.empty() && bgtask_flag_ ) {
       //printf ("RunBGTask main loop task.empty, bg_cv_ will Wait\n");
       bg_cv_.Wait();
       //printf ("RunBGTask main loop task.empty, bg_cv_ startup\n");
     }
 
-    task = bg_tasks_.front();
-    bg_tasks_.pop();
+    if (!bg_tasks_.empty()) {
+      task = bg_tasks_.front();
+      bg_tasks_.pop();
+    }
     mutex_bgtask_.Unlock();
+
+    if (!bgtask_flag_) {
+      return Status::Incomplete("bgtask return with bgtask_flag_ false");
+    }
 
     switch (task.op) {
       case kDEL_KEY:
@@ -738,8 +744,6 @@ static void* StartBGThreadWrapper(void* arg) {
 }
 
 Status Nemo::StartBGThread() {
-  bgtask_flag_ = true;
-
   int result = pthread_create(&bg_tid_, NULL,  &StartBGThreadWrapper, this);
   if (result != 0) {
     char msg[128];

@@ -17,7 +17,7 @@ namespace nemo {
 
 Nemo::Nemo(const std::string &db_path, const Options &options)
     : db_path_(db_path),
-    bgtask_flag_(false),
+    bgtask_flag_(true),
     bg_cv_(&mutex_bgtask_),
     save_flag_(false),
     dump_to_terminate_(false) {

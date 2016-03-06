@@ -15,6 +15,7 @@
 #include "nemo_iterator.h"
 #include "port.h"
 #include "util.h"
+#include "xdebug.h"
 
 namespace nemo {
 
@@ -90,6 +91,13 @@ class Nemo {
 public:
     Nemo(const std::string &db_path, const Options &options);
     ~Nemo() {
+        bgtask_flag_ = false;
+        bg_cv_.Signal();
+        int ret = 0;
+        if ((ret = pthread_join(bg_tid_, NULL)) != 0) {
+          log_warn("pthread_join failed with bgtask thread error %d", ret);
+        }
+
         kv_db_.reset();
         hash_db_.reset();
         list_db_.reset();
@@ -108,6 +116,7 @@ public:
 
     // Used for pika
     Status Compact(DBType type, bool sync = false);
+    Status RunBGTask();
 
 
     // =================String=====================
@@ -264,7 +273,6 @@ private:
     Status AddBGTask(const BGTask& task);
     Status CompactKey(const DBType type, const rocksdb::Slice& key);
     Status StartBGThread();
-    Status RunBGTask();
 
     Status KDel(const std::string &key, int64_t *res);
     Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
