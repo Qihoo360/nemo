@@ -35,7 +35,7 @@ int main(int argc, char **argv)
   nemo::Status s;
   if (db_type == "kv") {
     s = db->Compact(nemo::kKV_DB, true);
-  } else if (db_type == "hash", true) {
+  } else if (db_type == "hash") {
     s = db->Compact(nemo::kHASH_DB, true);
   } else if (db_type == "list") {
     s = db->Compact(nemo::kLIST_DB, true);
