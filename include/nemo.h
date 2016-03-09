@@ -117,6 +117,7 @@ public:
     // Used for pika
     Status Compact(DBType type, bool sync = false);
     Status RunBGTask();
+    std::string GetCurrentTaskType();
 
 
     // =================String=====================
@@ -264,6 +265,9 @@ private:
     //pthread_mutex_t mutex_bgtask_;
     port::Mutex mutex_bgtask_;
     std::atomic<bool> bgtask_flag_;
+
+    // Maybe 0 for none, 1 for compact_key, and 2 for compact all;
+    std::atomic<int> current_task_type_;
     pthread_t bg_tid_;
     std::queue<BGTask> bg_tasks_;
     port::CondVar bg_cv_;
