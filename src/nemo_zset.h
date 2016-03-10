@@ -10,8 +10,6 @@
 
 namespace nemo {
 
-typedef DefaultMeta ZSetMeta;
-
 inline uint64_t EncodeScore(const double score) {
     int64_t iscore;
     if (score < 0) {
@@ -34,6 +32,15 @@ inline std::string EncodeZSetKey(const rocksdb::Slice &key, const rocksdb::Slice
     buf.append(member.data(), member.size());
     return buf;
 }
+
+inline std::string EncodeZScorePrefix(const rocksdb::Slice &key) {
+    std::string buf;
+    buf.append(1, DataType::kZScore);
+    buf.append(1, (uint8_t)key.size());
+    buf.append(key.data(), key.size());
+    return buf;
+}
+
 
 inline int DecodeZSetKey(const rocksdb::Slice &slice, std::string *key, std::string *member) {
     Decoder decoder(slice.data(), slice.size());

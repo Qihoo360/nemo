@@ -8,48 +8,39 @@ using namespace nemo;
 
 void Usage() {
   std::cout << "Usage: " << std::endl;
-  std::cout << "./meta_scan db_path type pattern" << std::endl;
+  std::cout << "./nemock db_path type pattern" << std::endl;
   std::cout << "type is one of: kv, hash, list, zset, set, all" << std::endl;
   std::cout << "Example: " << std::endl;
-  std::cout << "./meta_scan ./db list \\*" << std::endl;
+  std::cout << "./nemock ./db list \\*" << std::endl;
 }
 
-void PrintMetaSpecify(nemo::Nemo *const db, DBType type, 
+void ChecknRecoverSpecify(nemo::Nemo *const db, DBType type,
     const std::string& type_name, const std::string& pattern) {
-  // Scan metas info
-  std::map<std::string, MetaPtr> metas;
-  Status s = db->ScanMetasSpecify(type, pattern, metas);
-  if (!s.ok()) {
-    log_err("Failed to scan metas");
-    return;
-  }
-  // Print
-  std::cout << "---------------- Begin Scan[" << type_name << "] ----------------" << std::endl;
-  std::map<std::string, MetaPtr>::iterator it = metas.begin();
-  for (; it != metas.end(); ++it) {
-    std::cout << "Key[" << it->first 
-      << "], Metas[" << it->second->ToString() << "]" << std::endl;
-  }
-  std::cout << "---------------- End Scan[" << type_name << "] ----------------" << std::endl;
+    Status s = db->CheckMetaSpecify(type, pattern);
+    if (!s.ok()) {
+      log_err("Check and Recover %s failed : %s", type_name.c_str(), s.ToString().c_str());
+    }
+    log_info("Check and Recover %s success", type_name.c_str());
 }
 
-void PrintMeta(nemo::Nemo *const db, const std::string& type, 
+
+void ChecknRecover(nemo::Nemo *const db, const std::string& type, 
     const std::string& pattern) {
   bool all = false;
   if (type == "all") {
     all = true;
   }
   if (all || type == "hash") {
-    PrintMetaSpecify(db, kHASH_DB, "hash", pattern);
+    ChecknRecoverSpecify(db, kHASH_DB, type, pattern);
   } 
   if (all || type == "list") {
-    PrintMetaSpecify(db, kLIST_DB, "list", pattern);
+    ChecknRecoverSpecify(db, kLIST_DB, type, pattern);
   } 
   if (all || type == "set") {
-    PrintMetaSpecify(db, kSET_DB, "set", pattern);
+    ChecknRecoverSpecify(db, kSET_DB, type, pattern);
   } 
   if (all || type == "zset") {
-    PrintMetaSpecify(db, kZSET_DB, "zset", pattern);
+    ChecknRecoverSpecify(db, kZSET_DB, type, pattern);
   }
 }
 
@@ -77,11 +68,9 @@ int main(int argc, char **argv)
   log_info("Prepare DB...");
   nemo::Nemo* db = new nemo::Nemo(path, option);
   assert(db);
-  log_info("SCan Begin");
-
-  PrintMeta(db, db_type, pattern);
+  log_info("Check and Recover Begin");
   delete db;
-
-  log_info("SCan Finshed");
+  ChecknRecover(db, db_type, pattern);
+  log_info("Chekc and Recover Finshed");
   return 0;
 }

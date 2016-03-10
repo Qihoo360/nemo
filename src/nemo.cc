@@ -110,25 +110,5 @@ Nemo::Nemo(const std::string &db_path, const Options &options) :
     set_db_->Put(rocksdb::WriteOptions(), "s", "");
 }
 
-
-bool NemoMeta::Create(DBType type, MetaPtr &p_meta){
-  switch (type) {
-  case kHASH_DB:
-    p_meta.reset(new HashMeta());
-    break;
-  case kLIST_DB:
-    p_meta.reset(new ListMeta());
-    break;
-  case kSET_DB:
-    p_meta.reset(new SetMeta());
-    break;
-  case kZSET_DB:
-    p_meta.reset(new ZSetMeta());
-  default:
-    return false;
-  }
-  return true;
-}
-
 };
 

@@ -44,6 +44,71 @@ std::string ListMeta::ToString() {
   return res;
 }
 
+Status Nemo::LGetMetaByKey(const std::string& key, ListMeta& meta) {
+  std::string meta_val, meta_key = EncodeLMetaKey(key);
+  Status s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
+  if (!s.ok()) {
+    return s;
+  }
+  meta.DecodeFrom(meta_val);
+  return Status::OK();
+}
+Status Nemo::LChecknRecover(const std::string& key) {
+  RecordLock l(&mutex_list_record_, key);
+  ListMeta meta;
+  Status s = LGetMetaByKey(key, meta);
+  if (!s.ok()) {
+    return s;
+  }
+  // Traverse from head and find the break before point
+  int count = 0;
+  int64_t next = meta.left, cur = 0;
+  ListData cur_data;
+  rocksdb::WriteBatch batch;
+  std::string cur_listkey, en_val, raw_val;
+  do {
+    cur_listkey = EncodeListKey(key, next);
+    s = list_db_->Get(rocksdb::ReadOptions(), cur_listkey, &en_val);
+    if (s.IsNotFound()) { 
+      // We cant find the next one, so we now stand on the break before point
+      break;
+    } else if (!s.ok()) {
+      return Status::Corruption("get listkey error");
+    }
+    int64_t tmp_next = 0, tmp_priv = 0;
+    DecodeListVal(en_val, &tmp_priv, &tmp_next, raw_val);
+    if (tmp_priv != cur) {
+      // inconsistent
+      EncodeListVal(raw_val, cur, tmp_next, en_val);
+      batch.Put(cur_listkey, en_val);
+    }
+    ++count;
+    cur_data.reset(cur, tmp_next, raw_val);
+    cur = next;
+    next = tmp_next;
+  } while (next != 0);
+
+  // Success iterator from head to the end
+  if (next == 0 && cur == meta.right) {
+    return Status::OK();
+  }
+
+  // Truncate list
+  std::string right_key = EncodeListKey(key, cur);
+  std::string right_val;
+  EncodeListVal(cur_data.val, cur_data.priv, 0, right_val);
+  batch.Put(right_key, right_val);
+
+  // Change Meta
+  meta.len = count;
+  meta.right = cur;
+  std::string meta_val;
+  meta.EncodeTo(meta_val);
+  batch.Put(EncodeLMetaKey(key), meta_val);
+  
+  return list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
+}
+
 int32_t Nemo::L2R(const std::string &key, const int64_t index, const int64_t left, int64_t *priv, int64_t *cur, int64_t *next) {
     int64_t t = index;
     int64_t t_cur = left;

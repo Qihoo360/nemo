@@ -12,6 +12,7 @@
 #include "nemo_options.h"
 #include "nemo_const.h"
 #include "nemo_iterator.h"
+#include "nemo_meta.h"
 #include "port.h"
 #include "util.h"
 
@@ -27,46 +28,6 @@ struct ItemListMap{
     int64_t max_size_;
     std::list<T1> list_;
     std::map<T1, T2> map_;
-};
-
-class NemoMeta;
-typedef std::shared_ptr<NemoMeta> MetaPtr;
-class NemoMeta {
-public:
-  virtual ~NemoMeta() {}
-  // Construct NemoMeta from string
-  virtual bool DecodeFrom(const std::string& raw_meta) = 0;
-  // Encode MemoMeta to string
-  virtual bool EncodeTo(std::string& meta) = 0;
-  virtual std::string ToString() = 0;
-
-  static bool Create(DBType type, MetaPtr &p_meta);
-};
-
-struct DefaultMeta : public NemoMeta {
-  int64_t len;
-
-  DefaultMeta() : len(0) {}
-  explicit DefaultMeta(int64_t _len):len(_len) {}
-  virtual bool DecodeFrom(const std::string& raw_meta) {
-    if (raw_meta.size() != sizeof(uint64_t)) {
-      return false;
-    }
-    len = *(int64_t *)raw_meta.data();
-    return true;
-  }
-  virtual bool EncodeTo(std::string& raw_meta) {
-    raw_meta.clear();
-    raw_meta.append((char *)&len, sizeof(int64_t));
-    return true;
-  }
-  virtual std::string ToString() {
-    char buf[32];
-    std::string res("Len : ");
-    Int64ToStr(buf, 32, len);
-    res.append(buf);
-    return res;
-  }
 };
 
 class Nemo
@@ -211,8 +172,19 @@ public:
     Status ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t &num);
     
     rocksdb::DBWithTTL* GetDBByType(const std::string& type); 
-    Status ScanMetas(DBType type, const std::string &pattern,
+    
+    /* Meta */
+    // Scan all metas of db specified by given type
+    Status ScanMetasSpecify(DBType type, const std::string &pattern,
         std::map<std::string, MetaPtr>& metas);
+    // Check and recover data
+    Status CheckMetaSpecify(DBType type, const std::string &pattern);
+    // ChecknRecover function for different type db
+    Status ChecknRecover(DBType type, const std::string& key);
+    Status HChecknRecover(const std::string& key);
+    Status LChecknRecover(const std::string& key);
+    Status SChecknRecover(const std::string& key);
+    Status ZChecknRecover(const std::string& key);
 
 private:
 
@@ -299,10 +271,25 @@ private:
     //Status SaveDBWithTTL(const std::string &db_path, const std::string &key_type, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
     Status SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &src_db, const rocksdb::Snapshot *snapshot);
 
-    //Meta
+    /* Meta */
     std::string GetMetaPrefix(DBType type);
-    Status ScanDBMetas(std::unique_ptr<rocksdb::DBWithTTL> &db,
+    // Scan metas on given db
+    Status ScanDBMetas(std::unique_ptr<rocksdb::DBWithTTL> &db, DBType type,
+        const std::string &pattern, std::map<std::string, MetaPtr>& metas);
+    // Scan metas on given db and given snapshot
+    Status ScanDBMetasOnSnap(std::unique_ptr<rocksdb::DBWithTTL> &db, const rocksdb::Snapshot* psnap,
         DBType type, const std::string &pattern, std::map<std::string, MetaPtr>& metas);
+    Status GetByKey(DBType type, const std::string &key, MetaPtr& meta);
+    // Check and recover data on spcified db
+    Status CheckDBMeta(std::unique_ptr<rocksdb::DBWithTTL> &db, DBType type, const std::string& pattern);
+    // Get meta by key
+    Status HGetMetaByKey(const std::string &key, HashMeta& meta);
+    Status LGetMetaByKey(const std::string &key, ListMeta& meta);
+    Status SGetMetaByKey(const std::string &key, SetMeta& meta);
+    Status ZGetMetaByKey(const std::string &key, ZSetMeta& meta);
+
+    Status ZDressZScoreforZSet(const std::string& key, int* count);
+    Status ZDressZSetforZScore(const std::string& key, int* count);
 
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);

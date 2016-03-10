@@ -9,6 +9,141 @@
 #include "xdebug.h"
 using namespace nemo;
 
+// Iterator kZScore and Dress kZScore for kZSet
+Status Nemo::ZDressZScoreforZSet(const std::string& key, int *count) {
+  std::string key_start = EncodeZScorePrefix(key);
+  
+  rocksdb::Iterator *it;
+  rocksdb::WriteBatch writebatch;
+  rocksdb::ReadOptions iterate_options;
+  iterate_options.snapshot = zset_db_->GetSnapshot();
+  iterate_options.fill_cache = false;
+  it = zset_db_->NewIterator(iterate_options);
+  it->Seek(key_start);
+  std::string dbkey, dbfield, zset_key, val;
+  Status s = Status::OK();
+  while (it->Valid()) {
+    if ((it->key())[0] != DataType::kZScore) {
+      break;
+    }
+    double zscore_score = 0.0;
+    DecodeZScoreKey(it->key(), &dbkey, &dbfield, &zscore_score);
+    if (dbkey != key) {
+      break;
+    }
+    // Look up in kZSet
+    zset_key = EncodeZSetKey(key, dbfield);
+    s = zset_db_->Get(rocksdb::ReadOptions(), zset_key, &val);
+    double zset_score = *((double *)val.data());
+    if (s.ok()) {
+      if (fabs(zset_score - zscore_score) < eps) {
+        // TODO log inconsistent
+        // Change score in ZScore
+        writebatch.Delete(it->key());
+        std::string new_key = EncodeZScoreKey(key, dbfield, zset_score);
+        writebatch.Put(new_key, "");
+      }
+      ++(*count);
+    } else if (s.IsNotFound()) {
+      // TODO log inconsistent
+      writebatch.Delete(it->key());
+    } else {
+      break;
+    }
+    it->Next();
+  }
+  zset_db_->ReleaseSnapshot(iterate_options.snapshot);
+  delete it;
+  if (writebatch.Count() != 0) {
+    s = zset_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+  }
+  return s;
+}
+
+// Iterator kZSet and Dress kZSet for kZScore
+Status Nemo::ZDressZSetforZScore(const std::string& key, int *count) {
+  std::string key_start = EncodeZSetKey(key, "");
+  
+  rocksdb::Iterator *it;
+  rocksdb::WriteBatch writebatch;
+  rocksdb::ReadOptions iterate_options;
+  iterate_options.snapshot = zset_db_->GetSnapshot();
+  iterate_options.fill_cache = false;
+  it = zset_db_->NewIterator(iterate_options);
+  it->Seek(key_start);
+  std::string dbkey, dbfield, score_key, val;
+  double zset_score = 0.0;
+  Status s;
+  while (it->Valid()) {
+    if ((it->key())[0] != DataType::kZSet) {
+      break;
+    }
+    DecodeZSetKey(it->key(), &dbkey, &dbfield);
+    if (dbkey != key) {
+      break;
+    }
+    // Look up in kZScore
+    zset_score = *((double *)(it->value().data()));
+    score_key = EncodeZScoreKey(key, dbfield, zset_score);
+    s = zset_db_->Get(rocksdb::ReadOptions(), score_key, &val);
+    if (s.ok()) {
+      ++(*count);
+    } else if (s.IsNotFound()) {
+      // TODO log inconsistent
+      writebatch.Delete(it->key());
+    } else {
+      break;
+    }
+    it->Next();
+  }
+  zset_db_->ReleaseSnapshot(iterate_options.snapshot);
+  delete it;
+  if (writebatch.Count() != 0) {
+    s = zset_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+  }
+  return s;
+}
+
+Status Nemo::ZGetMetaByKey(const std::string& key, ZSetMeta& meta) {
+  std::string meta_val, meta_key = EncodeZSizeKey(key);
+  Status s = zset_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
+  if (!s.ok()) {
+    return s;
+  }
+  meta.DecodeFrom(meta_val);
+  return Status::OK();
+}
+
+Status Nemo::ZChecknRecover(const std::string& key) {
+  RecordLock l(&mutex_zset_record_, key);
+  ZSetMeta meta;
+  Status s = ZGetMetaByKey(key, meta);
+  if (!s.ok()) {
+    return s;
+  }
+  // Iterator y and dress for z
+  int field_count = 0;
+  s = ZDressZScoreforZSet(key, &field_count);
+  if (!s.ok()) {
+    return s;
+  }
+  // Iterator z and dress for y
+  s = ZDressZSetforZScore(key, &field_count);
+  if (!s.ok()) {
+    return s;
+  }
+  // Compare
+  if (meta.len == field_count) {
+    return Status::OK();
+  }
+  // Fix if needed
+  rocksdb::WriteBatch writebatch;
+  if (IncrZLen(key, (field_count - meta.len), writebatch) == -1) {
+    return Status::Corruption("fix zset meta error");
+  }
+  return zset_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+}
+
 Status Nemo::ZAdd(const std::string &key, const double score, const std::string &member, int64_t *res) {
     Status s;
     if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX) {

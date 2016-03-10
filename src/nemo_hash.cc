@@ -12,6 +12,59 @@
 #include <unistd.h>
 
 using namespace nemo;
+Status Nemo::HGetMetaByKey(const std::string& key, HashMeta& meta) {
+  std::string meta_val, meta_key = EncodeHsizeKey(key);
+  Status s = hash_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
+  if (!s.ok()) {
+    return s;
+  }
+  meta.DecodeFrom(meta_val);
+  return Status::OK();
+}
+
+Status Nemo::HChecknRecover(const std::string& key) {
+  RecordLock l(&mutex_hash_record_, key);
+  HashMeta meta;
+  Status s = HGetMetaByKey(key, meta);
+  if (!s.ok()) {
+    return s;
+  }
+  // Generate prefix
+  std::string key_start = EncodeHashKey(key, "");
+  // Iterater and cout
+  int field_count = 0;
+  rocksdb::Iterator *it;
+  rocksdb::ReadOptions iterate_options;
+  iterate_options.snapshot = hash_db_->GetSnapshot();
+  iterate_options.fill_cache = false;
+  it = hash_db_->NewIterator(iterate_options);
+  it->Seek(key_start);
+  std::string dbkey, dbfield;
+  while (it->Valid()) {
+    if ((it->key())[0] != DataType::kHash) {
+      break;
+    }
+    DecodeHashKey(it->key(), &dbkey, &dbfield);
+    if (dbkey != key) {
+      break;
+    }
+    ++field_count;
+    it->Next();
+  }
+  hash_db_->ReleaseSnapshot(iterate_options.snapshot);
+  delete it;
+  
+  // Compare
+  if (meta.len == field_count) {
+    return Status::OK();
+  }
+  // Fix if needed
+  rocksdb::WriteBatch writebatch;
+  if (IncrHLen(key, (field_count - meta.len), writebatch) == -1) {
+    return Status::Corruption("fix hash meta failed");
+  }
+  return hash_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+}
 
 Status Nemo::HSet(const std::string &key, const std::string &field, const std::string &val) {
     if (key.size() >= KEY_MAX_LENGTH) {
@@ -524,3 +577,5 @@ int Nemo::IncrHLen(const std::string &key, int64_t incr, rocksdb::WriteBatch &wr
    // }
     return 0;
 }
+
+

@@ -9,8 +9,6 @@
 
 namespace nemo {
 
-typedef DefaultMeta SetMeta;
-
 inline std::string EncodeSetKey(const rocksdb::Slice &key, const rocksdb::Slice &member) {
     std::string buf;
     buf.append(1, DataType::kSet);

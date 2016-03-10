@@ -9,6 +9,59 @@
 
 using namespace nemo;
 
+Status Nemo::SGetMetaByKey(const std::string& key, SetMeta& meta) {
+  std::string meta_val, meta_key = EncodeSSizeKey(key);
+  Status s = set_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
+  if (!s.ok()) {
+    return s;
+  }
+  meta.DecodeFrom(meta_val);
+  return Status::OK();
+}
+
+Status Nemo::SChecknRecover(const std::string& key) {
+  RecordLock l(&mutex_set_record_, key);
+  SetMeta meta;
+  Status s = SGetMetaByKey(key, meta);
+  if (!s.ok()) {
+    return s;
+  }
+  // Generate prefix
+  std::string key_start = EncodeSetKey(key, "");
+  // Iterater and cout
+  int field_count = 0;
+  rocksdb::Iterator *it;
+  rocksdb::ReadOptions iterate_options;
+  iterate_options.snapshot = set_db_->GetSnapshot();
+  iterate_options.fill_cache = false;
+  it = set_db_->NewIterator(iterate_options);
+  it->Seek(key_start);
+  std::string dbkey, dbfield;
+  while (it->Valid()) {
+    if ((it->key())[0] != DataType::kSet) {
+      break;
+    }
+    DecodeSetKey(it->key(), &dbkey, &dbfield);
+    if (dbkey != key) {
+      break;
+    }
+    ++field_count;
+    it->Next();
+  }
+  set_db_->ReleaseSnapshot(iterate_options.snapshot);
+  delete it;
+  // Compare
+  if (meta.len == field_count) {
+    return Status::OK();
+  }
+  // Fix if needed
+  rocksdb::WriteBatch writebatch;
+  if (IncrSSize(key, (field_count - meta.len), writebatch) == -1) {
+    return Status::Corruption("fix set meta error");
+  }
+  return set_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+}
+
 Status Nemo::SAdd(const std::string &key, const std::string &member, int64_t *res) {
     if (key.size() >= KEY_MAX_LENGTH) {
        return Status::InvalidArgument("Invalid key length");
