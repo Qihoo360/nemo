@@ -489,6 +489,9 @@ Status Nemo::DoCompact(DBType type) {
       type != kZSET_DB && type != kSET_DB && type != kLIST_DB) {
       return Status::InvalidArgument("");
   }
+
+  current_task_type_ = OPERATION::kCLEAN_ALL;
+
   Status s;
   if (type == kALL || type == kKV_DB) {
     s = kv_db_->CompactRange(NULL, NULL);
@@ -505,6 +508,8 @@ Status Nemo::DoCompact(DBType type) {
   if (type == kALL || type == kLIST_DB) {
     s = list_db_->CompactRange(NULL, NULL);
   }
+
+  current_task_type_ = OPERATION::kNONE_OP;
   return s;
 }
 
@@ -518,6 +523,19 @@ Status Nemo::Compact(DBType type, bool sync){
     AddBGTask({type, OPERATION::kCLEAN_ALL, tmp, tmp});
   }
   return s;
+}
+
+std::string Nemo::GetCurrentTaskType() {
+  int type = current_task_type_;
+  switch (type) {
+    case kDEL_KEY:
+      return "Key";
+    case kCLEAN_ALL:
+      return "All";
+    case kNONE_OP:
+    default:
+      return "No";
+  }
 }
 
 // should be replaced by the one with DBType parameter
@@ -553,6 +571,8 @@ void FindLongSuccessor(std::string* key) {
 Status Nemo::CompactKey(const DBType type, const rocksdb::Slice& key) {
   std::string key_begin;
   std::string key_end;
+
+  current_task_type_ = OPERATION::kDEL_KEY;
 
   if (type == DBType::kALL || type == DBType::kHASH_DB) {
     key_begin = EncodeHashKey(key, "");
@@ -607,6 +627,8 @@ Status Nemo::CompactKey(const DBType type, const rocksdb::Slice& key) {
 
     zset_db_->CompactRange(&zb, &ze);
   }
+
+  current_task_type_ = OPERATION::kNONE_OP;
 
   return Status::OK();
 }
