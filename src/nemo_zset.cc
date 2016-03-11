@@ -36,7 +36,7 @@ Status Nemo::ZDressZScoreforZSet(const std::string& key, int *count) {
     s = zset_db_->Get(rocksdb::ReadOptions(), zset_key, &val);
     double zset_score = *((double *)val.data());
     if (s.ok()) {
-      if (fabs(zset_score - zscore_score) < eps) {
+      if (fabs(zset_score - zscore_score) > eps) {
         // TODO log inconsistent
         // Change score in ZScore
         writebatch.Delete(it->key());
@@ -145,6 +145,10 @@ Status Nemo::ZChecknRecover(const std::string& key) {
 }
 
 Status Nemo::ZAdd(const std::string &key, const double score, const std::string &member, int64_t *res) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX) {
        return Status::InvalidArgument("score overflow");
@@ -297,6 +301,10 @@ int64_t Nemo::ZCount(const std::string &key, const double begin, const double en
 }
 
 Status Nemo::ZIncrby(const std::string &key, const std::string &member, const double by, std::string &new_score) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     std::string old_score;
     std::string score_key;
@@ -351,6 +359,9 @@ Status Nemo::ZIncrby(const std::string &key, const std::string &member, const do
 }
 
 Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t stop, std::vector<SM> &sms) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
 //    MutexLock l(&mutex_zset_);
     int64_t t_size = ZCard(key);
     if (t_size >= 0) {
@@ -391,6 +402,9 @@ Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t s
 }
 
 Status Nemo::ZRangebyscore(const std::string &key, const double mn, const double mx, std::vector<SM> &sms, bool is_lo, bool is_ro) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
     double start = is_lo ? mn + eps : mn;
     double stop = is_ro ? mx - eps : mx;
 //    MutexLock l(&mutex_zset_);
@@ -549,7 +563,7 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
 }
 
 Status Nemo::ZRem(const std::string &key, const std::string &member, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -670,6 +684,10 @@ Status Nemo::ZLexcount(const std::string &key, const std::string &min, const std
 }
 
 Status Nemo::ZRemrangebylex(const std::string &key, const std::string &min, const std::string &max, bool is_lo, bool is_ro, int64_t* count) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     *count = 0;
     //MutexLock l(&mutex_zset_);
     RecordLock l(&mutex_set_record_, key);
@@ -741,6 +759,10 @@ Status Nemo::ZRemrangebylex(const std::string &key, const std::string &min, cons
 }
 
 Status Nemo::ZRemrangebyrank(const std::string &key, const int64_t start, const int64_t stop, int64_t* count) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     rocksdb::WriteBatch batch;
     std::string score_key;
     std::string size_key;
@@ -848,6 +870,10 @@ Status Nemo::ZRemrangebyrankNoLock(const std::string &key, const int64_t start, 
 }
 
 Status Nemo::ZRemrangebyscore(const std::string &key, const double mn, const double mx, int64_t* count, bool is_lo, bool is_ro) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     rocksdb::WriteBatch batch;
     std::string score_key;
     std::string size_key;
@@ -913,7 +939,7 @@ int Nemo::DoZSet(const std::string &key, const double score, const std::string &
 }
 
 Status Nemo::ZDelKey(const std::string &key, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -939,7 +965,7 @@ Status Nemo::ZDelKey(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::ZExpire(const std::string &key, const int32_t seconds, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -971,7 +997,7 @@ Status Nemo::ZExpire(const std::string &key, const int32_t seconds, int64_t *res
 }
 
 Status Nemo::ZTTL(const std::string &key, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -992,7 +1018,7 @@ Status Nemo::ZTTL(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::ZPersist(const std::string &key, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1017,7 +1043,7 @@ Status Nemo::ZPersist(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::ZExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1068,5 +1094,4 @@ int Nemo::IncrZLen(const std::string &key, int64_t by, rocksdb::WriteBatch &writ
  //   }
     return 0;
 }
-
 

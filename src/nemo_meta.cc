@@ -24,18 +24,18 @@ bool NemoMeta::Create(DBType type, MetaPtr &p_meta){
   return true;
 }
 
-std::string Nemo::GetMetaPrefix(DBType type) {
+char Nemo::GetMetaPrefix(DBType type) {
   switch (type) {
   case kHASH_DB:
-    return std::string(1, DataType::kHSize);
+    return DataType::kHSize;
   case kLIST_DB:
-    return std::string(1, DataType::kLMeta);
+    return DataType::kLMeta;
   case kSET_DB:
-    return std::string(1, DataType::kSSize);
+    return DataType::kSSize;
   case kZSET_DB:
-    return std::string(1, DataType::kZSize);
+    return DataType::kZSize;
   default:
-    return std::string();
+    return '\0';
   }
 }
 
@@ -43,7 +43,7 @@ Status Nemo::ScanMetasSpecify(DBType type, const std::string &pattern,
     std::map<std::string, MetaPtr>& metas) {
   switch (type) {
   case kHASH_DB:
-    return ScanDBMetas(kv_db_, type, pattern, metas);
+    return ScanDBMetas(hash_db_, type, pattern, metas);
   case kLIST_DB:
     return ScanDBMetas(list_db_, type, pattern, metas);
   case kSET_DB:
@@ -71,7 +71,7 @@ Status Nemo::ScanDBMetas(std::unique_ptr<rocksdb::DBWithTTL> &db,
 Status Nemo::ScanDBMetasOnSnap(std::unique_ptr<rocksdb::DBWithTTL> &db, const rocksdb::Snapshot* psnap,
     DBType type, const std::string &pattern, std::map<std::string, MetaPtr>& metas) {
   // Get meta prefix and db handler
-  std::string prefix = GetMetaPrefix(type);
+  std::string prefix = std::string(1, GetMetaPrefix(type));
   if (prefix.empty()) {
     return Status::InvalidArgument("Error db type");
   }
@@ -100,36 +100,6 @@ Status Nemo::ScanDBMetasOnSnap(std::unique_ptr<rocksdb::DBWithTTL> &db, const ro
   delete it;
   return Status::OK();
 }
-
-//Status Nemo::GetMetaByKey(DBType type, const std::string &key, MetaPtr& meta) {
-//  Status s;
-//  std::string meta_key, meta_val;
-//  switch (type) {
-//  case kHASH_DB:
-//    meta_key = EncodeHsizeKey(key);
-//    s = hash_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
-//    break; 
-//  case kLIST_DB:
-//    meta_key = EncodeLMetaKey(key);
-//    s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
-//    break;
-//  case kSET_DB:
-//    meta_key = EncodeSSizeKey(key);
-//    s = set_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
-//    break;
-//  case kZSET_DB:
-//    meta_key = EncodeZSizeKey(key);
-//    s = zset_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
-//    break;
-//  default:
-//    return Status::InvalidArgument("error db type");
-//  }
-//  if (!s.ok()) {
-//    return s;
-//  }
-//  meta->DecodeFrom(meta_val);
-//  return Status::OK();
-//}
 
 Status Nemo::CheckMetaSpecify(DBType type, const std::string &pattern) {
   switch (type) {
@@ -171,11 +141,10 @@ Status Nemo::CheckDBMeta(std::unique_ptr<rocksdb::DBWithTTL> &db, DBType type, c
   
   // ScanMetas to get all keys + metas 
   std::vector<std::string> keys;
-  Status s = ScanKeys(db, psnap, type, pattern, keys);
+  Status s = ScanKeys(db, psnap, GetMetaPrefix(type), pattern, keys);
   if (!s.ok()) {
     return s;
   }
-  db->ReleaseSnapshot(psnap);
 
   // Check and Recover
   MetaPtr pmeta;
@@ -185,16 +154,6 @@ Status Nemo::CheckDBMeta(std::unique_ptr<rocksdb::DBWithTTL> &db, DBType type, c
     if (!s.ok()) {
       break;
     }
-    //// Record Lock
-    //RecordLock l(&mutex_record, *it);
-    //s = GetMetaByKey(type, *it, pmeta);
-    //if (!s.ok()) {
-    //  return s;
-    //}
-    //s = pmeta->ChecknRecover(this, *it);
-    //if (!s.ok()){
-    //  return s;
-    //}
   }
   return s;
 }

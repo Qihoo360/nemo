@@ -69,8 +69,8 @@ int main(int argc, char **argv)
   nemo::Nemo* db = new nemo::Nemo(path, option);
   assert(db);
   log_info("Check and Recover Begin");
-  delete db;
   ChecknRecover(db, db_type, pattern);
+  delete db;
   log_info("Chekc and Recover Finshed");
   return 0;
 }

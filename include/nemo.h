@@ -1,6 +1,7 @@
 #ifndef NEMO_INCLUDE_NEMO_H_
 #define NEMO_INCLUDE_NEMO_H_
 
+#include <queue>
 #include <list>
 #include <map>
 #include <atomic>
@@ -15,6 +16,7 @@
 #include "nemo_meta.h"
 #include "port.h"
 #include "util.h"
+#include "xdebug.h"
 
 namespace nemo {
 
@@ -30,11 +32,32 @@ struct ItemListMap{
     std::map<T1, T2> map_;
 };
 
-class Nemo
-{
+/*
+ * There are two type OP: DEL_KEY and CLEAN_RANGE;
+ * DEL_KEY use only the first parameter argv1;
+ * CLEAN_RANGE will compact the range [argv1, argv2];
+ */
+struct BGTask {
+  DBType     type;
+  OPERATION   op;
+  std::string argv1;
+  std::string argv2;
+
+  BGTask() : type(DBType::kNONE_DB), op(OPERATION::kNONE_OP) { }
+  BGTask(const DBType _type, const OPERATION _op, const std::string &_argv1, const std::string &_argv2)
+      : type(_type), op(_op), argv1(_argv1), argv2(_argv2) {}
+};
+class Nemo {
 public:
     Nemo(const std::string &db_path, const Options &options);
     ~Nemo() {
+        bgtask_flag_ = false;
+        bg_cv_.Signal();
+        int ret = 0;
+        if ((ret = pthread_join(bg_tid_, NULL)) != 0) {
+          log_warn("pthread_join failed with bgtask thread error %d", ret);
+        }
+
         kv_db_.reset();
         hash_db_.reset();
         list_db_.reset();
@@ -48,10 +71,14 @@ public:
 
         pthread_mutex_destroy(&(mutex_cursors_));
         pthread_mutex_destroy(&(mutex_dump_));
+        //pthread_mutex_destroy(&(mutex_bgtask_));
     };
 
-    Status Compact();
-    Status CompactSpecify(const std::string &db_type);
+    // Used for pika
+    Status Compact(DBType type, bool sync = false);
+    Status RunBGTask();
+
+
     // =================String=====================
     Status Del(const std::string &key, int64_t *count);
     Status MDel(const std::vector<std::string> &keys, int64_t* count);
@@ -205,6 +232,19 @@ private:
 
     bool save_flag_;
 
+    //pthread_mutex_t mutex_bgtask_;
+    port::Mutex mutex_bgtask_;
+    std::atomic<bool> bgtask_flag_;
+    pthread_t bg_tid_;
+    std::queue<BGTask> bg_tasks_;
+    port::CondVar bg_cv_;
+
+    // Used for compact tools and internal
+    Status DoCompact(DBType type);
+    Status AddBGTask(const BGTask& task);
+    Status CompactKey(const DBType type, const rocksdb::Slice& key);
+    Status StartBGThread();
+
     Status KDel(const std::string &key, int64_t *res);
     Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
     Status KTTL(const std::string &key, int64_t *res);
@@ -233,12 +273,12 @@ private:
 
     pthread_mutex_t mutex_cursors_;
 
-
     ItemListMap<int64_t, std::string> cursors_store_;
 
     Status GetSnapshot(Snapshots &snapshots);
     Status ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys);
     bool ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, std::string &start_key, const std::string &pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key);
+    // Remeber the snapshot will be release inside!!
     Status ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys);
     bool ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kType, std::string &start_key, const std::string &pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key);
     Status GetStartKey(int64_t cursor, std::string* start_key);
@@ -272,7 +312,7 @@ private:
     Status SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &src_db, const rocksdb::Snapshot *snapshot);
 
     /* Meta */
-    std::string GetMetaPrefix(DBType type);
+    char GetMetaPrefix(DBType type);
     // Scan metas on given db
     Status ScanDBMetas(std::unique_ptr<rocksdb::DBWithTTL> &db, DBType type,
         const std::string &pattern, std::map<std::string, MetaPtr>& metas);

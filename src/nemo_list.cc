@@ -92,20 +92,24 @@ Status Nemo::LChecknRecover(const std::string& key) {
   if (next == 0 && cur == meta.right) {
     return Status::OK();
   }
-
-  // Truncate list
-  std::string right_key = EncodeListKey(key, cur);
-  std::string right_val;
-  EncodeListVal(cur_data.val, cur_data.priv, 0, right_val);
-  batch.Put(right_key, right_val);
-
-  // Change Meta
-  meta.len = count;
-  meta.right = cur;
-  std::string meta_val;
-  meta.EncodeTo(meta_val);
-  batch.Put(EncodeLMetaKey(key), meta_val);
   
+  if (cur == 0) {
+    //Delete if no data found
+    batch.Delete(EncodeLMetaKey(key)); 
+  } else {
+    // Truncate list
+    std::string right_key = EncodeListKey(key, cur);
+    std::string right_val;
+    EncodeListVal(cur_data.val, cur_data.priv, 0, right_val);
+    batch.Put(right_key, right_val);
+
+    // Change Meta
+    meta.len = count;
+    meta.right = cur;
+    std::string meta_val;
+    meta.EncodeTo(meta_val);
+    batch.Put(EncodeLMetaKey(key), meta_val);
+  }
   return list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
 }
 
@@ -224,6 +228,10 @@ Status Nemo::LLen(const std::string &key, int64_t *llen) {
 }
 
 Status Nemo::LPush(const std::string &key, const std::string &val, int64_t *llen) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     rocksdb::WriteBatch batch;
     ListMeta meta;
@@ -264,7 +272,10 @@ Status Nemo::LPush(const std::string &key, const std::string &val, int64_t *llen
             meta.cur_seq++;
             //char buf[64];
             //memcpy(buf, (char *)&meta, sizeof(ListMeta));
-            batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+
+            //batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+            meta.EncodeTo(meta_val);
+            batch.Put(meta_key, meta_val);
             s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
             *llen = meta.len;
             return s;
@@ -274,7 +285,9 @@ Status Nemo::LPush(const std::string &key, const std::string &val, int64_t *llen
     } else if (s.IsNotFound()) {
         ListMeta meta(1, 1, 1, 2); // | len | left | right | cur_seq |
         
-        std::string meta_val((char *)&meta, 4 * sizeof(int64_t));
+        meta_val.reserve(4 * sizeof(int64_t));
+        meta.EncodeTo(meta_val);
+
         batch.Put(meta_key, meta_val);
         EncodeListVal(val, 0, 0, en_val);
         batch.Put(EncodeListKey(key, 1), en_val);
@@ -287,6 +300,10 @@ Status Nemo::LPush(const std::string &key, const std::string &val, int64_t *llen
 }
 
 Status Nemo::LPop(const std::string &key, std::string *val) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     rocksdb::WriteBatch batch;
     ListMeta meta;
@@ -332,7 +349,8 @@ Status Nemo::LPop(const std::string &key, std::string *val) {
             }
             //memcpy(meta_val, (char *)&meta, sizeof(ListMeta));
             //batch.Put(meta_key, meta_val);
-            batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+            meta.EncodeTo(meta_val);
+            batch.Put(meta_key, meta_val);
 
             batch.Delete(db_key);
             s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
@@ -348,6 +366,10 @@ Status Nemo::LPop(const std::string &key, std::string *val) {
 }
 
 Status Nemo::LPushx(const std::string &key, const std::string &val, int64_t *llen) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     ListMeta meta;
     std::string meta_val;
@@ -453,6 +475,10 @@ Status Nemo::LRange(const std::string &key, const int64_t begin, const int64_t e
 }
 
 Status Nemo::LSet(const std::string &key, const int64_t index, const std::string &val) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     rocksdb::WriteBatch batch;
     std::string meta_val;
@@ -501,6 +527,10 @@ Status Nemo::LSet(const std::string &key, const int64_t index, const std::string
 }
 
 Status Nemo::LTrim(const std::string &key, const int64_t begin, const int64_t end) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     ListMeta meta;
     std::string meta_val;
@@ -582,8 +612,12 @@ Status Nemo::LTrim(const std::string &key, const int64_t begin, const int64_t en
                 } else {
                    meta = ListMeta(); 
                 }
+
                 //memcpy(meta_val, (char *)&meta, sizeof(ListMeta));
-                batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+                //batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+
+                meta.EncodeTo(meta_val);
+                batch.Put(meta_key, meta_val);
                 s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
                 return s;
             } else {
@@ -600,6 +634,10 @@ Status Nemo::LTrim(const std::string &key, const int64_t begin, const int64_t en
 }
 
 Status Nemo::RPush(const std::string &key, const std::string &val, int64_t *llen) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     rocksdb::WriteBatch batch;
     ListMeta meta;
@@ -638,8 +676,11 @@ Status Nemo::RPush(const std::string &key, const std::string &val, int64_t *llen
             ++meta.cur_seq;
             //memcpy(meta_val, (char *)&meta, sizeof(ListMeta));
             //batch.Put(meta_key, meta_val);
-            batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
 
+            //batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+
+            meta.EncodeTo(meta_val);
+            batch.Put(meta_key, meta_val);
             s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
             *llen = meta.len;
             return s;
@@ -649,7 +690,9 @@ Status Nemo::RPush(const std::string &key, const std::string &val, int64_t *llen
     } else if (s.IsNotFound()) {
         ListMeta meta(1, 1, 1, 2);
         
-        std::string meta_val((char *)&meta, 4 * sizeof(int64_t));
+        //std::string meta_val((char *)&meta, 4 * sizeof(int64_t));
+        
+        meta.EncodeTo(meta_val);
         batch.Put(meta_key, meta_val);
         EncodeListVal(val, 0, 0, en_val);
         batch.Put(EncodeListKey(key, 1), en_val);
@@ -662,6 +705,10 @@ Status Nemo::RPush(const std::string &key, const std::string &val, int64_t *llen
 }
 
 Status Nemo::RPop(const std::string &key, std::string *val) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     rocksdb::WriteBatch batch;
     ListMeta meta;
@@ -708,7 +755,11 @@ Status Nemo::RPop(const std::string &key, std::string *val) {
             }
             //memcpy(meta_val, (char *)&meta, sizeof(ListMeta));
             //batch.Put(meta_key, meta_val);
-            batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+
+            //batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+
+            meta.EncodeTo(meta_val);
+            batch.Put(meta_key, meta_val);
 
             batch.Delete(db_key);
             s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
@@ -724,6 +775,10 @@ Status Nemo::RPop(const std::string &key, std::string *val) {
 }
 
 Status Nemo::RPushx(const std::string &key, const std::string &val, int64_t *llen) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+    
     Status s;
     ListMeta meta;
     std::string meta_val;
@@ -753,6 +808,9 @@ Status Nemo::RPushx(const std::string &key, const std::string &val, int64_t *lle
 
 
 Status Nemo::RPopLPushInternal(const std::string &src, const std::string &dest, std::string &val) {
+    if (src.size() >= KEY_MAX_LENGTH || src.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
     Status s;
     rocksdb::WriteBatch batch;
     ListMeta meta;
@@ -793,7 +851,10 @@ Status Nemo::RPopLPushInternal(const std::string &src, const std::string &dest, 
             }
             //memcpy(meta_r, (char *)&meta, sizeof(ListMeta));
             //s = list_db_->Put(rocksdb::WriteOptions(), meta_key_r, meta_r);
-            s = list_db_->Put(rocksdb::WriteOptions(), meta_key_r, std::string((char *)&meta, sizeof(ListMeta)));
+
+            std::string meta_val;
+            meta.EncodeTo(meta_val);
+            s = list_db_->Put(rocksdb::WriteOptions(), meta_key_r, meta_val);
             
             batch.Delete(db_key_r);
             s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
@@ -832,7 +893,9 @@ Status Nemo::RPopLPushInternal(const std::string &src, const std::string &dest, 
             //memcpy(meta_l, (char *)&meta, sizeof(ListMeta));
             //batch.Put(meta_key_l, meta_l);
 
-            batch.Put(meta_key_l, std::string((char *)&meta, sizeof(ListMeta)));
+            std::string meta_val;
+            meta.EncodeTo(meta_val);
+            batch.Put(meta_key_l, meta_val); 
             s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
             return s;
         } else {
@@ -844,7 +907,11 @@ Status Nemo::RPopLPushInternal(const std::string &src, const std::string &dest, 
         
         //std::string meta_str((char *)meta, 4 * sizeof(int64_t));
         //batch.Put(meta_key_l, meta_str);
-        batch.Put(meta_key_l, std::string((char *)&meta, sizeof(ListMeta)));
+        //batch.Put(meta_key_l, std::string((char *)&meta, sizeof(ListMeta)));
+
+        std::string meta_val;
+        meta.EncodeTo(meta_val);
+        batch.Put(meta_key_l, meta_val);
 
         EncodeListVal(val, 0, 0, en_val);
         batch.Put(EncodeListKey(dest, 1), en_val);
@@ -865,6 +932,10 @@ Status Nemo::RPopLPush(const std::string &src, const std::string &dest, std::str
 }
 
 Status Nemo::LInsert(const std::string &key, Position pos, const std::string &pivot, const std::string &val, int64_t *llen) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     rocksdb::WriteBatch batch;
     ListMeta meta;
@@ -944,6 +1015,9 @@ Status Nemo::LInsert(const std::string &key, Position pos, const std::string &pi
                 //batch.Put(meta_key, meta_val);
                 
                 batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+
+                meta.EncodeTo(meta_val);
+                batch.Put(meta_key, meta_val);
                 s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
                 *llen = meta.len;
                 return s;
@@ -964,6 +1038,10 @@ Status Nemo::LInsert(const std::string &key, Position pos, const std::string &pi
 }
 
 Status Nemo::LRem(const std::string &key, const int64_t count, const std::string &val, int64_t *rem_count) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
+       return Status::InvalidArgument("Invalid key length");
+    }
+
     Status s;
     rocksdb::WriteBatch batch;
     std::string meta_val;
@@ -1052,7 +1130,8 @@ Status Nemo::LRem(const std::string &key, const int64_t count, const std::string
                   //memcpy(meta_val, (char *)&meta, sizeo(ListMeta));
                   //batch.Put(meta_key, meta_val);
 
-                  batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+                  meta.EncodeTo(meta_val);
+                  batch.Put(meta_key, meta_val);
                 }
                 s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
               }
@@ -1071,7 +1150,7 @@ Status Nemo::LRem(const std::string &key, const int64_t count, const std::string
 }
 
 Status Nemo::LDelKey(const std::string &key, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1098,7 +1177,7 @@ Status Nemo::LDelKey(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::LExpire(const std::string &key, const int32_t seconds, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
     
@@ -1132,7 +1211,7 @@ Status Nemo::LExpire(const std::string &key, const int32_t seconds, int64_t *res
 }
 
 Status Nemo::LTTL(const std::string &key, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1162,7 +1241,7 @@ Status Nemo::LTTL(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::LPersist(const std::string &key, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
 
@@ -1195,7 +1274,7 @@ Status Nemo::LPersist(const std::string &key, int64_t *res) {
 }
 
 Status Nemo::LExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
-    if (key.size() >= KEY_MAX_LENGTH) {
+    if (key.size() >= KEY_MAX_LENGTH || key.size() <= 0) {
        return Status::InvalidArgument("Invalid key length");
     }
     

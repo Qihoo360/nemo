@@ -3,6 +3,7 @@
 #include "xdebug.h"
 #include <string>
 #include "nemo.h"
+#include "nemo_const.h"
 
 using namespace std;
 
@@ -23,6 +24,8 @@ int main(int argc, char **argv)
 
   // Create nemo handle
   nemo::Options option;
+  option.write_buffer_size = 268435456;
+  option.target_file_size_base = 20971520;
 
   log_info("Prepare DB...");
   nemo::Nemo* db = new nemo::Nemo(path, option);
@@ -30,11 +33,27 @@ int main(int argc, char **argv)
   log_info("Compact Begin");
 
   nemo::Status s;
-  if (db_type == "all") {
-    s = db->Compact();
+  if (db_type == "kv") {
+    s = db->Compact(nemo::kKV_DB, true);
+  } else if (db_type == "hash") {
+    s = db->Compact(nemo::kHASH_DB, true);
+  } else if (db_type == "list") {
+    s = db->Compact(nemo::kLIST_DB, true);
+  } else if (db_type == "set") {
+    s = db->Compact(nemo::kSET_DB, true);
+  } else if (db_type == "zset") {
+    s = db->Compact(nemo::kZSET_DB, true);
+  } else if (db_type == "all") {
+    s = db->Compact(nemo::kALL, true);
   } else {
-    s = db->CompactSpecify(db_type);
+    Usage();
+    log_err("Error db type : %s", db_type.c_str());
   }
+ // if (db_type == "all") {
+ //   s = db->Compact();
+ // } else {
+ //   s = db->CompactSpecify(db_type);
+ // }
   delete db;
 
   if (!s.ok()) {

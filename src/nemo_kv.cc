@@ -773,8 +773,6 @@ Status Nemo::MDel(const std::vector<std::string> &keys, int64_t* count) {
         //s = kv_db_->Get(rocksdb::ReadOptions(), *it, &val);
         if (s.ok()) {
             (*count) += res;
-        } else if (!s.IsNotFound()) {
-          return s;
         }
     }
 
@@ -792,6 +790,7 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
     int64_t del_cnt = 0;
     Status s;
     
+    std::string tmp;
 
     {
       RecordLock l(&mutex_kv_record_, key);
@@ -799,6 +798,9 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
       if (s.ok()) {
         ok_cnt++;
         del_cnt += *count;
+        //if (bgtask_flag_) {
+        //  AddBGTask({DBType::kKV, OPERATION::kDEL_KEY, key, tmp});
+        //}
       } else if (!s.IsNotFound()) {
         return s;
       }
@@ -810,6 +812,9 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
       if (s.ok()) {
         ok_cnt++;
         del_cnt += *count;
+        if (bgtask_flag_) {
+          AddBGTask({DBType::kHASH_DB, OPERATION::kDEL_KEY, key, tmp});
+        }
       } else if (!s.IsNotFound()) {
         return s;
       }
@@ -821,6 +826,9 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
       if (s.ok()) {
         ok_cnt++;
         del_cnt += *count;
+        if (bgtask_flag_) {
+          AddBGTask({DBType::kZSET_DB, OPERATION::kDEL_KEY, key, tmp});
+        }
       } else if (!s.IsNotFound()) {
         return s;
       }
@@ -832,6 +840,9 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
       if (s.ok()) {
         ok_cnt++;
         del_cnt += *count;
+        if (bgtask_flag_) {
+          AddBGTask({DBType::kSET_DB, OPERATION::kDEL_KEY, key, tmp});
+        }
       } else if (!s.IsNotFound()) {
         return s;
       }
@@ -843,6 +854,9 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
       if (s.ok()) {
         ok_cnt++;
         del_cnt += *count;
+        if (bgtask_flag_) {
+          AddBGTask({DBType::kLIST_DB, OPERATION::kDEL_KEY, key, tmp});
+        }
       } else if (!s.IsNotFound()) {
         return s;
       }
@@ -860,40 +874,40 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
 
 Status Nemo::Expire(const std::string &key, const int32_t seconds, int64_t *res) {
     int cnt = 0;
-    Status s;
+    Status kv_result, s;
     
-    s = KExpire(key, seconds, res);
-    if (s.ok()) {
+    kv_result = KExpire(key, seconds, res);
+    if (kv_result.ok()) {
       cnt++;
-    } else if (!s.IsNotFound()) {
-      return s;
+    } else if (!kv_result.IsNotFound()) {
+      return kv_result;
     }
 
     s = HExpire(key, seconds, res);
     if (s.ok()) {
       cnt++;
-    } else if (!s.IsNotFound()) {
+    } else if (!kv_result.ok() && !s.IsNotFound()) {
       return s;
     }
 
     s = ZExpire(key, seconds, res);
     if (s.ok()) {
       cnt++;
-    } else if (!s.IsNotFound()) {
+    } else if (!kv_result.ok() && !s.IsNotFound()) {
       return s;
     }
 
     s = SExpire(key, seconds, res);
     if (s.ok()) {
       cnt++;
-    } else if (!s.IsNotFound()) {
+    } else if (!kv_result.ok() && !s.IsNotFound()) {
       return s;
     }
 
     s = LExpire(key, seconds, res);
     if (s.ok()) {
       cnt++;
-    } else if (!s.IsNotFound()) {
+    } else if (!kv_result.ok() && !s.IsNotFound()) {
       return s;
     }
 

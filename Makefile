@@ -76,7 +76,7 @@ clean:
 #	make -C $(ROCKSDB_PATH) clean
 	make -C example clean
 	$(MAKE) -C $(TOOLS_COMPACT_PATH) clean
-	$(MAKE) -C $(TOOLS_METACAN_PATH) clean
+	$(MAKE) -C $(TOOLS_METASCAN_PATH) clean
 	rm -rf $(SRC_DIR)/*.o
 	rm -rf $(OUTPUT)
 	rm -rf $(LIBRARY)
