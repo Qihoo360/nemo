@@ -127,6 +127,7 @@ Status Nemo::ZChecknRecover(const std::string& key) {
   if (!s.ok()) {
     return s;
   }
+  field_count = 0;
   // Iterator z and dress for y
   s = ZDressZSetforZScore(key, &field_count);
   if (!s.ok()) {
