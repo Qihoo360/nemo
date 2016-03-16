@@ -1014,7 +1014,7 @@ Status Nemo::LInsert(const std::string &key, Position pos, const std::string &pi
                 //memcpy(meta_val, (char *)&meta, sizeof(ListMeta));
                 //batch.Put(meta_key, meta_val);
                 
-                batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+                //batch.Put(meta_key, std::string((char *)&meta, sizeof(ListMeta)));
 
                 meta.EncodeTo(meta_val);
                 batch.Put(meta_key, meta_val);
@@ -1169,7 +1169,9 @@ Status Nemo::LDelKey(const std::string &key, int64_t *res) {
         meta = ListMeta();
 
         *res = 1;
-        s = list_db_->PutWithKeyVersion(rocksdb::WriteOptions(), meta_key, std::string((char *)&meta, sizeof(ListMeta)));
+        std::string new_val;
+        meta.EncodeTo(new_val);
+        s = list_db_->PutWithKeyVersion(rocksdb::WriteOptions(), meta_key, new_val);
       }
     }
 
