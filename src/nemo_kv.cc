@@ -217,6 +217,7 @@ Status Nemo::Append(const std::string &key, const std::string &value, int64_t *n
     } else {
         s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
     }
+    *new_len = new_val.size();
     return s;
 }
 

@@ -719,7 +719,9 @@ Status Nemo::ZRemrangebylex(const std::string &key, const std::string &min, cons
             }
         }
     }
-    iter->Next();
+    if (min == "" || member.compare(min) == 0) {
+      iter->Next();
+    }
     for (; iter->Valid(); iter->Next()) {
         member = iter->member();
         if (max == "" || member.compare(max) < 0) {
