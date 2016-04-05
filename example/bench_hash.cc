@@ -45,7 +45,8 @@ void gen_random(char *s, const int len) {
 }
 
 void* ThreadMain1(void *arg) {
-  int64_t st, ed, t_sum = 0LL;
+  int64_t st, ed;
+  int64_t *t_sum = new int64_t;
   Status s;
   srand(time(NULL));
 
@@ -59,13 +60,13 @@ void* ThreadMain1(void *arg) {
     s = n->HSet(key, field, value);
     ed = NowMicros();
 
-    t_sum += ed - st;
+    *t_sum += ed - st;
 
     if (i > 0 && i % 10000 == 0) {
-      printf ("   tid:%10u run %d request, tot is %10lu\n", pthread_self(), i + 1, t_sum);
+      printf ("   tid:%10u run %d request, tot is %10lu\n", pthread_self(), i + 1, *t_sum);
     }
   }
-  printf ("  tid:%10u end, run %d request, tot is %10lu\n", pthread_self(), cnt, t_sum);
+  printf ("  tid:%10u end, run %d request, tot is %10lu\n", pthread_self(), cnt, *t_sum);
   //total += t_sum;
   return (void *)t_sum;
 }
@@ -99,11 +100,15 @@ int main(int argc, char* argv[]) {
       if (pthread_join(tid[i], &(res)) != 0) {
         printf ("pthread_join %d failed\n", tid[i]); 
       } else {
-        printf ("thread_join %d return %10u\n", i, (int64_t)res);
+        printf ("thread_join %d return %10u\n", i, *((int64_t *)res));
       }
-      total += (int64_t)res;
+      total += *((int64_t *)res);
   }
-  printf ("Total time: %10ld us;\nTotal request: %10ld;\nQPS: %10.3lf\n", total, tn * cnt, (double)1000000.0 * tn * cnt * tn / total);
+
+  //printf ("Total time: %10ld us;\nTotal request: %10ld;\nQPS: %10.3lf\n", total, tn * cnt, (double)1000000.0 * tn * cnt / total);
+  printf ("Total time: %10ld us;\nTotal request: %10ld;\nQPS: %10.3lf\n", 
+          total, tn * cnt,
+          (double)1000000.0 * tn * cnt / total);
 
   delete n;
 
