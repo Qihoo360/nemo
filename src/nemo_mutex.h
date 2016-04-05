@@ -41,6 +41,7 @@ class RWLock {
   void operator=(const RWLock&);
 };
 
+// LRU version
 class RecordLock {
  public:
   RecordLock(port::RecordMutex *mu, const std::string &key)

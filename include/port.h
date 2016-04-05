@@ -130,74 +130,75 @@ class RWMutex {
   void operator=(const RWMutex&);
 };
 
-class RefMutex {
- public:
-  RefMutex();
-  ~RefMutex();
+// direct reference mutex
+//class RefMutex {
+// public:
+//  RefMutex();
+//  ~RefMutex();
+//
+//  // Lock and Unlock will increase and decrease refs_,
+//  // should check refs before Unlock
+//  void Lock();
+//  void Unlock();
+//
+//  void Ref();
+//  void Unref();
+//  bool IsLastRef() {
+//    return refs_ == 1;
+//  }
+//
+// private:
+//  pthread_mutex_t mu_;
+//  int refs_;
+//
+//  // No copying
+//  RefMutex(const RefMutex&);
+//  void operator=(const RefMutex&);
+//};
 
-  // Lock and Unlock will increase and decrease refs_,
-  // should check refs before Unlock
-  void Lock();
-  void Unlock();
+//class RecordMutex {
+//public:
+//  RecordMutex() {};
+//  ~RecordMutex();
+//
+//  void Lock(const std::string &key);
+//  void Unlock(const std::string &key);
+//
+//private:
+//
+//  Mutex mutex_;
+//
+//  std::unordered_map<std::string, RefMutex *> records_;
+//
+//  // No copying
+//  RecordMutex(const RecordMutex&);
+//  void operator=(const RecordMutex&);
+//};
 
-  void Ref();
-  void Unref();
-  bool IsLastRef() {
-    return refs_ == 1;
-  }
+const int kMaxRecordMutex = 800000;
+//const int kMaxRecordMutex = 2;
 
- private:
-  pthread_mutex_t mu_;
-  int refs_;
-
-  // No copying
-  RefMutex(const RefMutex&);
-  void operator=(const RefMutex&);
-};
-
+// Need to check wether the mutex is in use!!!!!
 class RecordMutex {
-public:
-  RecordMutex() {};
+ public:
+  RecordMutex() : capacity_(kMaxRecordMutex) {}
   ~RecordMutex();
 
   void Lock(const std::string &key);
   void Unlock(const std::string &key);
 
-private:
+  //typedef std::list<std::string> 
+  typedef std::pair<Mutex *, std::list<std::string>::iterator> data_type;
 
+ private:
+  void evict();
+
+  int capacity_;
   Mutex mutex_;
-
-  std::unordered_map<std::string, RefMutex *> records_;
-
-  // No copying
-  RecordMutex(const RecordMutex&);
-  void operator=(const RecordMutex&);
+  //RWMutex rw_mutex_;
+  std::unordered_map<std::string, data_type> records_;
+  std::list<std::string> lru_;
 };
-
-//const int kMaxRecordMutex = 800000;
-//const int kMaxRecordMutex = 2;
-
-// Need to check wether the mutex is in use!!!!!
-//class RecordMutex {
-//  public:
-//    RecordMutex() : capacity_(kMaxRecordMutex) {}
-//    ~RecordMutex();
-//
-//    void Lock(const std::string &key);
-//    void Unlock(const std::string &key);
-//
-//    //typedef std::list<std::string> 
-//    typedef std::pair<Mutex *, std::list<std::string>::iterator> data_type;
-//
-//  private:
-//    void evict();
-//
-//    int capacity_;
-//    Mutex mutex_;
-//    //RWMutex rw_mutex_;
-//    std::unordered_map<std::string, data_type> records_;
-//    std::list<std::string> lru_;
-//};
 
 
 } // namespace port

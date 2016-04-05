@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -Wall -DDEBUG -g -O0 -std=c++11 -D__XDEBUG__
 
-OBJECT = main test_bgsave zset test_server hash kv_test ttl bench_hash list_lock
+OBJECT = main test_bgsave zset test_server hash kv_test ttl bench_hash list_lock hash_lock
 
 LIB_PATH = -L../output/lib/
 
@@ -15,7 +15,7 @@ LIBS = -lpthread \
 
 INCLUDE_PATH = -I../output/include/
 
-OBJS = main.o test_bgsave.o zset.o test_server.o test_mset.o hash.o hash_test.o kv_test.o zset_test.o set_test.o list_test.o ttl.o bench_hash.o list_lock.o
+OBJS = main.o test_bgsave.o zset.o test_server.o test_mset.o hash.o hash_test.o kv_test.o zset_test.o set_test.o list_test.o ttl.o bench_hash.o list_lock.o hash_lock.o
 
 .PHONY: all clean
 
@@ -29,6 +29,9 @@ zset: zset.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
 
 list_lock: list_lock.o
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
+
+hash_lock: hash_lock.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
 
 ttl: ttl.o

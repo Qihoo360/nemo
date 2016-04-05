@@ -70,39 +70,13 @@ void RWMutex::ReadUnlock() { PthreadCall("read unlock", pthread_rwlock_unlock(&m
 
 void RWMutex::WriteUnlock() { PthreadCall("write unlock", pthread_rwlock_unlock(&mu_)); }
 
-RefMutex::RefMutex() {
-  refs_ = 0;
-  PthreadCall("init mutex", pthread_mutex_init(&mu_, nullptr));
-}
-
-RefMutex::~RefMutex() {
-  PthreadCall("destroy mutex", pthread_mutex_destroy(&mu_));
-}
-
-void RefMutex::Ref() {
-  refs_++;
-}
-void RefMutex::Unref() {
-  --refs_;
-  if (refs_ == 0) {
-    delete this;
-  }
-}
-
-void RefMutex::Lock() {
-  PthreadCall("lock", pthread_mutex_lock(&mu_));
-}
-
-void RefMutex::Unlock() {
-  PthreadCall("unlock", pthread_mutex_unlock(&mu_));
-}
-
 RecordMutex::~RecordMutex() {
   mutex_.Lock();
   
-  std::unordered_map<std::string, RefMutex *>::const_iterator it = records_.begin();
+  //log_info ("tid=(%u) ~RecordMutex map_size=%u, lru_size=%u", pthread_self(), records_.size(), lru_.size());
+  std::unordered_map<std::string, data_type>::iterator it = records_.begin();
   for (; it != records_.end(); it++) {
-    delete it->second;
+    delete it->second.first;
   }
   mutex_.Unlock();
 }
@@ -110,46 +84,63 @@ RecordMutex::~RecordMutex() {
 
 void RecordMutex::Lock(const std::string &key) {
   mutex_.Lock();
-  std::unordered_map<std::string, RefMutex *>::const_iterator it = records_.find(key);
+  
+  std::unordered_map<std::string, data_type>::iterator it = records_.find(key);
 
   if (it != records_.end()) {
-    //log_info ("tid=(%u) >Lock key=(%s) exist, map_size=%u", pthread_self(), key.c_str(), records_.size());
-    RefMutex *ref_mutex = it->second;
-    ref_mutex->Ref();
+    //log_info ("tid=(%u) >Lock key=(%s) exist, map_size=%u, lru_size=%u", pthread_self(), key.c_str(), records_.size(), lru_.size());
+
+    data_type &data = it->second;
+    Mutex *record_mutex = data.first;
+    // update the iterator
+    lru_.splice(lru_.end(), lru_, data.second);
     mutex_.Unlock();
 
-    ref_mutex->Lock();
+    record_mutex->Lock();
     //log_info ("tid=(%u) <Lock key=(%s) exist", pthread_self(), key.c_str());
   } else {
-    //log_info ("tid=(%u) >Lock key=(%s) new, map_size=%u ++", pthread_self(), key.c_str(), records_.size());
-    RefMutex *ref_mutex = new RefMutex();
+    if (records_.size() == capacity_) {
+      evict();
+    }
+    //log_info ("tid=(%u) >Lock key=(%s) new, map_size=%u ++, lru_size=%u", pthread_self(), key.c_str(), records_.size(), lru_.size());
 
-    records_.insert(std::make_pair(key, ref_mutex));
-    ref_mutex->Ref();
+    Mutex *record_mutex = new Mutex();
+    std::list<std::string>::iterator it = lru_.insert(lru_.end(), key);
+    records_.insert(std::make_pair(key, std::make_pair(record_mutex, it)));
     mutex_.Unlock();
 
-    ref_mutex->Lock();
+    record_mutex->Lock();
     //log_info ("tid=(%u) <Lock key=(%s) new", pthread_self(), key.c_str());
   }
 }
 
 void RecordMutex::Unlock(const std::string &key) {
   mutex_.Lock();
-  std::unordered_map<std::string, RefMutex *>::const_iterator it = records_.find(key);
-  
-  //log_info ("tid=(%u) >Unlock key=(%s) new, map_size=%u --", pthread_self(), key.c_str(), records_.size());
-  if (it != records_.end()) {
-    RefMutex *ref_mutex = it->second;
 
-    if (ref_mutex->IsLastRef()) {
-      records_.erase(it);
-    }
-    ref_mutex->Unlock();
-    ref_mutex->Unref();
+  std::unordered_map<std::string, data_type>::iterator it = records_.find(key);
+
+  //log_info ("tid=(%u) >Unlock key=(%s) new, map_size=%u, lru_size=%u", pthread_self(), key.c_str(), records_.size(), lru_.size());
+  if (it != records_.end()) {
+    Mutex *record_mutex = it->second.first;
+    record_mutex->Unlock();
   }
 
   mutex_.Unlock();
   //log_info ("tid=(%u) <Unlock key=(%s) new", pthread_self(), key.c_str());
+}
+
+void RecordMutex::evict() {
+  assert(!lru_.empty());
+
+  //log_info ("tid=(%u) evict map_size=%u --, lru_size=%u --", pthread_self(), records_.size(), lru_.size());
+  // check
+  std::unordered_map<std::string, data_type>::iterator it = records_.find(lru_.front());
+  assert(it != records_.end());
+
+  // should ensure the mutex isn't used
+  records_.erase(it);
+  delete it->second.first;
+  lru_.pop_front();
 }
 
 }  // namespace port
