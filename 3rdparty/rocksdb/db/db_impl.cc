@@ -1919,11 +1919,12 @@ void DBImpl::MaybeScheduleFlushOrCompaction() {
     env_->Schedule(&DBImpl::BGWorkFlush, this, Env::Priority::HIGH, this);
   }
 
-  if (bg_manual_only_) {
-    // only manual compactions are allowed to run. don't schedule automatic
-    // compactions
-    return;
-  }
+  // Modify: remove the limit of manual compactions only.
+  //if (bg_manual_only_) {
+  //  // only manual compactions are allowed to run. don't schedule automatic
+  //  // compactions
+  //  return;
+  //}
 
   if (db_options_.max_background_flushes == 0 &&
       bg_compaction_scheduled_ < db_options_.max_background_compactions &&
@@ -2237,10 +2238,14 @@ Status DBImpl::BackgroundCompaction(bool* madeProgress, JobContext* job_context,
   if (is_manual) {
     // another thread cannot pick up the same work
     manual_compaction_->in_progress = true;
-  } else if (manual_compaction_ != nullptr) {
-    // there should be no automatic compactions running when manual compaction
-    // is running
-    return Status::OK();
+  }
+
+  // Modify: We remove this limitation
+  else if (manual_compaction_ != nullptr) {
+  //  // there should be no automatic compactions running when manual compaction
+  //  // is running
+  //  return Status::OK();
+      LogToBuffer(log_buffer, "manual_compaction not null, we let auto compaction run\n");
   }
 
   // If there are no flush threads, then compaction thread needs to execute the
@@ -2275,32 +2280,11 @@ Status DBImpl::BackgroundCompaction(bool* madeProgress, JobContext* job_context,
   unique_ptr<Compaction> c;
   InternalKey manual_end_storage;
   InternalKey* manual_end = &manual_end_storage;
-  if (is_manual) {
-    ManualCompaction* m = manual_compaction_;
-    assert(m->in_progress);
-    c.reset(m->cfd->CompactRange(
-          *m->cfd->GetLatestMutableCFOptions(), m->input_level, m->output_level,
-          m->output_path_id, m->begin, m->end, &manual_end));
-    if (!c) {
-      m->done = true;
-      LogToBuffer(log_buffer,
-                  "[%s] Manual compaction from level-%d from %s .. "
-                  "%s; nothing to do\n",
-                  m->cfd->GetName().c_str(), m->input_level,
-                  (m->begin ? m->begin->DebugString().c_str() : "(begin)"),
-                  (m->end ? m->end->DebugString().c_str() : "(end)"));
-    } else {
-      LogToBuffer(log_buffer,
-                  "[%s] Manual compaction from level-%d to level-%d from %s .. "
-                  "%s; will stop at %s\n",
-                  m->cfd->GetName().c_str(), m->input_level, c->output_level(),
-                  (m->begin ? m->begin->DebugString().c_str() : "(begin)"),
-                  (m->end ? m->end->DebugString().c_str() : "(end)"),
-                  ((m->done || manual_end == nullptr)
-                       ? "(end)"
-                       : manual_end->DebugString().c_str()));
-    }
-  } else if (!compaction_queue_.empty()) {
+
+  // Modify:
+  // We change the order of below if-else block, to let auto compactions
+  // run first;
+  if (!compaction_queue_.empty()) {
     // cfd is referenced here
     auto cfd = PopFirstFromCompactionQueue();
     // We unreference here because the following code will take a Ref() on
@@ -2350,7 +2334,33 @@ Status DBImpl::BackgroundCompaction(bool* madeProgress, JobContext* job_context,
         }
       }
     }
+  } else if (is_manual) {
+    ManualCompaction* m = manual_compaction_;
+    assert(m->in_progress);
+    c.reset(m->cfd->CompactRange(
+          *m->cfd->GetLatestMutableCFOptions(), m->input_level, m->output_level,
+          m->output_path_id, m->begin, m->end, &manual_end));
+    if (!c) {
+      m->done = true;
+      LogToBuffer(log_buffer,
+                  "[%s] Manual compaction from level-%d from %s .. "
+                  "%s; nothing to do\n",
+                  m->cfd->GetName().c_str(), m->input_level,
+                  (m->begin ? m->begin->DebugString().c_str() : "(begin)"),
+                  (m->end ? m->end->DebugString().c_str() : "(end)"));
+    } else {
+      LogToBuffer(log_buffer,
+                  "[%s] Manual compaction from level-%d to level-%d from %s .. "
+                  "%s; will stop at %s\n",
+                  m->cfd->GetName().c_str(), m->input_level, c->output_level(),
+                  (m->begin ? m->begin->DebugString().c_str() : "(begin)"),
+                  (m->end ? m->end->DebugString().c_str() : "(end)"),
+                  ((m->done || manual_end == nullptr)
+                       ? "(end)"
+                       : manual_end->DebugString().c_str()));
+    }
   }
+
 
   if (!c) {
     // Nothing to do
