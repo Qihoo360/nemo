@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -Wall -DDEBUG -g -O0 -std=c++11 -D__XDEBUG__
+CXXFLAGS = -Wall -Wno-format -DDEBUG -g -O0 -std=c++11 -D__XDEBUG__
 
 OBJECT = main test_bgsave zset test_server hash kv_test ttl bench_hash list_lock
 

@@ -384,7 +384,6 @@ Status Nemo::GetStartKey(int64_t cursor, std::string* start_key) {
 }
 
 int64_t Nemo::StoreAndGetCursor(int64_t cursor, const std::string& next_key) {
-    int64_t cursor_origin = cursor;
     std::list<int64_t>& cursors_list = cursors_store_.list_;
     std::map<int64_t, std::string>& cursors_map = cursors_store_.map_;
     MutexLock l(&mutex_cursors_);
@@ -759,6 +758,7 @@ Status Nemo::Keys(const std::string &pattern, std::vector<std::string>& keys) {
     s = ScanKeys(list_db_, snapshots[4], DataType::kLMeta, pattern, keys);
     if (!s.ok()) return s;
 
+    return s;
 }
 
 // Note: return Status::OK()

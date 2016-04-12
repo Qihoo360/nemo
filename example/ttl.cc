@@ -62,7 +62,7 @@ int main()
     log_info("          ZScore return %s", s.ToString().c_str());
 
     ret = n->SIsMember("key", "member1");
-    log_info("          SIsMember return %d, [true|false]", ret);
+    log_info("          SIsMember return %ld, [true|false]", ret);
 
     s = n->LIndex("key", 0, &res);
     log_info("          LIndex(0) return %s, val is %s", s.ToString().c_str(), res.c_str());
@@ -172,7 +172,7 @@ int main()
     log_info("          ZScore return %s", s.ToString().c_str());
 
     ret = n->SIsMember("key", "member1");
-    log_info("          SIsMember return %d, [true|false]", ret);
+    log_info("          SIsMember return %ld, [true|false]", ret);
 
     s = n->LIndex("key", 0, &res);
     log_info("          LIndex(0) return %s, val is %s", s.ToString().c_str(), res.c_str());

@@ -127,7 +127,7 @@ int main()
       int64_t del_ret;
       log_info("======Del key======");
       s = n->Del("key", &del_ret);
-      log_info("  Del OK return %s, count is %lld", s.ToString().c_str(), del_ret);
+      log_info("  Del OK return %s, count is %ld", s.ToString().c_str(), del_ret);
     }
 
     

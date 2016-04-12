@@ -1,5 +1,5 @@
 GCC = g++
-CPPFLAGS = -Wall -W -DDEBUG -D__XDEBUG__ -g -O2 -std=c++11
+CPPFLAGS = -Wall -W -Wno-unused-parameter -DDEBUG -D__XDEBUG__ -g -O2 -std=c++11
 OBJECT = compact
 
 LIB_PATH = -L ../../output/lib

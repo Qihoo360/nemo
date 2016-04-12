@@ -48,7 +48,7 @@ int main()
      *  Test ZRank
      */
 //    log_info("======Test ZRank======");
-    int64_t rank;
+//    int64_t rank;
     int64_t zadd_res;
 //    s = n->ZAdd("zr", 1, "a", &zadd_res);
 //    s = n->ZAdd("zr", 0.2, "b", &zadd_res);

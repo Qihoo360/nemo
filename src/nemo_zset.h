@@ -94,7 +94,7 @@ inline int DecodeZScoreKey(const rocksdb::Slice &slice, std::string *key, std::s
     if (decoder.ReadLenData(key) == -1) {
         return -1;
     }
-    uint64_t iscore;
+    uint64_t iscore = 0;
     decoder.ReadUInt64(&iscore);
     //iscore = be64toh(iscore);
     *score = DecodeScore(iscore);

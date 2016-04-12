@@ -429,13 +429,14 @@ Status Nemo::ZUnionStore(const std::string &destination, const int numkeys, cons
       mutex_set_record_.Lock(keys[key_i]);
     }
 
+    int weights_size = static_cast<int>(weights.size());
     for (int key_i = 0; key_i < numkeys; key_i++) {
         ZIterator *iter = ZScan(keys[key_i], ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1);
         for (; iter->Valid(); iter->Next()) {
             std::string member = iter->member();
 
             double weight = 1;
-            if (weights.size() > key_i) {
+            if (weights_size > key_i) {
                 weight = weights[key_i];
             }
 
@@ -503,7 +504,8 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
       mutex_set_record_.Lock(keys[key_i]);
     }
 
-    if (weights.size() > 1) {
+    int weights_size = static_cast<int>(weights.size());
+    if (weights_size > 1) {
         l_weight = weights[0];
     }
 
@@ -515,7 +517,7 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
 
         for (key_i = 1; key_i < numkeys; key_i++) {
           r_weight = 1;
-          if (weights.size() > key_i) {
+          if (weights_size > key_i) {
               r_weight = weights[key_i];
           }
           
