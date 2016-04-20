@@ -379,6 +379,17 @@ bool DBWithTTLImpl::IsStale(const Slice& value, int32_t ttl, Env* env) {
   return timestamp_value < curtime - ttl;
 }
 
+bool DBWithTTLImpl::IsStale(int32_t timestamp, int32_t ttl, Env* env) {
+  int64_t curtime;
+  if (!env->GetCurrentTime(&curtime).ok()) {
+    return false;  // Treat the data as fresh if could not get current time
+  }
+  if (timestamp == 0) { // 0 means fresh
+      return false;
+  }
+  return timestamp < curtime - ttl;
+}
+
 // Strips the TS from the end of the string
 Status DBWithTTLImpl::StripTS(std::string* str) {
   Status st;
@@ -830,14 +841,13 @@ Iterator* DBWithTTLImpl::NewIterator(const ReadOptions& opts,
 
 bool TtlCompactionFilter::Filter(int level, const Slice& key, const Slice& old_val,
                                  std::string* new_val, bool* value_changed) const {
-  char meta_prefix = db_->GetMetaPrefix();
-  if (meta_prefix == kMetaPrefix_KV) {
-    if (DBWithTTLImpl::IsStale(old_val, 0, env_)) {
+  if (meta_prefix_ == kMetaPrefix_KV) {
+    if (DBWithTTLImpl::IsStale(meta_timestamp_, 0, env_)) {
       return true;
     }
   } else {
     // reserve meta key for hash, list, zset, set
-    if (key[0] == meta_prefix) {
+    if (key[0] == meta_prefix_) {
       return false;
     }
 
@@ -846,29 +856,13 @@ bool TtlCompactionFilter::Filter(int level, const Slice& key, const Slice& old_v
       return false;
     }
 
-    int32_t fresh_version = 0;
-    std::string value;
+    if (DBWithTTLImpl::IsStale(meta_timestamp_, 0, env_)) {
+      return true;
+    }
 
-    // Get meta key and value
-    std::string meta_key(1, meta_prefix);
-    int32_t len = *((uint8_t *)(key.data() + 1));
-    meta_key.append(key.data() + 2, len);
-
-    Status st = db_->Get(ReadOptions(), db_->DefaultColumnFamily(), meta_key, &value);
-
-    if (st.ok()) {
-      if (DBWithTTLImpl::IsStale(value, 0, env_)) {
-        return true;
-      }
-
-      // check key version
-      fresh_version = DecodeFixed32(value.data() + value.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
-
-      //int32_t fresh_version = db_->GetKeyVersion(key);
-      int32_t key_version = DecodeFixed32(old_val.data() + old_val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
-      if (key_version < fresh_version) {
-        return true;
-      }
+    int32_t member_version = DecodeFixed32(old_val.data() + old_val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+    if (member_version < meta_version_) {
+      return true;
     }
   }
 

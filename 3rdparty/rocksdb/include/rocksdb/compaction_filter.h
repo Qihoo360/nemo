@@ -43,6 +43,12 @@ class CompactionFilter {
     bool is_manual_compaction;
   };
 
+  //@ADD
+  char meta_prefix_;
+  int32_t meta_version_;
+  int32_t meta_timestamp_;
+  //DBImpl* db_;
+
   virtual ~CompactionFilter() {}
 
   // The compaction process invokes this
@@ -75,9 +81,6 @@ class CompactionFilter {
   // Returns a name that identifies this compaction filter.
   // The name will be printed to LOG file on start up for diagnosis.
   virtual const char* Name() const = 0;
-
-  //virtual void SetDB(DBImpl* db) { db_ = db; }
-  DBImpl* db_;
 };
 
 // CompactionFilterV2 that buffers kv pairs sharing the same prefix and let

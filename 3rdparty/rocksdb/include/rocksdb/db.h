@@ -61,11 +61,11 @@ struct ColumnFamilyDescriptor {
 static const int kMajorVersion = __ROCKSDB_MAJOR__;
 static const int kMinorVersion = __ROCKSDB_MINOR__;
 
-static const char kMetaPrefix_KV = '\0';
-static const char kMetaPrefix_HASH = 'H';
-static const char kMetaPrefix_ZSET = 'Z';
-static const char kMetaPrefix_SET = 'S';
-static const char kMetaPrefix_LIST = 'L';
+const char kMetaPrefix_KV = '\0';
+const char kMetaPrefix_HASH = 'H';
+const char kMetaPrefix_ZSET = 'Z';
+const char kMetaPrefix_SET = 'S';
+const char kMetaPrefix_LIST = 'L';
 
 // Abstract handle to particular state of a DB.
 // A Snapshot is an immutable object and can therefore be safely

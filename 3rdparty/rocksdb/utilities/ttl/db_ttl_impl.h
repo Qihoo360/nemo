@@ -77,6 +77,7 @@ class DBWithTTLImpl : public DBWithTTL {
 
 
   static bool IsStale(const Slice& value, int32_t ttl, Env* env);
+  static bool IsStale(int32_t timestamp, int32_t ttl, Env* env);
 
   static Status AppendTS(const Slice& val, std::string* val_with_ts, Env* env);
 

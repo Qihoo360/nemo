@@ -610,7 +610,10 @@ Status CompactionJob::ProcessKeyValueCompaction(int64_t* imm_micros,
   ColumnFamilyData* cfd = compact_->compaction->column_family_data();
 
   //@ADD Get DBImpl pointer
+  IterKey current_user_meta_key;
+  bool has_current_user_meta_key = false;
   auto db_ = versions_->db_;
+  char meta_prefix = db_->GetMetaPrefix();
 
   //@ADD DBImpl pointer to TtlMergeOperator
   //cfd->ioptions()->merge_operator->db_ = db_;
@@ -630,11 +633,9 @@ Status CompactionJob::ProcessKeyValueCompaction(int64_t* imm_micros,
   }
 
   //@ADD DBImpl pointer to TtlCompactionFilter
-  compaction_filter->db_ = db_;
-  //printf ("compaction_filter meta_prefix=%c\n\n", db_->meta_prefix_);
+  compaction_filter->meta_prefix_ = meta_prefix;
+  //compaction_filter->db_ = db_;
   //compaction_filter->SetDB(db_);
-  //    versions_->GetColumnFamilySet()->GetColumnFamily(kDefaultColumnFamilyName);
-  //cfd->options()->compact
 
   TEST_SYNC_POINT("CompactionJob::Run():Inprogress");
 
@@ -710,6 +711,10 @@ Status CompactionJob::ProcessKeyValueCompaction(int64_t* imm_micros,
       // v10 error v8 : we cannot hide v8 even though it's pretty obvious.
       current_user_key.Clear();
       has_current_user_key = false;
+
+      current_user_meta_key.Clear();
+      has_current_user_meta_key = false;
+
       last_sequence_for_key = kMaxSequenceNumber;
       visible_in_snapshot = kMaxSequenceNumber;
     } else {
@@ -734,6 +739,44 @@ Status CompactionJob::ProcessKeyValueCompaction(int64_t* imm_micros,
           if (stats_ != nullptr) {
             timer.Start();
           }
+
+          //
+          //@ADD Handle the meta_key
+          //
+
+          // Meta key is consist of meta_prefix(1 byte) + meta_key;
+          // Data key is consist of data_prefix(1 byte) + meta_len(1 byte, uint8)
+          //      + meta_key(meta_len bytes).
+          // We do not handle these two kind of member when multi-structures(hash, list, zset, set);
+          //    1) meta key;
+          //    2) the separator of meta and data.
+          if (meta_prefix != kMetaPrefix_KV 
+              && ikey.user_key[0] != meta_prefix && ikey.user_key.size() != 1) {
+
+            // Get meta part of 
+            int32_t meta_len = *((uint8_t *)(ikey.user_key.data() + 1));
+            Slice meta_part(ikey.user_key.data() + 2, meta_len);
+
+            if (!has_current_user_meta_key ||
+                cfd->user_comparator()->Compare(meta_part,
+                                                current_user_meta_key.GetKey()) != 0) {
+              current_user_meta_key.SetKey(meta_part);
+              has_current_user_meta_key = true;
+
+              std::string meta_key(1, meta_prefix);
+              meta_key.append(key.data() + 2, meta_len);
+
+              std::string meta_value;
+
+              //@TODO replace Get with more efficient method, maybe add a cache
+              Status st = db_->Get(ReadOptions(), db_->DefaultColumnFamily(), meta_key, &meta_value);
+              if (st.ok()) {
+                compaction_filter->meta_version_ = DecodeFixed32(meta_value.data() + meta_value.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+                compaction_filter->meta_timestamp_ = DecodeFixed32(meta_value.data() + meta_value.size() - DBImpl::kTSLength);
+              }
+            }
+          }
+
           bool to_delete = compaction_filter->Filter(
               compact_->compaction->level(), ikey.user_key, value,
               &compaction_filter_value, &value_changed);
@@ -752,6 +795,8 @@ Status CompactionJob::ProcessKeyValueCompaction(int64_t* imm_micros,
           } else if (value_changed) {
             value = compaction_filter_value;
           }
+
+
         }
       }
 

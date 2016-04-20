@@ -54,6 +54,12 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
      open_options_.target_file_size_multiplier = options.target_file_size_multiplier;
    }
 
+   // Test
+   open_options_.max_background_flushes = 2;
+   open_options_.max_background_compactions = 2;
+
+   //open_options_.max_bytes_for_level_base = (128 << 20);
+
    rocksdb::DBWithTTL *db_ttl;
 
    open_options_.meta_prefix = rocksdb::kMetaPrefix_KV;
