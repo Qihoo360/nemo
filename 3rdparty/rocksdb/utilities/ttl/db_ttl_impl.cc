@@ -842,7 +842,7 @@ Iterator* DBWithTTLImpl::NewIterator(const ReadOptions& opts,
 bool TtlCompactionFilter::Filter(int level, const Slice& key, const Slice& old_val,
                                  std::string* new_val, bool* value_changed) const {
   if (meta_prefix_ == kMetaPrefix_KV) {
-    if (DBWithTTLImpl::IsStale(meta_timestamp_, 0, env_)) {
+    if (DBWithTTLImpl::IsStale(old_val, 0, env_)) {
       return true;
     }
   } else {
