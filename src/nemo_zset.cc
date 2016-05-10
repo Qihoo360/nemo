@@ -377,25 +377,52 @@ Status Nemo::ZRange(const std::string &key, const int64_t start, const int64_t s
         if (t_start > t_stop || t_start > t_size - 1 || t_stop < 0) {
             return Status::OK();
         } else {
-            ZIterator *iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1, true);
-            if (iter == NULL) {
-                return Status::Corruption("zscan error");
-            }
-            int32_t n = 0;
-            for (; n < t_start && iter->Valid(); iter->Next(), n++);
-
-            if (n < t_start) {
+            int n = 0;
+            ZIterator* iter = NULL;
+            if (t_size > 1000 && t_start > t_size / 2) {
+              std::string zscore_key_end = EncodeZScoreKey(key, "", ZSET_SCORE_MAX);
+              //std::string zscore_key_start = EncodeZScoreKey(key, "", ZSET_SCORE_MIN);
+              std::string zscore_key_start = "";
+              rocksdb::ReadOptions read_options;
+              read_options.snapshot = zset_db_->GetSnapshot();
+              read_options.fill_cache = false;
+              IteratorOptions iter_options(zscore_key_start, -1, read_options, kBackward);
+              rocksdb::Iterator* rocksdb_it = zset_db_->NewIterator(read_options);
+              rocksdb_it->Seek(zscore_key_end);
+              rocksdb_it->Prev();
+              iter = new ZIterator(rocksdb_it, iter_options, key);
+              n = t_size - 1;
+              for (; n > t_stop && iter->Valid(); iter->Next(), n--);
+              if (n != t_stop) {
                 zset_db_->ReleaseSnapshot(iter->read_options().snapshot);
                 delete iter;
                 return Status::Corruption("ziterate error");
+              }
+              sms.resize(t_stop - t_start + 1);
+              for (; n >= t_start && iter->Valid(); n--) {
+                sms[n - t_start] = {iter->score(), iter->member()};
+                iter->Next();
+              }
             } else {
-                for (; n <= t_stop && iter->Valid(); iter->Next(), n++) {
-                    sms.push_back({iter->score(), iter->member()});
-                }
-                zset_db_->ReleaseSnapshot(iter->read_options().snapshot);
-                delete iter;
-                return Status::OK();
+              iter = ZScan(key, ZSET_SCORE_MIN, ZSET_SCORE_MAX, -1, true);
+              if (iter == NULL) {
+                return Status::Corruption("zscan error");
+              }
+              n = 0;
+              for (; n < t_start && iter->Valid(); iter->Next(), n++);
+
+              if (n < t_start) {
+                  zset_db_->ReleaseSnapshot(iter->read_options().snapshot);
+                  delete iter;
+                  return Status::Corruption("ziterate error");
+              }
+              for (; n <= t_stop && iter->Valid(); iter->Next(), n++) {
+                  sms.push_back({iter->score(), iter->member()});
+              }
             }
+            zset_db_->ReleaseSnapshot(iter->read_options().snapshot);
+            delete iter;
+            return Status::OK();
         }
     } else {
         return Status::Corruption("get zsize error");
