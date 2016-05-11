@@ -501,6 +501,8 @@ Status Nemo::SPop(const std::string &key, std::string &member) {
     }
     member = iter->member();
 
+    set_db_->ReleaseSnapshot(iter->read_options().snapshot);
+    delete iter;
     int64_t res;
     return SRemNoLock(key, member, &res);
 }
