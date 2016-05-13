@@ -5,13 +5,13 @@ OBJECT = main test_bgsave zset test_server hash kv_test ttl bench_hash list_lock
 
 LIB_PATH = -L../output/lib/
 
-LIBS = -lpthread \
-	   -lnemo \
-	   -lrocksdb \
-	   -lz \
-	   -lbz2 \
-	   -lsnappy \
-	   -lrt
+LIBS = -lnemo \
+	-lrocksdb \
+	-lz \
+	-lbz2 \
+	-lsnappy \
+	-lrt \
+	-lpthread
 
 INCLUDE_PATH = -I../output/include/
 
