@@ -13,6 +13,8 @@ using namespace nemo;
 int main()
 {
     nemo::Options options;
+    options.max_background_flushes = 2;
+    options.max_background_compactions = 2;
     Nemo *n = new Nemo("./tmp", options); 
     Status s;
 
