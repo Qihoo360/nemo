@@ -14,7 +14,9 @@ struct Options {
     int target_file_size_base;
     int target_file_size_multiplier;
     bool compression;
-	
+    int max_background_flushes;
+    int max_background_compactions;
+
 	Options() : create_if_missing(true),
         write_buffer_size(4 * 1024 * 1024),
         max_open_files(200),
@@ -22,7 +24,9 @@ struct Options {
         write_threads(71),
         target_file_size_base(2 * 1024 * 1024),
         target_file_size_multiplier(1),
-        compression(true) {}
+        compression(true),
+        max_background_flushes(1),
+        max_background_compactions(1) {}
 };
 
 }; // end namespace nemo
