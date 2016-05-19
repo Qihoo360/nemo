@@ -41,6 +41,11 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
    cursors_store_.list_.clear();
    cursors_store_.map_.clear();
 
+   spop_counts_store_.cur_size_ = 0;
+   spop_counts_store_.max_size_ = 100;
+   spop_counts_store_.list_.clear();
+   spop_counts_store_.map_.clear();
+
    // Open Options
    open_options_.create_if_missing = true;
    open_options_.write_buffer_size = options.write_buffer_size;

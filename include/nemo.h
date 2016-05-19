@@ -276,8 +276,13 @@ private:
     Status LExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
 
     pthread_mutex_t mutex_cursors_;
-
     ItemListMap<int64_t, std::string> cursors_store_;
+
+    pthread_mutex_t mutex_spop_counts_;
+    ItemListMap<std::string, int64_t> spop_counts_store_; 
+    
+    int64_t AddAndGetSpopCount(const std::string &key);
+    void ResetSpopCount(const std::string &key);
 
     Status GetSnapshot(Snapshots &snapshots);
     Status ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys);

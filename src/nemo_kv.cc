@@ -391,6 +391,8 @@ int64_t Nemo::StoreAndGetCursor(int64_t cursor, const std::string& next_key) {
         int64_t cursor_oldest = cursors_list.front();
         cursors_list.erase(cursors_list.begin());
         cursors_map.erase(cursor_oldest);
+    } else {
+        cursors_store_.cur_size_++;
     }
     std::map<int64_t, std::string>::iterator iter_map = cursors_map.begin();
     while (iter_map != cursors_map.end()) {
@@ -405,7 +407,6 @@ int64_t Nemo::StoreAndGetCursor(int64_t cursor, const std::string& next_key) {
     }
     cursors_list.push_back(cursor);
     cursors_map[cursor] = next_key;
-    cursors_store_.cur_size_++;
     return cursor;
 }
 

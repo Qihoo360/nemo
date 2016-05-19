@@ -484,25 +484,73 @@ Status Nemo::SDiffStore(const std::string &destination, const std::vector<std::s
     return Status::OK();
 }
 
+int64_t Nemo::AddAndGetSpopCount(const std::string &key) {
+  std::map<std::string, int64_t> &spop_counts_map = spop_counts_store_.map_;
+  std::list<std::string> &spop_counts_list = spop_counts_store_.list_;
+  std::map<std::string, int64_t>::iterator iter;
+  int64_t spop_count;
+  MutexLock lm(&mutex_spop_counts_);
+  iter = spop_counts_map.find(key);
+  if (iter != spop_counts_map.end()) {
+    spop_count = ++iter->second;
+  } else {
+    spop_count = ++spop_counts_map[key];
+    spop_counts_list.push_back(key);
+    if (spop_counts_store_.cur_size_ >= spop_counts_store_.max_size_) {
+      spop_counts_map.erase(spop_counts_list.front());
+      spop_counts_list.erase(spop_counts_list.begin());
+    } else {
+      ++spop_counts_store_.cur_size_;
+    } 
+  } 
+  return spop_count; 
+}
+
+static inline int64_t NowMicros() {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return static_cast<uint64_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
+}
+
+void Nemo::ResetSpopCount(const std::string &key) {
+  MutexLock lm(&mutex_spop_counts_);
+  std::map<std::string, int64_t>::iterator iter = spop_counts_store_.map_.find(key);
+  if (iter == spop_counts_store_.map_.end()) {
+    return;
+  }
+  iter->second = 0;
+  return;
+}
+
 Status Nemo::SPop(const std::string &key, std::string &member) {
+#define SPOP_COMPACT_THRESHOLD_COUNT 500
     int card = SCard(key);
     if (card <= 0) {
         return Status::NotFound();
     }
 
     //MutexLock l(&mutex_set_);
+    uint64_t start_us = NowMicros(), duration_us;
+    srand (start_us);
+    int k = rand() % (card < 100 ? card : 100 ) + 1;
     RecordLock l(&mutex_set_record_, key);
-    srand (time(NULL));
-    int k = rand() % card + 1;
-
+ 
     SIterator *iter = SScan(key, -1, true);
     for (int i = 0; i < k - 1; i++) {
         iter->Next();
     }
     member = iter->member();
-
     set_db_->ReleaseSnapshot(iter->read_options().snapshot);
     delete iter;
+   
+    duration_us = NowMicros() - start_us;
+    int64_t spop_count = AddAndGetSpopCount(key); 
+    if (spop_count >= SPOP_COMPACT_THRESHOLD_COUNT) {
+      AddBGTask({DBType::kSET_DB, OPERATION::kDEL_KEY, key, ""/*not used*/}); 
+      ResetSpopCount(key);
+    } else if (duration_us > 1000000UL) {
+      AddBGTask({DBType::kSET_DB, OPERATION::kDEL_KEY, key, ""/*not used*/}); 
+    }
     int64_t res;
     return SRemNoLock(key, member, &res);
 }
