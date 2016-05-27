@@ -450,7 +450,7 @@ Status Nemo::ZUnionStore(const std::string &destination, const int numkeys, cons
     *res = 0;
 
     //MutexLock l(&mutex_zset_);
-    RecordLock l(&mutex_set_record_, destination);
+    RecordLock l(&mutex_zset_record_, destination);
 
     for (int key_i = 0; key_i < numkeys; key_i++) {
       mutex_set_record_.Lock(keys[key_i]);
@@ -525,7 +525,7 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
     int key_i;
 
     //MutexLock l(&mutex_zset_);
-    RecordLock l(&mutex_set_record_, destination);
+    RecordLock l(&mutex_zset_record_, destination);
 
     for (int key_i = 0; key_i < numkeys; key_i++) {
       mutex_set_record_.Lock(keys[key_i]);
@@ -603,7 +603,7 @@ Status Nemo::ZRem(const std::string &key, const std::string &member, int64_t *re
     std::string old_score;
 
     //MutexLock l(&mutex_zset_);
-    RecordLock l(&mutex_set_record_, key);
+    RecordLock l(&mutex_zset_record_, key);
 
     std::string db_key = EncodeZSetKey(key, member);
     s = zset_db_->Get(rocksdb::ReadOptions(), db_key, &old_score);
@@ -720,7 +720,7 @@ Status Nemo::ZRemrangebylex(const std::string &key, const std::string &min, cons
 
     *count = 0;
     //MutexLock l(&mutex_zset_);
-    RecordLock l(&mutex_set_record_, key);
+    RecordLock l(&mutex_zset_record_, key);
 
     ZLexIterator *iter = ZScanbylex(key, min, max, -1);
     rocksdb::WriteBatch batch;
@@ -802,7 +802,7 @@ Status Nemo::ZRemrangebyrank(const std::string &key, const int64_t start, const 
     *count = 0;
     Status s;
     //MutexLock l(&mutex_zset_);
-    RecordLock l(&mutex_set_record_, key);
+    RecordLock l(&mutex_zset_record_, key);
 
     int64_t t_size = ZCard(key);
     if (t_size >= 0) {
@@ -914,7 +914,7 @@ Status Nemo::ZRemrangebyscore(const std::string &key, const double mn, const dou
     Status s;
     double start = is_lo ? mn + eps : mn;
     double stop = is_ro ? mx - eps : mx;
-    RecordLock l(&mutex_set_record_, key);
+    RecordLock l(&mutex_zset_record_, key);
     //MutexLock l(&mutex_zset_);
     
     ZIterator *iter = ZScan(key, start, stop, -1);
@@ -1004,7 +1004,7 @@ Status Nemo::ZExpire(const std::string &key, const int32_t seconds, int64_t *res
     Status s;
     std::string val;
 
-    RecordLock l(&mutex_set_record_, key);
+    RecordLock l(&mutex_zset_record_, key);
 
     std::string size_key = EncodeZSizeKey(key);
     s = zset_db_->Get(rocksdb::ReadOptions(), size_key, &val);
@@ -1035,7 +1035,7 @@ Status Nemo::ZTTL(const std::string &key, int64_t *res) {
 
     Status s;
     std::string val;
-    RecordLock l(&mutex_set_record_, key);
+    RecordLock l(&mutex_zset_record_, key);
 
     std::string size_key = EncodeZSizeKey(key);
     s = zset_db_->Get(rocksdb::ReadOptions(), size_key, &val);
@@ -1057,7 +1057,7 @@ Status Nemo::ZPersist(const std::string &key, int64_t *res) {
     Status s;
     std::string val;
 
-    RecordLock l(&mutex_set_record_, key);
+    RecordLock l(&mutex_zset_record_, key);
     *res = 0;
     std::string size_key = EncodeZSizeKey(key);
     s = zset_db_->Get(rocksdb::ReadOptions(), size_key, &val);
@@ -1082,7 +1082,7 @@ Status Nemo::ZExpireat(const std::string &key, const int32_t timestamp, int64_t 
     Status s;
     std::string val;
 
-    RecordLock l(&mutex_set_record_, key);
+    RecordLock l(&mutex_zset_record_, key);
 
     std::string size_key = EncodeZSizeKey(key);
     s = zset_db_->Get(rocksdb::ReadOptions(), size_key, &val);
