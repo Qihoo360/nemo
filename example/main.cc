@@ -1696,6 +1696,44 @@ int main()
         log_info(" %d :  %s", i++, smit->c_str());
     }
 
+    /*
+     *  Test Exists
+     */
+    log_info("======Test Exists======");
+    s = n->Set("ExistKey", "val1");
+    s = n->HSet("HExistKey", "tHSetField1", "tSetVal1");
+    s = n->LPush("LExistKey", "tLPushVal1", &llen);
+    s = n->ZAdd("ZExistKey", 100.0, "tHMember1", &za_res);
+    s = n->SAdd("SExistKey", "member1", &sadd_res);
+
+    keys.clear();
+    keys.push_back("ExistKey");
+    keys.push_back("HExistKey");
+    keys.push_back("LExistKey");
+    keys.push_back("ZExistKey");
+    keys.push_back("SExistKey");
+
+    s = n->Exists(keys, &llen);
+    log_info("Test Exists(5 type) return %s, exists number=%ld", s.ToString().c_str(), llen);
+
+    s = n->Del("ExistKey", &del_ret);
+    s = n->Exists(keys, &llen);
+    log_info("Test Exists(5 type) after DEL(KV) return %s, exists number=%ld", s.ToString().c_str(), llen);
+
+    s = n->Del("HExistKey", &del_ret);
+    s = n->Exists(keys, &llen);
+    log_info("Test Exists(5 type) after DEL(KV,HASH) return %s, exists number=%ld", s.ToString().c_str(), llen);
+
+    //s = n->Set("SameExistKey", "val1");
+    s = n->HSet("SameExistKey", "tHSetField1", "tSetVal1");
+    s = n->LPush("SameExistKey", "tLPushVal1", &llen);
+
+    keys.clear();
+    keys.push_back("SameExistKey");
+    s = n->Exists(keys, &llen);
+    log_info("Test Exists(5 type same key) return %s, exists number=%ld", s.ToString().c_str(), llen);
+
+
     delete n;
 
     return 0;

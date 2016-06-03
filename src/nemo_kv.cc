@@ -1095,3 +1095,54 @@ Status Nemo::Type(const std::string& key, std::string* type) {//the sequence is 
     *type = "none";
     return Status::OK();
 }
+
+// We treat single key as exists, when at least 1 type exists;
+Status Nemo::Exists(const std::vector<std::string> &keys, int64_t* res) {
+    *res = 0;
+    Status s;
+    std::string val;
+
+    for (auto it = keys.begin(); it != keys.end(); it++) {
+      s = ExistsSingleKey(*it);
+      //printf ("Nemo::Exists key(%s) return %s\n", it->c_str(), s.ToString().c_str());
+      if (s.ok()) {
+        (*res)++;
+      } else if (!s.IsNotFound()) {
+        return s;
+      }
+    }
+
+    //printf ("Nemo::Exists return ok, number is %ld\n", *res);
+    return Status::OK();
+}
+
+Status Nemo::ExistsSingleKey(const std::string &key) {
+    Status s;
+    std::string val;
+    s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
+    if (s.ok() || !s.IsNotFound()) {
+        return s;
+    }
+
+    int64_t len = HLen(key);
+    if (len > 0) {
+      return Status::OK();
+    }
+
+    s = LLen(key, &len);
+    if (s.ok() || !s.IsNotFound()) {
+      return s;
+    }
+
+    len = ZCard(key);
+    if (len > 0) {
+      return Status::OK();
+    }
+
+    len = SCard(key);
+    if (len > 0) {
+      return Status::OK();
+    }
+
+    return Status::NotFound();
+}

@@ -88,6 +88,7 @@ public:
     Status Persist(const std::string &key, int64_t *res);
     Status Expireat(const std::string &key, const int32_t timestamp, int64_t *res);
     Status Type(const std::string &key, std::string* type);
+    Status Exists(const std::vector<std::string> &key, int64_t* res);
 
     // =================KV=====================
     Status Set(const std::string &key, const std::string &val, const int32_t ttl = 0);
@@ -259,6 +260,8 @@ private:
     Status AddBGTask(const BGTask& task);
     Status CompactKey(const DBType type, const rocksdb::Slice& key);
     Status StartBGThread();
+
+    Status ExistsSingleKey(const std::string &key);
 
     Status KDel(const std::string &key, int64_t *res);
     Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
