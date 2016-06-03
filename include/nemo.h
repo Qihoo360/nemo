@@ -111,6 +111,17 @@ public:
 
     Status Keys(const std::string &pattern, std::vector<std::string>& keys);
 
+    // ==============BITMAP=====================
+    //TODO INT* instead of int&
+    Status BitSet(const std::string &key, const std::int64_t offset, const std::int64_t on, std::int64_t* res);
+    Status BitGet(const std::string &key, const std::int64_t offset, std::int64_t* res);
+    Status BitCount(const std::string &key, std::int64_t* res);
+    Status BitCount(const std::string &key, std::int64_t start_offset, std::int64_t end_offset, std::int64_t* res);
+    Status BitPos(const std::string &key, const int64_t bit, std::int64_t* res);
+    Status BitPos(const std::string &key, const int64_t bit, const std::int64_t start_offset, std::int64_t* res);
+    Status BitPos(const std::string &key, const int64_t bit, const std::int64_t start_offset, const std::int64_t end_offset, std::int64_t* res);
+    Status BitOp(BitOpType op, const std::string &dest_key, const std::vector<std::string>& src_keys, int64_t* result_length);
+
     // used only for bada_kv
     Status SetWithExpireAt(const std::string &key, const std::string &val, const int32_t timestamp = 0);
 
@@ -339,6 +350,9 @@ private:
 
     Status ZDressZScoreforZSet(const std::string& key, int* count);
     Status ZDressZSetforZScore(const std::string& key, int* count);
+
+    std::tuple<int64_t, int64_t> BitOpGetSrcValue(const std::vector<std::string> &src_keys, std::vector<std::string> &src_values);
+    std::string BitOpOperate(BitOpType op, const std::vector<std::string> &src_values, int64_t max_len, int64_t min_len);
 
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);

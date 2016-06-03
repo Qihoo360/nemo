@@ -47,6 +47,13 @@ enum Aggregate {
   MAX
 };
 
+enum BitOpType {
+    kBitOpNot = 1,
+    kBitOpAnd = 2,
+    kBitOpOr = 3,
+    kBitOpXor = 4,
+    kBitOpDefault = 5
+};
 struct KV {
     std::string key;
     std::string val;
@@ -76,6 +83,7 @@ struct SM {
     double score;
     std::string member;
 };
+
 
 namespace DataType {
     static const char kKv        = 'k';
