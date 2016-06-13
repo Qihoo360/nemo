@@ -211,6 +211,8 @@ public:
     Status ScanKeyNum(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kType, uint64_t &num);
     Status ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t &num);
     
+    Status GetUsage(const std::string& type, uint64_t *result);
+
     rocksdb::DBWithTTL* GetDBByType(const std::string& type); 
     
     /* Meta */
@@ -336,6 +338,12 @@ private:
 
     /* Meta */
     char GetMetaPrefix(DBType type);
+
+    // GetProperty of 5 DBs
+    uint64_t GetProperty(const std::string &property);
+    // Get estimate RecordMutex memory usage
+    uint64_t GetLockUsage();
+
     // Scan metas on given db
     Status ScanDBMetas(std::unique_ptr<rocksdb::DBWithTTL> &db, DBType type,
         const std::string &pattern, std::map<std::string, MetaPtr>& metas);
@@ -356,6 +364,7 @@ private:
 
     std::tuple<int64_t, int64_t> BitOpGetSrcValue(const std::vector<std::string> &src_keys, std::vector<std::string> &src_values);
     std::string BitOpOperate(BitOpType op, const std::vector<std::string> &src_values, int64_t max_len, int64_t min_len);
+
 
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);

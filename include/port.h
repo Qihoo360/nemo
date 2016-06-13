@@ -157,17 +157,19 @@ class RefMutex {
 
 class RecordMutex {
 public:
-  RecordMutex() {};
+  RecordMutex() : charge_(0) {}
   ~RecordMutex();
 
   void Lock(const std::string &key);
   void Unlock(const std::string &key);
+  int64_t GetUsage();
 
 private:
 
   Mutex mutex_;
 
   std::unordered_map<std::string, RefMutex *> records_;
+  int64_t charge_;
 
   // No copying
   RecordMutex(const RecordMutex&);

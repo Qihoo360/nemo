@@ -703,3 +703,59 @@ Status Nemo::StartBGThread() {
 
   return Status::OK();
 }
+
+uint64_t Nemo::GetProperty(const std::string &property) {
+  uint64_t result = 0;
+  char *pEnd;
+  std::string out;
+
+  kv_db_->GetProperty(property, &out);
+  result += std::strtoull(out.c_str(), &pEnd, 10);
+  hash_db_->GetProperty(property, &out);
+  result += std::strtoull(out.c_str(), &pEnd, 10);
+  zset_db_->GetProperty(property, &out);
+  result += std::strtoull(out.c_str(), &pEnd, 10);
+  set_db_->GetProperty(property, &out);
+  result += std::strtoull(out.c_str(), &pEnd, 10);
+  list_db_->GetProperty(property, &out);
+  result += std::strtoull(out.c_str(), &pEnd, 10);
+
+  //printf ("cur-size-all-mem-tables: (%s)\n", out.c_str());
+  return result;
+}
+
+uint64_t Nemo::GetLockUsage() {
+  int64_t result = 0;
+  result += mutex_hash_record_.GetUsage();
+  result += mutex_zset_record_.GetUsage();
+  result += mutex_set_record_.GetUsage();
+  result += mutex_list_record_.GetUsage();
+
+  return result;
+}
+
+Status Nemo::GetUsage(const std::string& type, uint64_t *result) {
+  *result = 0;
+
+//  rocksdb::BlockBasedTableOptions table_options;
+//  *result = table_options.block_cache->GetUsage();
+//  printf ("block_cache usage:%lu\n", *result);
+//  *result = table_options.block_cache->GetPinnedUsage();
+//  printf ("block_cache pinned usage:%lu\n", *result);
+
+  //kv_db_->GetProperty("rocksdb.estimate-table-readers-mem", &out);
+  //printf ("table_readers: (%s)\n", out.c_str());
+
+  // Rocksdb part
+  if (type == USAGE_TYPE_ALL || type == USAGE_TYPE_ROCKSDB || type == USAGE_TYPE_ROCKSDB_MEMTABLE) {
+    *result += GetProperty("rocksdb.cur-size-all-mem-tables");
+  }
+  if (type == USAGE_TYPE_ALL || type == USAGE_TYPE_ROCKSDB || type == USAGE_TYPE_ROCKSDB_TABLE_READER) {
+    *result += GetProperty("rocksdb.estimate-table-readers-mem");
+  }
+  if (type == USAGE_TYPE_ALL || type == USAGE_TYPE_NEMO) {
+    *result += GetLockUsage(); 
+  }
+
+  return Status::OK();
+}

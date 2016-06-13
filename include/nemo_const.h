@@ -34,6 +34,14 @@ enum OPERATION {
   kCLEAN_ALL,
 };
 
+// Usage Type
+const std::string USAGE_TYPE_ALL = "all";
+const std::string USAGE_TYPE_NEMO = "nemo";
+const std::string USAGE_TYPE_ROCKSDB = "rocksdb";
+const std::string USAGE_TYPE_ROCKSDB_MEMTABLE = "rocksdb.memtable";
+//const std::string USAGE_TYPE_ROCKSDB_BLOCK_CACHE = "rocksdb.block_cache";
+const std::string USAGE_TYPE_ROCKSDB_TABLE_READER = "rocksdb.table_reader";
+
 const uint32_t KEY_MAX_LENGTH = 255;
 
 enum Position {

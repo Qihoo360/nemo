@@ -1733,6 +1733,21 @@ int main()
     s = n->Exists(keys, &llen);
     log_info("Test Exists(5 type same key) return %s, exists number=%ld", s.ToString().c_str(), llen);
 
+    /*
+     *  Test GetUsage
+     */
+    log_info("======Test GetUsage======");
+    uint64_t usage;
+    s = n->GetUsage(USAGE_TYPE_ALL, &usage);
+    log_info("Usage all:%lu", usage);
+    s = n->GetUsage(USAGE_TYPE_ROCKSDB, &usage);
+    log_info("->Usage rocksdb:%lu", usage);
+    s = n->GetUsage(USAGE_TYPE_ROCKSDB_MEMTABLE, &usage);
+    log_info("->->Usage rocksdb_mem  :%lu", usage);
+    s = n->GetUsage(USAGE_TYPE_ROCKSDB_TABLE_READER, &usage);
+    log_info("->->Usage rocksdb_table:%lu", usage);
+    s = n->GetUsage(USAGE_TYPE_NEMO, &usage);
+    log_info("->Usage nemo:   %lu", usage);
 
     delete n;
 

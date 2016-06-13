@@ -107,6 +107,15 @@ RecordMutex::~RecordMutex() {
   mutex_.Unlock();
 }
 
+int64_t RecordMutex::GetUsage() {
+  int64_t size = 0;
+  mutex_.Lock();
+  size = charge_;
+  mutex_.Unlock();
+  return size;
+}
+
+const int64_t kEstimatePairSize = sizeof(std::string) + sizeof(RefMutex) + sizeof(std::pair<std::string, void *>);
 
 void RecordMutex::Lock(const std::string &key) {
   mutex_.Lock();
@@ -126,6 +135,7 @@ void RecordMutex::Lock(const std::string &key) {
 
     records_.insert(std::make_pair(key, ref_mutex));
     ref_mutex->Ref();
+    charge_ += kEstimatePairSize + key.size();
     mutex_.Unlock();
 
     ref_mutex->Lock();
@@ -142,6 +152,7 @@ void RecordMutex::Unlock(const std::string &key) {
     RefMutex *ref_mutex = it->second;
 
     if (ref_mutex->IsLastRef()) {
+      charge_ -= kEstimatePairSize + key.size();
       records_.erase(it);
     }
     ref_mutex->Unlock();
