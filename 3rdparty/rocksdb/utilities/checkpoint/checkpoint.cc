@@ -18,6 +18,7 @@
 #include <inttypes.h>
 #include <algorithm>
 #include <string>
+#include <atomic>
 #include "db/filename.h"
 #include "rocksdb/db.h"
 #include "rocksdb/env.h"
@@ -28,7 +29,7 @@ namespace rocksdb {
 class CheckpointImpl : public Checkpoint {
  public:
   // Creates a Checkpoint object to be used for creating openable sbapshots
-  explicit CheckpointImpl(DB* db) : db_(db) {}
+  explicit CheckpointImpl(DB* db) : db_(db), stop_(false) {}
 
   // Builds an openable snapshot of RocksDB on the same disk, which
   // accepts an output directory on the same disk, and under the directory
@@ -39,9 +40,17 @@ class CheckpointImpl : public Checkpoint {
   // The directory will be an absolute path
   using Checkpoint::CreateCheckpoint;
   virtual Status CreateCheckpoint(const std::string& checkpoint_dir) override;
+  virtual Status GetCheckpointFiles(std::vector<std::string> &live_files, uint64_t &manifest_file_size, uint64_t &sequence_number) override;
+  virtual Status CreateCheckpointWithFiles(const std::string& checkpoint_dir, std::vector<std::string> &live_files,
+      uint64_t manifest_file_size, uint64_t sequence_number) override;
+  virtual void StopCreate() override {
+    stop_.store(true, std::memory_order_release);
+  }
 
  private:
   DB* db_;
+  std::atomic<bool> stop_;
+
 };
 
 Status Checkpoint::Create(DB* db, Checkpoint** checkpoint_ptr) {
@@ -53,26 +62,47 @@ Status Checkpoint::CreateCheckpoint(const std::string& checkpoint_dir) {
   return Status::NotSupported("");
 }
 
-// Builds an openable snapshot of RocksDB
+Status Checkpoint::GetCheckpointFiles(std::vector<std::string> &live_files, uint64_t &manifest_file_size, uint64_t &sequence_number) {
+  return Status::NotSupported("");
+}
+
+Status Checkpoint::CreateCheckpointWithFiles(const std::string& checkpoint_dir, std::vector<std::string> &live_files,
+      uint64_t manifest_file_size, uint64_t sequence_number) {
+  return Status::NotSupported("");
+}
+
 Status CheckpointImpl::CreateCheckpoint(const std::string& checkpoint_dir) {
-  Status s;
+  // Builds an openable snapshot of RocksDB
   std::vector<std::string> live_files;
-  uint64_t manifest_file_size = 0;
-  uint64_t sequence_number = db_->GetLatestSequenceNumber();
-  bool same_fs = true;
-
-  if (db_->GetEnv()->FileExists(checkpoint_dir)) {
-    return Status::InvalidArgument("Directory exists");
+  uint64_t manifest_file_size, sequence_number;
+  Status s = GetCheckpointFiles(live_files, manifest_file_size, sequence_number);
+  if (s.ok()) {
+    s = CreateCheckpointWithFiles(checkpoint_dir, live_files, sequence_number, sequence_number);
   }
+  return s;
+}
 
-  s = db_->DisableFileDeletions();
+
+Status CheckpointImpl::GetCheckpointFiles(std::vector<std::string> &live_files, uint64_t &manifest_file_size, uint64_t &sequence_number) {
+  sequence_number = db_->GetLatestSequenceNumber();
+
+  Status s = db_->DisableFileDeletions();
   if (s.ok()) {
     // this will return live_files prefixed with "/"
     s = db_->GetLiveFiles(live_files, &manifest_file_size, true);
   }
+
   if (!s.ok()) {
     db_->EnableFileDeletions(false);
-    return s;
+  }
+  return s;
+}
+
+Status CheckpointImpl::CreateCheckpointWithFiles(const std::string& checkpoint_dir, std::vector<std::string> &live_files,
+    uint64_t manifest_file_size, uint64_t sequence_number) {
+  bool same_fs = true;
+  if (db_->GetEnv()->FileExists(checkpoint_dir)) {
+    return Status::InvalidArgument("Directory exists");
   }
 
   Log(db_->GetOptions().info_log,
@@ -82,10 +112,14 @@ Status CheckpointImpl::CreateCheckpoint(const std::string& checkpoint_dir) {
   std::string full_private_path = checkpoint_dir + ".tmp";
 
   // create snapshot directory
-  s = db_->GetEnv()->CreateDir(full_private_path);
+  Status s = db_->GetEnv()->CreateDir(full_private_path);
 
   // copy/hard link live_files
   for (size_t i = 0; s.ok() && i < live_files.size(); ++i) {
+    if (stop_.load(std::memory_order_acquire)) {
+      s = Status::Incomplete("Backup stopped");
+      break;
+    }
     uint64_t number;
     FileType type;
     bool ok = ParseFileName(live_files[i], &number, &type);
@@ -163,6 +197,7 @@ Status CheckpointImpl::CreateCheckpoint(const std::string& checkpoint_dir) {
 
   return s;
 }
+
 }  // namespace rocksdb
 
 #endif  // ROCKSDB_LITE
