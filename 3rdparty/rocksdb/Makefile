@@ -10,6 +10,7 @@ CLEAN_FILES = # deliberately empty, so we can append below.
 CFLAGS += ${EXTRA_CFLAGS}
 #CFLAGS += '-g -gstabs+'
 CXXFLAGS += ${EXTRA_CXXFLAGS}
+CXXFLAGS += '-mno-avx'
 #CXXFLAGS += '-g -gstabs+'
 LDFLAGS += $(EXTRA_LDFLAGS)
 MACHINE ?= $(shell uname -m)
