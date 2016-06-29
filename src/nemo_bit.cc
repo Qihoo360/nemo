@@ -268,7 +268,8 @@ Status Nemo::BitPos(const std::string &key, const int64_t bit_val, std::int64_t 
         if (end_offset < 0) {
             end_offset = end_offset + value_length;
         }
-        if (end_offset > value_str.length() - 1) {
+        // converting to int64_t just avoid warning 
+        if (end_offset > (int64_t)value_str.length() - 1) {
             end_offset = value_length - 1;
         }
         if (end_offset < 0) {
