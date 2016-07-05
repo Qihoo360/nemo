@@ -846,9 +846,28 @@ bool TtlCompactionFilter::Filter(int level, const Slice& key, const Slice& old_v
       return true;
     }
   } else {
+
+    // TOOL use: we do not-
     // reserve meta key for hash, list, zset, set
     if (key[0] == meta_prefix_) {
+      // meta not exist or stale
+      int meta_ts = DecodeFixed32(old_val.data() + old_val.size() - DBImpl::kTSLength);
+      if (meta_ts == 1 || DBWithTTLImpl::IsStale(meta_ts, 0, env_)) {
+        //printf ("Filter meta key(%s), ts=%u  caz timeout.\n", key.ToString().c_str(), meta_ts);
+        return true;
+      }
+
+      // length is 0
+      int64_t len = *((int64_t *)old_val.data());
+      if (len == 0) {
+        //printf ("Filter meta key(%s), old_val(%s) caz length.\n", key.ToString().c_str(), old_val.ToString().c_str());
+        //char ch;
+        //scanf ("%c", &ch);
+        return true;
+      }
+
       return false;
+      //printf ("Filter meta key(%s), old_val(%s) failed.\n", key.ToString().c_str(), old_val.ToString().c_str());
     }
 
     // reserve the separator of meta and data for multi-structures
@@ -856,7 +875,7 @@ bool TtlCompactionFilter::Filter(int level, const Slice& key, const Slice& old_v
       return false;
     }
 
-    if (DBWithTTLImpl::IsStale(meta_timestamp_, 0, env_)) {
+    if (meta_timestamp_ == 1 || DBWithTTLImpl::IsStale(meta_timestamp_, 0, env_)) {
       return true;
     }
 

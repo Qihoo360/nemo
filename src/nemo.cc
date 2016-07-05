@@ -67,6 +67,8 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
    }
 
    //open_options_.max_bytes_for_level_base = (128 << 20);
+   open_options_.disable_auto_compactions = true;
+   open_options_.stats_dump_period_sec = 300;
 
    rocksdb::DBWithTTL *db_ttl;
 

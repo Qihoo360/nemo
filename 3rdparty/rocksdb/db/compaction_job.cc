@@ -747,8 +747,12 @@ Status CompactionJob::ProcessKeyValueCompaction(int64_t* imm_micros,
           // Meta key is consist of meta_prefix(1 byte) + meta_key;
           // Data key is consist of data_prefix(1 byte) + meta_len(1 byte, uint8)
           //      + meta_key(meta_len bytes).
+          
+          //
+          // @@@TOOL used only, we handle meta key !!!!!
+          //
           // We do not handle these two kind of member when multi-structures(hash, list, zset, set);
-          //    1) meta key;
+          //    --1) meta key;---
           //    2) the separator of meta and data.
           if (meta_prefix != kMetaPrefix_KV 
               && ikey.user_key[0] != meta_prefix && ikey.user_key.size() != 1) {
@@ -773,6 +777,10 @@ Status CompactionJob::ProcessKeyValueCompaction(int64_t* imm_micros,
               if (st.ok()) {
                 compaction_filter->meta_version_ = DecodeFixed32(meta_value.data() + meta_value.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
                 compaction_filter->meta_timestamp_ = DecodeFixed32(meta_value.data() + meta_value.size() - DBImpl::kTSLength);
+              } else {
+                //printf ("Get meta(%s) failed(%s), we use INT_MAX\n", meta_key.c_str(), st.ToString().c_str());
+                compaction_filter->meta_version_ = INT_MAX;  // remove
+                compaction_filter->meta_timestamp_ = 1; // stale
               }
             }
           }
