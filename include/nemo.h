@@ -111,6 +111,7 @@ public:
     Status Scan(int64_t cursor, std::string &pattern, int64_t count, std::vector<std::string>& keys, int64_t* cursor_ret);
 
     Status Keys(const std::string &pattern, std::vector<std::string>& keys);
+    rocksdb::Iterator* KeyIterator(const char kType); 
 
     // ==============BITMAP=====================
     //TODO INT* instead of int&

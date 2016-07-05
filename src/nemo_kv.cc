@@ -735,6 +735,38 @@ Status Nemo::ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapsho
     return Status::OK();
 }
 
+// For miragting pika to redis
+rocksdb::Iterator* Nemo::KeyIterator(const char kType) {
+  rocksdb::ReadOptions iterate_options;
+
+  iterate_options.fill_cache = false;
+    
+  rocksdb::Iterator *it;
+  
+  if(kType == DataType::kKv) {
+    it = kv_db_->NewIterator(iterate_options);
+
+  } else if(kType == DataType::kHSize) {
+    it = hash_db_->NewIterator(iterate_options);
+
+  } else if(kType == DataType::kLMeta) {
+    it = list_db_->NewIterator(iterate_options);
+
+  } else if(kType == DataType::kZSize) {
+    it = zset_db_->NewIterator(iterate_options);
+
+  } else if(kType == DataType::kSSize) {
+    it = set_db_->NewIterator(iterate_options);
+  }
+
+  std::string key_start = "a";
+  key_start[0] = kType;
+  it->Seek(key_start);
+
+  return it;
+}
+
+
 // String APIs
 
 Status Nemo::Keys(const std::string &pattern, std::vector<std::string>& keys) {
