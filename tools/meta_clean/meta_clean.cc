@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
   nemo::Options options;
   options.target_file_size_base = 20 * 1024 * 1024;
   options.target_file_size_base = 20 * 1024 * 1024;
-  option.write_buffer_size = 256 * 1024 * 1024;
+  options.write_buffer_size = 256 * 1024 * 1024;
 
   Nemo *n = new Nemo(argv[1], options); 
 
