@@ -210,6 +210,7 @@ public:
     //Status ScanKeyNum(std::unique_ptr<rocksdb::DB> &db, const char kType, uint64_t &num);
     Status ScanKeyNum(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kType, uint64_t &num);
     Status ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t &num);
+    Status StopScanKeyNum();
     
     Status GetUsage(const std::string& type, uint64_t *result);
 
@@ -368,6 +369,8 @@ private:
 
     Nemo(const Nemo &rval);
     void operator =(const Nemo &rval);
+
+    std::atomic<bool> scan_keynum_exit_;
 
     pthread_mutex_t mutex_dump_;
     std::string dump_path_;

@@ -20,6 +20,7 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
     save_flag_(false),
     bgtask_flag_(true),
     bg_cv_(&mutex_bgtask_),
+    scan_keynum_exit_(false),
     dump_to_terminate_(false) {
 
    pthread_mutex_init(&(mutex_cursors_), NULL);

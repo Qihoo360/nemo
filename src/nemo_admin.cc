@@ -219,7 +219,6 @@ struct SaveArgs {
       : p(_p), key_type(_key_type), snapshot(_snapshot) {};
 };
 
-
 void* call_BGSaveSpecify(void *arg) {
 
   Nemo* p = (Nemo*)(((SaveArgs*)arg)->p);
@@ -406,11 +405,15 @@ Status Nemo::ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t
 
   num = 0;
   it->SeekToFirst();
-  for (; it->Valid(); it->Next()) {
+  for (; it->Valid() && !scan_keynum_exit_; it->Next()) {
     num++;
     //printf ("ScanDB key=(%s) value=(%s) val_size=%u num=%lu\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
     //       it->value().ToString().size(), num);
   }
+
+//  if (scan_keynum_exit_ == true) {
+//    printf ("Stop flag so we exit TTL\n");
+//  }
 
   db->ReleaseSnapshot(iterate_options.snapshot);
   delete it;
@@ -430,7 +433,7 @@ Status Nemo::ScanKeyNum(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kTyp
   it->Seek(key_start);
 
   num = 0;
-  for (; it->Valid(); it->Next()) {
+  for (; it->Valid() && !scan_keynum_exit_; it->Next()) {
     if (kType != it->key().ToString().at(0)) {
       break;
     }
@@ -438,6 +441,10 @@ Status Nemo::ScanKeyNum(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kTyp
     //printf ("ScanDB key=(%s) value=(%s) val_size=%u num=%lu\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
     //       it->value().ToString().size(), num);
   }
+
+//  if (scan_keynum_exit_ == true) {
+//    printf ("Stop flag so we exit TTL\n");
+//  }
 
   db->ReleaseSnapshot(iterate_options.snapshot);
   delete it;
@@ -466,21 +473,41 @@ Status Nemo::GetSpecifyKeyNum(const std::string type, uint64_t &num) {
 Status Nemo::GetKeyNum(std::vector<uint64_t>& nums) {
   uint64_t num;
 
-  ScanKeyNumWithTTL(kv_db_, num);
-  nums.push_back(num);
+  if (!scan_keynum_exit_) {
+    ScanKeyNumWithTTL(kv_db_, num);
+    nums.push_back(num);
+  }
 
-  ScanKeyNum(hash_db_, DataType::kHSize, num);
-  nums.push_back(num);
+  if (!scan_keynum_exit_) {
+    ScanKeyNum(hash_db_, DataType::kHSize, num);
+    nums.push_back(num);
+  }
 
-  ScanKeyNum(list_db_,  DataType::kLMeta, num);
-  nums.push_back(num);
+  if (!scan_keynum_exit_) {
+    ScanKeyNum(list_db_,  DataType::kLMeta, num);
+    nums.push_back(num);
+  }
 
-  ScanKeyNum(zset_db_, DataType::kZSize, num);
-  nums.push_back(num);
+  if (!scan_keynum_exit_) {
+    ScanKeyNum(zset_db_, DataType::kZSize, num);
+    nums.push_back(num);
+  }
 
-  ScanKeyNum(set_db_, DataType::kSSize, num);
-  nums.push_back(num);
+  if (!scan_keynum_exit_) {
+    ScanKeyNum(set_db_, DataType::kSSize, num);
+    nums.push_back(num);
+  }
 
+  if (scan_keynum_exit_) {
+    scan_keynum_exit_ = false;
+    return Status::Corruption("exit");
+  }
+  return Status::OK();
+}
+
+Status Nemo::StopScanKeyNum() {
+  sleep(1);
+  scan_keynum_exit_ = true;
   return Status::OK();
 }
 
