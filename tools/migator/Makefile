@@ -5,7 +5,6 @@ OBJECT = p2r
 
 LIB_PATH = -L ../../output/lib \
 					 -L ../../../pink/output/lib/ \
-					 
 			
 LIBS = -Wl,-Bstatic -lnemo -lrocksdb\
 	   -Wl,-Bdynamic -lpthread\
@@ -34,8 +33,11 @@ all: $(OBJECT)
 	rm *.o
 
 #$(OBJECT): $(OBJECT).o
-p2r : p2r.o
+p2r : p2r.o worker_thread.o
 	$(GCC) $(CPPFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
+
+#worker_thread : worker_thread.o
+#	$(GCC) $(CPPFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
 
 %.o : %.cc
 	$(GCC) $(CPPFLAGS) -c $< -o $@ $(INCLUDE_PATH)
