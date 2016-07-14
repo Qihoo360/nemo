@@ -22,7 +22,7 @@ public:
 
   void Schedul(const std::string &key, char type);
   int64_t num() {
-    pink::MutexLock l(&num_mutex_);
+    // pink::MutexLock l(&num_mutex_);
     return num_;
   }
 
@@ -55,7 +55,7 @@ private:
   pink::Mutex num_mutex_;
 
   void PlusNum() {
-    pink::MutexLock l(&num_mutex_);
+    // pink::MutexLock l(&num_mutex_);
     ++num_;
   }
   virtual void *ThreadMain();

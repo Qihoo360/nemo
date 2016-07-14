@@ -78,20 +78,11 @@ void *SenderThread::ThreadMain() {
       while (1) {
         {
           pink::MutexLock l(&buf_mutex_);
-          // log_info("get lock");
 
-          // log_info("buf_len = %d", buf_len_);
           while (buf_len_ == 0) {
-            // log_info("wait");
             buf_r_cond_.Wait();
-            // log_info("weak");
-          }
-          // while (buf_len_ == kThreshold) {
-            // buf_r_cond_.Wait();
-          /* } */
-          // log_info("write-----------------------");
+          } 
           int nwritten = write(fd, buf_ + buf_pos_, buf_len_);
-          // log_info("written %d", nwritten);
           if (nwritten == -1) {
             if (errno != EAGAIN && errno != EINTR) {
               log_err("Error writting to the server : %s", strerror(errno));
@@ -106,11 +97,9 @@ void *SenderThread::ThreadMain() {
           loop_nwritten += nwritten;
           buf_w_cond_.Signal();
         
-          // log_info("buf_pos=%u, buf_len=%u",buf_pos_, buf_len_);
           if (buf_len_ == 0) {
             buf_pos_ = 0; // reset buf_pos_
           } else {
-            // log_info("can't accpet more data");
             break;  // can't accpet more data
           }
 

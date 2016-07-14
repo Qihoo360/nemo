@@ -34,7 +34,7 @@ all: $(OBJECT)
 
 #$(OBJECT): $(OBJECT).o
 #p2r : p2r.o worker_thread.o parse_thread.o sender_thread.o
-p2r : p2r.o worker_thread.o sender_thread.o parse_thread.o 
+p2r : p2r.o sender_thread.o parse_thread.o 
 	$(GCC) $(CPPFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
 
 
