@@ -1,76 +1,19 @@
 #include <iostream>
 #include <string>
 #include <sstream>
-#include <sys/poll.h>
 #include "redis_cli.h"
 #include "nemo.h"
-#include "nemo_const.h"
-
-#include "worker_thread.h"
+#include "parse_thread.h"
+#include "sender_thread.h"
 
 const int64_t kTestPoint = 100000;
 const int64_t kTestNum = 3800000;
-// const int64_t kTestNum = ULLONG_MAX;
+int times = 1; 
 
-int fd;
-int buf_index = 0;
+const int num_thread = 2; // const int64_t kTestNum = ULLONG_MAX;
+
 int thread_index = 0;
-const int NUM_WORKER = 2;
-//
-// int num = 0;
 
-pink::RedisCli *cli;
-nemo::Nemo *db;
-std::vector<WorkerThread*> workers;
-
-std::string GetKey(const rocksdb::Iterator *it);
-
-void MigrateDB(char type);
-void DispatchKey(const std::string &key, char type);
-void StopWorkers();
-
-void DealKey(const std::string &key,char type);
-void DealHKey(const std::string &key);
-void DealSKey(const std::string &key);
-void DealCmd(const std::string &cmd);
-
-std::string GetKey(const rocksdb::Iterator *it) {
-  return it->key().ToString().substr(1);
-}
-
-void DispatchKey(const std::string &key,char type) {
-  workers[thread_index]->Schedul(key, type);
-  thread_index = (thread_index + 1) % NUM_WORKER;
-  log_info("thread_index : %d", thread_index);
-}
-
-void StopWorkers() {
-  for (int i = 0; i < NUM_WORKER; i++) {
-    workers[i]->Stop();
-  }
-}
-
-void MigrateDB(char type) {
-  rocksdb::Iterator *keyIter = db->KeyIterator(type);
-  for(; keyIter->Valid(); keyIter->Next()) {
-    std::string key = GetKey(keyIter);
-    if(key.length() == 0) break;
-
-    // stop program
-    // if(num >= kTestNum) {
-    //   StopWorkers();
-    //   return;
-    // }
-    DispatchKey(key, type);
-    log_info("DispatchKey");
-  }
-}
-
-
-void Usage() {
-  // std::cout << "Usage: " << std::endl;
-  // std::cout << "./p2r db_path ip port" << std::endl;
-}
 
 class FunctionTimer {
 public:
@@ -99,9 +42,24 @@ private:
 };
 
 
+std::vector<ParseThread*> parsers;
+std::vector<SenderThread*> senders;
+nemo::Nemo *db;
+
+std::string GetKey(const rocksdb::Iterator *it);
+void MigrateDB(char type);
+void DispatchKey(const std::string &key, char type);
+void StopThreads();
+int64_t GetNum(); 
+
+void Usage() {
+  std::cout << "Usage: " << std::endl;
+  std::cout << "./p2r db_path ip port" << std::endl;
+}
+
 int main(int argc, char **argv)
 {
-  // for coding
+  // for coding test
   // string db_path = "/home/yinshucheng/pika/output/db/";
   std::string db_path = "/home/yinshucheng/db2/";
   std::string ip = "127.0.0.1";
@@ -128,38 +86,87 @@ int main(int argc, char **argv)
   option.target_file_size_base = 20 * 1024 * 1024; // 20M
   db = new nemo::Nemo(db_path ,option);
 
+  pink::Status pink_s;
 
-  // init WorkerThread and init buf
-  for (int i = 0; i < NUM_WORKER; i++) {
-     // init redis-cli
-    pink::RedisCli *cli;
-    cli = new pink::RedisCli();
+  // init ParseThread and SenderThread 
+  for (int i = 0; i < num_thread; i++) {
+     // init a redis-cli
+    pink::RedisCli *cli = new pink::RedisCli();
     cli->set_connect_timeout(3000);
-    pink::Status pink_s;
     pink_s = cli->Connect(ip, port);
     if(!pink_s.ok()) {
       log_err("cann't connect %s:%d:%s", ip.data(), port, pink_s.ToString().data());
-     /*  std::cout << pink_s.ToString() << std::endl; */
-      // std::cout << "ip : " << ip << std::endl;
-      /* std::cout << "port : " << port << std::endl; */
-    return -1;
+      Usage();
+      return -1;
     }
-    
-    workers.push_back(new WorkerThread(db, cli));
+    SenderThread *sender = new SenderThread(cli);
+
+    senders.push_back(sender);
+    parsers.push_back(new ParseThread(db, sender));
   }
 
   // start threads
-  for (int i = 0; i < NUM_WORKER; i++) {
-    workers[i]->StartThread();
+  for (int i = 0; i < num_thread; i++) {
+    parsers[i]->StartThread();
+    senders[i]->StartThread();
   }
 
   MigrateDB(nemo::DataType::kHSize);
-
-  log_info("over");
-  // pthread_t consumer;
-  // pthread_create(&consumer, NULL, PipeMode, NULL);
 
   delete db;
 
   return 0;
 }
+
+void MigrateDB(char type) {
+  FunctionTimer timer;
+  timer.Start();
+  if (type == nemo::DataType::kKv) {
+    std::string dummy_key = "";
+    DispatchKey(dummy_key, type); 
+  } else {
+    rocksdb::Iterator *keyIter = db->KeyIterator(type);
+    for(; keyIter->Valid(); keyIter->Next()) {
+      std::string key = GetKey(keyIter);
+      if (key.length() == 0) break;
+
+      DispatchKey(key, type);
+      
+      int64_t num = GetNum();
+      if (num >= kTestPoint * times) {
+        times++;
+        log_info("has send %lu", num);
+      }
+      if (num >= kTestNum) {
+        StopThreads();
+      }
+    }
+  }
+  timer.End();
+  log_info("DataType:%c Scan&Dispatch %d",type,  timer.TotalTime());
+}
+
+std::string GetKey(const rocksdb::Iterator *it) {
+  return it->key().ToString().substr(1);
+}
+
+void DispatchKey(const std::string &key,char type) {
+  parsers[thread_index]->Schedul(key, type);
+  thread_index = (thread_index + 1) % num_thread;
+}
+
+void StopThreads() {
+  for (int i = 0; i < num_thread; i++) {
+    // parsers[i]->Stop();
+  }
+}
+
+int64_t GetNum() {
+  int64_t num = 0;
+  for (int i = 0; i < num_thread; i++) {
+    num += parsers[i]->num();
+  }
+  return num;
+}
+
+

@@ -33,11 +33,10 @@ all: $(OBJECT)
 	rm *.o
 
 #$(OBJECT): $(OBJECT).o
-p2r : p2r.o worker_thread.o
+#p2r : p2r.o worker_thread.o parse_thread.o sender_thread.o
+p2r : p2r.o worker_thread.o sender_thread.o parse_thread.o 
 	$(GCC) $(CPPFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
 
-#worker_thread : worker_thread.o
-#	$(GCC) $(CPPFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
 
 %.o : %.cc
 	$(GCC) $(CPPFLAGS) -c $< -o $@ $(INCLUDE_PATH)
