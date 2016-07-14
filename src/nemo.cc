@@ -74,35 +74,40 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
    open_options_.meta_prefix = rocksdb::kMetaPrefix_KV;
    rocksdb::Status s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "kv", &db_ttl);
    if (!s.ok()) {
-     log_err("open kv db %s error %s", db_path_.c_str(), s.ToString().c_str());
+     fprintf (stderr, "[FATAL] open kv db failed, %s\n", s.ToString().c_str());
+     exit(-1);
    }
    kv_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
 
    open_options_.meta_prefix = rocksdb::kMetaPrefix_HASH;
    s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "hash", &db_ttl);
    if (!s.ok()) {
-     log_err("open hash db %s error %s", db_path_.c_str(), s.ToString().c_str());
+     fprintf (stderr, "[FATAL] open hash db failed, %s\n", s.ToString().c_str());
+     exit(-1);
    }
    hash_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
 
    open_options_.meta_prefix = rocksdb::kMetaPrefix_LIST;
    s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "list", &db_ttl);
    if (!s.ok()) {
-     log_err("open list db %s error %s", db_path_.c_str(), s.ToString().c_str());
+     fprintf (stderr, "[FATAL] open list db failed, %s\n", s.ToString().c_str());
+     exit(-1);
    }
    list_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
 
    open_options_.meta_prefix = rocksdb::kMetaPrefix_ZSET;
    s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "zset", &db_ttl);
    if (!s.ok()) {
-     log_err("open zset db %s error %s", db_path_.c_str(), s.ToString().c_str());
+     fprintf (stderr, "[FATAL] open zset db failed, %s\n", s.ToString().c_str());
+     exit(-1);
    }
    zset_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
 
    open_options_.meta_prefix = rocksdb::kMetaPrefix_SET;
    s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "set", &db_ttl);
    if (!s.ok()) {
-     log_err("open set db %s error %s", db_path_.c_str(), s.ToString().c_str());
+     fprintf (stderr, "[FATAL] open set db failed, %s\n", s.ToString().c_str());
+     exit(-1);
    }
    set_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
 
@@ -117,8 +122,9 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
    s = StartBGThread();
    if (!s.ok()) {
      log_err("start bg thread error: %s", s.ToString().c_str());
+     fprintf (stderr, "[FATAL] start bg thread failed, %s\n", s.ToString().c_str());
+     exit(-1);
    }
-
 };
 
 }   // namespace nemo
