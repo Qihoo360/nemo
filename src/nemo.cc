@@ -53,6 +53,10 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
    if (!options.compression) {
      open_options_.compression = rocksdb::CompressionType::kNoCompression;
    }
+   if (options.max_open_files > 0) {
+     open_options_.max_open_files = options.max_open_files;
+   }
+
    if (options.target_file_size_base > 0) {
      open_options_.target_file_size_base = (uint64_t)options.target_file_size_base;
    }

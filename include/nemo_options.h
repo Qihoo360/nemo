@@ -19,7 +19,7 @@ struct Options {
 
 	Options() : create_if_missing(true),
         write_buffer_size(4 * 1024 * 1024),
-        max_open_files(200),
+        max_open_files(5000),
         use_bloomfilter(true),
         write_threads(71),
         target_file_size_base(2 * 1024 * 1024),

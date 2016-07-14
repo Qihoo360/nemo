@@ -764,6 +764,18 @@ uint64_t Nemo::GetLockUsage() {
 Status Nemo::GetUsage(const std::string& type, uint64_t *result) {
   *result = 0;
 
+  // TODO rm
+  //std::shared_ptr<TableFactory> table_factory;
+  //const BlockBasedTableOptions& GetTableOptions() const;
+  
+//  std::shared_ptr<rocksdb::TableFactory> kv_tf = kv_db_->GetOptions().table_factory;
+//  //kv_tf->GetTableOptions();
+//  int64_t block_cache = (dynamic_cast<rocksdb::BlockBasedTableFactory *>(kv_tf))->GetTableOptions().block_cache->GetUsage();
+//  //int64_t pin_usage = kv_tf->GetTableOptions().block_cache->GetPinnedUsage();
+//  printf ("block_cache : %ld\n", block_cache);
+//  //printf ("pin_usage : %ld\n", pin_usage);
+
+
 //  rocksdb::BlockBasedTableOptions table_options;
 //  *result = table_options.block_cache->GetUsage();
 //  printf ("block_cache usage:%lu\n", *result);
