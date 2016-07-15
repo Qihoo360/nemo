@@ -9,7 +9,7 @@
 
 class ParseThread : public pink::Thread {
 public:
-  ParseThread(nemo::Nemo *db, SenderThread *sender, int full = 1024) :
+  ParseThread(nemo::Nemo *db, SenderThread *sender, int full = 100) :
     db_(db),
     sender_(sender),
     task_r_cond_(&task_mutex_),

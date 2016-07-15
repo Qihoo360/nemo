@@ -10,7 +10,7 @@ const int64_t kTestPoint = 100000;
 const int64_t kTestNum = 3800000;
 int times = 1; 
 
-const int num_thread = 4; // const int64_t kTestNum = ULLONG_MAX;
+const int num_thread = 10; // const int64_t kTestNum = ULLONG_MAX;
 
 int thread_index = 0;
 

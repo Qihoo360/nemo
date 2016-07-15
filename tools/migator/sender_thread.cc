@@ -41,15 +41,9 @@ void SenderThread::LoadCmd(const std::string &cmd) {
   while (buf_pos_ + buf_len_ + cmd.size() > kBufSize) {
     buf_w_cond_.Wait();
   }
-
-  // log_info("%s", cmd.data());
-  memcpy(buf_ + buf_pos_ + buf_len_, cmd.data(), cmd.size());
+  memcpy(buf_ + buf_pos_ + buf_len_ , cmd.data(), cmd.size());
   buf_len_ += cmd.size();
-  if (buf_len_ > kThreshold) {
-    buf_r_cond_.Signal();
-  }
-
-  // log_info("buf_len = %d", buf_len_);
+  buf_r_cond_.Signal();
 }
 
 void *SenderThread::ThreadMain() {
@@ -74,41 +68,39 @@ void *SenderThread::ThreadMain() {
     }
     if(mask & kWritable) {
       size_t loop_nwritten = 0;
-      // log_info("-----------");
       while (1) {
+        size_t len; 
         {
           pink::MutexLock l(&buf_mutex_);
-
           while (buf_len_ == 0) {
             buf_r_cond_.Wait();
           } 
-          int nwritten = write(fd, buf_ + buf_pos_, buf_len_);
-          if (nwritten == -1) {
-            if (errno != EAGAIN && errno != EINTR) {
-              log_err("Error writting to the server : %s", strerror(errno));
-              return NULL;
-            } else {
-              nwritten = 0;
-            }
-          }
+          len = buf_len_;
+        } 
+        int nwritten = write(fd, buf_ + buf_pos_, len);
+        if (nwritten == -1) {
+          if (errno != EAGAIN && errno != EINTR) {
+            log_err("Error writting to the server : %s", strerror(errno));
+            return NULL;
+          } else {
+            nwritten = 0;
+          }  
+        }
 
+        {
+          pink::MutexLock l(&buf_mutex_);
           buf_len_ -= nwritten;
           buf_pos_ += nwritten;
-          loop_nwritten += nwritten;
           buf_w_cond_.Signal();
-        
-          if (buf_len_ == 0) {
-            buf_pos_ = 0; // reset buf_pos_
-          } else {
-            break;  // can't accpet more data
-          }
 
-          // if has sent too much data
-          if (loop_nwritten > kWirteLoopMaxBYTES ) {
-            // log_info("has sent too many data");
-            break;
-          } 
-        } // unlock
+          if (buf_len_ == 0) {
+            buf_pos_ = 0;
+          }
+        }
+
+        if (loop_nwritten > kWirteLoopMaxBYTES ) {
+          break;
+        } 
       }
     } // end of writable    
   }   // end of while
