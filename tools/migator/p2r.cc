@@ -105,7 +105,7 @@ int main(int argc, char **argv)
     parsers.push_back(new ParseThread(db, sender));
   }
 
-  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
+  // migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));  
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kSSize));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));

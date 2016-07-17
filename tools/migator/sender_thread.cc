@@ -63,6 +63,7 @@ void *SenderThread::ThreadMain() {
     mask = Wait(fd, mask, 1000);
     if(mask & kReadable) {
       cli_->Recv(NULL);
+      // std::cout << "accept data from redis server" << std::endl;
     }
     if(mask & kWritable) {
       size_t loop_nwritten = 0;
@@ -70,10 +71,16 @@ void *SenderThread::ThreadMain() {
         size_t len; 
         {
           pink::MutexLock l(&buf_mutex_);
-          while (buf_len_ == 0) {
+
+          if (buf_len_ == 0) {
+            break;
+          }
+      /*     while (buf_len_ == 0) { */
             // std::cout << "empty" << std::endl;
-            buf_r_cond_.Wait();
-          } 
+            // buf_r_cond_.Wait();
+            // break;  这里不如去接受数据
+          // } 
+
           len = buf_len_;
         } 
 
@@ -100,6 +107,7 @@ void *SenderThread::ThreadMain() {
         }
 
         if (loop_nwritten > kWirteLoopMaxBYTES ) {
+          std::cout << loop_nwritten << std::endl;
           // std::cout << "too many data" << std::endl;
           break;
         } 
