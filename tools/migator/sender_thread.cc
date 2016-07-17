@@ -37,36 +37,39 @@ int SenderThread::Wait(int fd, int mask, long long milliseconds) {
 
 void SenderThread::LoadCmd(const std::string &cmd) {
   pink::MutexLock l(&buf_mutex_);
-  
-  // size_t writepoint = buf_pos_ + buf_len_ + cmd.size();
-  // bool isloop = false;
-  // while (writepoint > kBufSize) {
-    // if (writepoint % kBufSize < buf_pos_) {
-      // isloop = true;
-      // break; 
-    // } else {
-      // buf_w_cond_.Wait();
-    // }
-    // writepoint = buf_pos_ + buf_len_ + cmd.size();
-  // }
-  
-  // if (isloop) {
-    // size_t left = kBufSize - buf_len_ - buf_pos_;
-    // char []cmdbuf = cmd.data();
-    // memcpy(buf_ + buf_pos_ + buf_len_ , cmdbuf, left);
-    // memcpy(buf_, cmdbuf + left, cmd.size() - left);
-  // } else {
-    // memcpy(buf_ + buf_pos_ + buf_len_ , cmd.data(), cmd.size());
-  // }
-  
-  while (buf_pos_ + buf_len_ + cmd.size() > kBufSize) {
-    std::cout << "full " << buf_len_ << " " << buf_pos_ << " "  << cmd.size() <<  std::endl;
-    buf_w_cond_.Wait();
+  // looped buf--------------------------------------------------- 
+  size_t writepoint = buf_pos_ + buf_len_ + cmd.size();
+  bool isloop = false;
+  while (writepoint > kBufSize) {
+    if (writepoint % kBufSize < buf_pos_) {
+      isloop = true;
+      break; 
+    } else {
+      std::cout << "full " << buf_len_ << " " << buf_pos_ << " "  << cmd.size() <<  std::endl;
+      buf_w_cond_.Wait();
+    }
+    writepoint = buf_pos_ + buf_len_ + cmd.size();
   }
-  memcpy(buf_ + buf_pos_ + buf_len_ , cmd.data(), cmd.size());
+  
+  if (isloop) {
+    size_t left = kBufSize - buf_len_ - buf_pos_;
+    const char *cmdbuf = cmd.data();
+    memcpy(buf_ + buf_pos_ + buf_len_ , cmdbuf, left);
+    memcpy(buf_, cmdbuf + left, cmd.size() - left);
+  } else {
+    memcpy(buf_ + buf_pos_ + buf_len_ , cmd.data(), cmd.size());
+  }
+  // looped buf--------------------------------------------------- 
+  
+  // while (buf_pos_ + buf_len_ + cmd.size() > kBufSize) {
+    // std::cout << "full " << buf_len_ << " " << buf_pos_ << " "  << cmd.size() <<  std::endl;
+    // buf_w_cond_.Wait();
+  // }
+  // memcpy(buf_ + buf_pos_ + buf_len_ , cmd.data(), cmd.size());
 
-  buf_len_ += cmd.size();
-  buf_r_cond_.Signal();
+  // buf_len_ += cmd.size();
+  // buf_r_cond_.Signal();
+
 }
 
 void *SenderThread::ThreadMain() {
@@ -102,31 +105,15 @@ void *SenderThread::ThreadMain() {
         } 
 
         // looped buf 
-        // int nwritten = 0;
-        // if (buf_pos_ + len > kBufSize) {
-          // size_t left = kBufSize - buf_pos_;
-          // nwritten = write(fd, buf_ + buf_pos_, left);
-          // nwritten += write(fd, buf_, len - left);
-        // } else {
-          // nwritten = write(fd ,buf_ + buf_pos_, len); 
-        // }
+        int nwritten = 0;
+        if (buf_pos_ + len > kBufSize) {
+          size_t left = kBufSize - buf_pos_;
+          nwritten = write(fd, buf_ + buf_pos_, left);
+          nwritten += write(fd, buf_, len - left);
+        } else {
+          nwritten = write(fd ,buf_ + buf_pos_, len); 
+        }
 
-        // if (nwritten == -1) {
-          // if (errno != EAGAIN && errno != EINTR) {
-            // log_err("Error writting to the server : %s", strerror(errno));
-            // return NULL;
-          // } else {
-            // nwritten = 0;
-          // }  
-        // }
-        // {
-          // buf_len_ -= nwritten;
-          // buf_pos_ = (buf_pos_ + nwritten) % kBufSize;
-          // buf_w_cond_.Singal();
-        // } 
-  
-
-        int nwritten = write(fd, buf_ + buf_pos_, len);
         if (nwritten == -1) {
           if (errno != EAGAIN && errno != EINTR) {
             log_err("Error writting to the server : %s", strerror(errno));
@@ -138,12 +125,32 @@ void *SenderThread::ThreadMain() {
         {
           pink::MutexLock l(&buf_mutex_);
           buf_len_ -= nwritten;
-          buf_pos_ += nwritten;
+          buf_pos_ = (buf_pos_ + nwritten) % kBufSize;
+          loop_nwritten += nwritten;
           buf_w_cond_.Signal();
-          if (buf_len_ == 0) {
-            buf_pos_ = 0;
-          }
-        }
+        } 
+  
+
+        // int nwritten = write(fd, buf_ + buf_pos_, len);
+        // if (nwritten == -1) {
+          // if (errno != EAGAIN && errno != EINTR) {
+            // log_err("Error writting to the server : %s", strerror(errno));
+            // return NULL;
+          // } else {
+            // nwritten = 0;
+          // }  
+        // }
+        // {
+          // pink::MutexLock l(&buf_mutex_);
+          // buf_len_ -= nwritten;
+          // buf_pos_ += nwritten;
+          // loop_nwritten += nwritten;
+          // buf_w_cond_.Signal();
+          // if (buf_len_ == 0) {
+            // buf_pos_ = 0;
+          // }
+        // }
+
         if (loop_nwritten > kWirteLoopMaxBYTES ) {
           break;
         } 
