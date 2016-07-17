@@ -7,7 +7,16 @@ void ParseThread::ParseKey(const std::string &key,char type) {
     ParseHKey(key);
   } else if (type == nemo::DataType::kSSize) {
     ParseSKey(key);
+  } else if (type == nemo::DataType::kLMeta) {
+    ParseLKey(key);
+  } else if (type == nemo::DataType::kZSize) {
+    ParseZKey(key);
+  } else if (type == nemo::DataType::kSSize) {
+    ParseSKey(key);
+  } else if (type == nemo::DataType::kKv) {
+    ParseKKey(key);
   }
+    
 }
 
 void ParseThread::ParseKKey(const std::string &key) {
@@ -21,6 +30,8 @@ void ParseThread::ParseKKey(const std::string &key) {
     argv.push_back(iter->value());
 
     pink::RedisCli::SerializeCommand(argv, &cmd);
+
+    PlusNum();
     sender_->LoadCmd(cmd);
   }
 }
@@ -55,6 +66,8 @@ void ParseThread::ParseSKey(const std::string &key) {
     argv.push_back(iter->member());
 
     pink::RedisCli::SerializeCommand(argv, &cmd);
+
+    PlusNum();
     sender_->LoadCmd(cmd);
   }
   delete iter;
@@ -75,6 +88,7 @@ void ParseThread::ParseZKey(const std::string &key) {
     argv.push_back(iter->member());
     
     pink::RedisCli::SerializeCommand(argv, &cmd);
+    PlusNum();
     sender_->LoadCmd(cmd);
   }
   delete iter;
@@ -95,6 +109,7 @@ void ParseThread::ParseLKey(const std::string &key) {
     argv.push_back(key);
 
     for (it = ivs.begin(); it != ivs.end(); ++it) {
+      PlusNum();
       argv.push_back(it->val);
     }
     pink::RedisCli::SerializeCommand(argv, &cmd);

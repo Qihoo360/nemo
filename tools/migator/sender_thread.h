@@ -2,6 +2,7 @@
 #define SENDER_THREAD_H_
 
 #include <sys/poll.h>
+#include <iostream>
 #include "redis_cli.h"
 #include "pink_thread.h"
 #include "pink_mutex.h"

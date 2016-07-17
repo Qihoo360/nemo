@@ -1,0 +1,34 @@
+#ifndef MIGRATOR_THREAD_H_
+#define MIGRATOR_THREAD_H_ 
+
+#include "nemo.h"
+#include "pink_mutex.h"
+#include "pink_thread.h"
+#include "parse_thread.h"
+
+
+class MigratorThread : public pink::Thread {
+public:
+  MigratorThread(nemo::Nemo *db, std::vector<ParseThread*> &parsers, char type) :
+    db_(db),
+    parsers_(parsers),
+    type_(type),
+    num_thread_(parsers.size()){
+  }
+
+  virtual ~ MigratorThread();
+private:
+  nemo::Nemo *db_;
+  std::vector<ParseThread*> parsers_;
+  char type_;
+  int thread_index_ = 0;
+  int num_thread_ = 0;
+  
+  static std::string GetKey(const rocksdb::Iterator *it);
+  void MigrateDB(char type);
+  void DispatchKey(const std::string &key, char type);
+  
+  virtual void *ThreadMain();
+};
+#endif
+
