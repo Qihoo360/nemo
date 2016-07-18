@@ -5,7 +5,8 @@ SenderThread::SenderThread(pink::RedisCli *cli) :
   buf_len_(0),
   buf_pos_(0),
   buf_r_cond_(&buf_mutex_),
-  buf_w_cond_(&buf_mutex_) {
+  buf_w_cond_(&buf_mutex_),
+  num_(0){
 }
 
 SenderThread::~SenderThread() {
@@ -38,11 +39,12 @@ int SenderThread::Wait(int fd, int mask, long long milliseconds) {
 void SenderThread::LoadCmd(const std::string &cmd) {
   pink::MutexLock l(&buf_mutex_);
   while (buf_pos_ + buf_len_ + cmd.size() > kBufSize) {
-    std::cout << "full " << buf_len_ << " " << buf_pos_ << " "  << cmd.size() <<  std::endl;
+    // std::cout << "full " << buf_len_ << " " << buf_pos_ << " "  << cmd.size() <<  std::endl;
     buf_w_cond_.Wait();
   }
   memcpy(buf_ + buf_pos_ + buf_len_ , cmd.data(), cmd.size());
   buf_len_ += cmd.size();
+  PlusNum();
   buf_r_cond_.Signal();
 }
 
@@ -57,13 +59,19 @@ void *SenderThread::ThreadMain() {
     log_err("fcntl(F_SETFL,O_NONBLOCK): %s", strerror(errno));
   }
 
-  while(!should_exit_) {
-    int mask = kReadable;
+  while(!should_exit_ || buf_len_ != 0 || num() > 0) {
     if( buf_len_ != 0) mask |= kWritable;
     mask = Wait(fd, mask, 1000);
     if(mask & kReadable) {
-      cli_->Recv(NULL);
-      std::cout << "accept data from redis server" << std::endl;
+      while (num() > 0) {
+        pink::Status s = cli_->Recv(NULL);
+        if (!s.ok()) {
+          for (size_t i = 0; i < cli_->argv_.size(); i++) {
+            std::cout << cli_->argv_[i] << std::endl;
+          }
+        } 
+        DecNum(); 
+      }
     }
     if(mask & kWritable) {
       size_t loop_nwritten = 0;
@@ -71,17 +79,13 @@ void *SenderThread::ThreadMain() {
         size_t len; 
         {
           pink::MutexLock l(&buf_mutex_);
-
-          // if (buf_len_ == 0) {
-            // break;
-          /* } */
           if (buf_len_ == 0) { 
-            std::cout << "empty" << std::endl;
-            // if (loop_nwritten > kWirteLoopMaxBYTES) break;
+            if (loop_nwritten > kWirteLoopMaxBYTES)
+            {
+              break;
+            }
             buf_r_cond_.Wait();
-            // break;  //这里不如去接受数据
           } 
-
           len = buf_len_;
         } 
 
@@ -91,33 +95,26 @@ void *SenderThread::ThreadMain() {
             log_err("Error writting to the server : %s", strerror(errno));
             return NULL;
           } else {
-            std::cout << "write failed" << std::endl;
             nwritten = 0;
           }  
-          std::cout << "++" << std::endl;
         }
         {
+          if ((int)len != nwritten) {
+            break;  // write failed
+          } 
           pink::MutexLock l(&buf_mutex_);
           buf_len_ -= nwritten;
           buf_pos_ += nwritten;
           loop_nwritten += nwritten;
           buf_w_cond_.Signal();
+
           if (buf_len_ == 0) {
             buf_pos_ = 0;
-          } else {
-            std::cout << "loop=" << loop_nwritten << " len=" << len;
-            std::cout << "nwritten=" << nwritten << "buf_len=" << buf_len_ << std::endl;
-            // std::cout << "cann't : " << loop_nwritten << " " << nwritten << std::endl;
-            break; // socket cann't accept more data;
           }
-        }
-
-        if (loop_nwritten > kWirteLoopMaxBYTES ) {
-          std::cout << "kWirtLoop" << std::endl;
-          // std::cout << loop_nwritten << std::endl;
-          // std::cout << "too many data" << std::endl;
-          // break;
-        } 
+       }
+        // if (loop_nwritten > kWirteLoopMaxBYTES ) {
+          // // break;
+        // }  
       }
     } // end of writable    
   }   // end of while

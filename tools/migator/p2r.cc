@@ -25,6 +25,7 @@ public:
     gettimeofday(&tv_end, NULL);
     micorsec += (tv_end.tv_sec - tv_start.tv_sec) * 1000000
         + (tv_end.tv_usec - tv_start.tv_usec);
+    // std::cout << 
   }
 
   void End() {
@@ -105,8 +106,8 @@ int main(int argc, char **argv)
     parsers.push_back(new ParseThread(db, sender));
   }
 
-  // migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
-  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));  
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));   
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kSSize));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kZSize));
@@ -130,6 +131,21 @@ int main(int argc, char **argv)
 
       std::cout << "migrate " << num;
       std::cout << " record" << std::endl;
+    }
+
+    bool should_exit = true;
+    for (size_t i = 0; i < migrators.size(); i++) {
+      if (!migrators[i]->should_exit_) {
+        should_exit = false;
+        break;
+      }
+    }
+
+    if (should_exit) {
+      for (size_t i = 0; i < num_thread; i++) {
+        parsers[i]->should_exit_ = true;
+        senders[i]->shoule_exit_ = true;
+      } 
     }
   }
 

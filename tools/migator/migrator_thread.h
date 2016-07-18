@@ -6,13 +6,13 @@
 #include "pink_thread.h"
 #include "parse_thread.h"
 
-
 class MigratorThread : public pink::Thread {
 public:
   MigratorThread(nemo::Nemo *db, std::vector<ParseThread*> &parsers, char type) :
     db_(db),
     parsers_(parsers),
     type_(type),
+    thread_index_(0),
     num_thread_(parsers.size()){
   }
 
@@ -21,8 +21,8 @@ private:
   nemo::Nemo *db_;
   std::vector<ParseThread*> parsers_;
   char type_;
-  int thread_index_ = 0;
-  int num_thread_ = 0;
+  int thread_index_;
+  int num_thread_;
   
   static std::string GetKey(const rocksdb::Iterator *it);
   void MigrateDB(char type);

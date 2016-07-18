@@ -6,14 +6,23 @@ MigratorThread::~MigratorThread() {
 
 void MigratorThread::MigrateDB(char type) {
   if (type == nemo::DataType::kKv) {
-    std::string dummy_key = "";
-    DispatchKey(dummy_key, type); 
+    nemo::KIterator *iter = db_->KScan("", "", -1, false);
+    for (; iter->Valid(); iter->Next()) {
+      pink::RedisCmdArgsType argv;
+      std::string cmd;
+
+      argv.push_back("SET");
+      argv.push_back(iter->key());
+      argv.push_back(iter->value());
+
+      pink::RedisCli::SerializeCommand(argv, &cmd);
+      DispatchKey(cmd, type);
+    }
   } else {
     rocksdb::Iterator *keyIter = db_->KeyIterator(type);
     for(; keyIter->Valid(); keyIter->Next()) {
       std::string key = GetKey(keyIter);
       if (key.length() == 0) break;
-
       DispatchKey(key, type);
     }
   }
@@ -30,6 +39,8 @@ void MigratorThread::DispatchKey(const std::string &key,char type) {
 
 void *MigratorThread::ThreadMain() {
   MigrateDB(type_); 
+  should_exit_ = true;
+  std::cout << type_ << "has been migrated" << std::endl;
   return NULL;
 }
 

@@ -16,24 +16,11 @@ void ParseThread::ParseKey(const std::string &key,char type) {
   } else if (type == nemo::DataType::kKv) {
     ParseKKey(key);
   }
-    
 }
 
-void ParseThread::ParseKKey(const std::string &key) {
-  nemo::KIterator *iter = db_->KScan("","",-1);
-  for (; iter->Valid(); iter->Next()) {
-    pink::RedisCmdArgsType argv;
-    std::string cmd;
-
-    argv.push_back("SET");
-    argv.push_back(iter->key());
-    argv.push_back(iter->value());
-
-    pink::RedisCli::SerializeCommand(argv, &cmd);
-
-    PlusNum();
-    sender_->LoadCmd(cmd);
-  }
+void ParseThread::ParseKKey(const std::string &cmd) {
+  PlusNum();   
+  sender_->LoadCmd(cmd);
 }
 
 void ParseThread::ParseHKey(const std::string &key) {
@@ -48,7 +35,6 @@ void ParseThread::ParseHKey(const std::string &key) {
     argv.push_back(iter->value());
 
     pink::RedisCli::SerializeCommand(argv, &cmd);
-  
     PlusNum();
     sender_->LoadCmd(cmd);
   }
@@ -66,7 +52,6 @@ void ParseThread::ParseSKey(const std::string &key) {
     argv.push_back(iter->member());
 
     pink::RedisCli::SerializeCommand(argv, &cmd);
-
     PlusNum();
     sender_->LoadCmd(cmd);
   }
@@ -125,7 +110,6 @@ void ParseThread::Schedul(const std::string &key, char type) {
   pink::MutexLock l(&task_mutex_);
   while(task_queue_.size() >= full_) {
     task_w_cond_.Wait();
-    // log_info("fffffffffffffffffffffffff");
   }
 
   if(task_queue_.size() < full_) {
@@ -135,7 +119,7 @@ void ParseThread::Schedul(const std::string &key, char type) {
 }
 
 void *ParseThread::ThreadMain() {
-  while (!should_exit_) {
+  while (!should_exit_ || !task_queue_.empty()) {
     char type;
     std::string key;
     {
@@ -150,11 +134,9 @@ void *ParseThread::ThreadMain() {
       key = task_queue_.front().key;
       type = task_queue_.front().type;
       task_queue_.pop_front();
-      
       task_w_cond_.Signal();
     }
     ParseKey(key, type);
-    // log_info("ParseKey = %s", key.data());
   }
   return NULL;
 }
