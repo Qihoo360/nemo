@@ -60,6 +60,7 @@ void *SenderThread::ThreadMain() {
   }
 
   while(!should_exit_ || buf_len_ != 0 || num() > 0) {
+    int mask = kReadable;
     if( buf_len_ != 0) mask |= kWritable;
     mask = Wait(fd, mask, 1000);
     if(mask & kReadable) {

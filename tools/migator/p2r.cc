@@ -7,13 +7,12 @@
 #include "sender_thread.h"
 #include "migrator_thread.h"
 
-const int64_t kTestPoint = 100000;
-const int64_t kTestNum = 3800000;
+const int64_t kTestPoint = 500000;
+// const int64_t kTestNum = 3800000;
+const int64_t kTestNum = LLONG_MAX;
 
-const size_t num_thread = 10; // const int64_t kTestNum = ULLONG_MAX;
-
+const size_t num_thread = 1; //
 size_t thread_index = 0;
-
 
 class FunctionTimer {
 public:
@@ -59,11 +58,18 @@ void Usage() {
   std::cout << "./p2r db_path ip port" << std::endl;
 }
 
+
+int64_t NowMicros() {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return static_cast<uint64_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
+}
+
 int main(int argc, char **argv)
 {
   // for coding test
   // std::string db_path = "/home/yinshucheng/pika/output/mydb/";
-  std::string db_path = "/home/yinshucheng/db2/";
+  std::string db_path = "/home/yinshucheng/test/db";
   std::string ip = "127.0.0.1";
   int port = 6379;
 
@@ -107,7 +113,7 @@ int main(int argc, char **argv)
   }
 
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
-  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));   
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));    
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kSSize));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kZSize));
@@ -122,35 +128,51 @@ int main(int argc, char **argv)
     senders[i]->StartThread();
   }
 
+  int64_t start_time = NowMicros();
   int times = 1;
   while(1) {
     sleep(1);
     int64_t num = GetNum();
     if (num >= kTestPoint * times) {
       times++;
+      int dur = NowMicros() - start_time;
 
-      std::cout << "migrate " << num;
-      std::cout << " record" << std::endl;
+      std::cout << dur / 1000000 << ":" << dur % 1000000 << " " <<  num << std::endl; 
+      log_info("timestamp:%d:%d line:%ld", dur / 1000000, dur % 1000000, num);
     }
 
     bool should_exit = true;
     for (size_t i = 0; i < migrators.size(); i++) {
       if (!migrators[i]->should_exit_) {
         should_exit = false;
-        break;
+        break; 
       }
     }
 
+    if (num >= kTestNum) {
+      should_exit = true;
+    } 
+    
     if (should_exit) {
       for (size_t i = 0; i < num_thread; i++) {
         parsers[i]->should_exit_ = true;
-        senders[i]->shoule_exit_ = true;
+        senders[i]->should_exit_ = true;
       } 
+      break;
     }
   }
 
+  for (size_t i = 0; i < num_thread; i++) {
+    parsers[i]->JoinThread();
+    senders[i]->JoinThread();
+  }
+
   for (size_t i = 0; i < migrators.size(); i++) {
-    migrators[i]->JoinThread();
+    delete migrators[i];
+  }
+  for (size_t i = 0; i < num_thread; i++) {
+    delete parsers[i];
+    delete senders[i];
   }
 
   delete db;
