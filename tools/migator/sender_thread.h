@@ -17,9 +17,11 @@ public:
 private:
   static const int kReadable = 1;
   static const int kWritable = 2;
-  static const size_t kBufSize = 1024 * 32; 
+  // static const size_t kBufSize = 1024 * 32;  2097152
+  // static const size_t kBufSize =  2097152; // 2M
+  static const size_t kBufSize = 2097152;
   // static const size_t kThreshold = 1024 * 64;
-  static const size_t kWirteLoopMaxBYTES = 1024 * 32; // 10k cmds 
+  static const size_t kWirteLoopMaxBYTES = 10 * 1024 * 128; // 10k cmds 
   
   int Wait(int fd, int mask, long long milliseconds);
 
@@ -27,6 +29,15 @@ private:
   char buf_[kBufSize];
   size_t buf_len_ = 0;
   size_t buf_pos_ = 0;
+
+  char rbuf_[kBufSize];
+  int32_t rbuf_size_ = kBufSize;
+  int32_t rbuf_pos_;
+  int32_t rbuf_offset_;
+  int elements_;    // the elements number of this current reply
+  int err_;
+
+
 
   pink::Mutex buf_mutex_;
   pink::CondVar buf_r_cond_;

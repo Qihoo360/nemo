@@ -11,7 +11,7 @@ const int64_t kTestPoint = 500000;
 // const int64_t kTestNum = 3800000;
 const int64_t kTestNum = LLONG_MAX;
 
-const size_t num_thread = 1; //
+const size_t num_thread = 10; //
 size_t thread_index = 0;
 
 std::vector<ParseThread*> parsers;
@@ -84,11 +84,11 @@ int main(int argc, char **argv)
     parsers.push_back(new ParseThread(db, sender));
   }
 
-  // migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
-  // migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));    
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));    
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kSSize));
-  // migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));
-  // migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kZSize));
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kZSize));
 
   for (size_t i = 0; i < migrators.size(); i++) {
     migrators[i]->StartThread();
