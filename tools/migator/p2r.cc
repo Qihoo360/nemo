@@ -14,34 +14,6 @@ const int64_t kTestNum = LLONG_MAX;
 const size_t num_thread = 1; //
 size_t thread_index = 0;
 
-class FunctionTimer {
-public:
-  void Start() {
-    gettimeofday(&tv_start, NULL);
-  }
-
-  void Click() {
-    gettimeofday(&tv_end, NULL);
-    micorsec += (tv_end.tv_sec - tv_start.tv_sec) * 1000000
-        + (tv_end.tv_usec - tv_start.tv_usec);
-    // std::cout << 
-  }
-
-  void End() {
-    gettimeofday(&tv_end, NULL);
-  }
-
-  int TotalTime() {
-    return micorsec / 1000000;
-  }
-
-private:
-  struct timeval tv_start;
-  struct timeval tv_end;
-  float micorsec;
-};
-
-
 std::vector<ParseThread*> parsers;
 std::vector<SenderThread*> senders;
 std::vector<MigratorThread*> migrators;
@@ -112,11 +84,11 @@ int main(int argc, char **argv)
     parsers.push_back(new ParseThread(db, sender));
   }
 
-  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
-  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));    
+  // migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
+  // migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));    
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kSSize));
-  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));
-  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kZSize));
+  // migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));
+  // migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kZSize));
 
   for (size_t i = 0; i < migrators.size(); i++) {
     migrators[i]->StartThread();

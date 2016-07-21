@@ -39,7 +39,6 @@ int SenderThread::Wait(int fd, int mask, long long milliseconds) {
 void SenderThread::LoadCmd(const std::string &cmd) {
   pink::MutexLock l(&buf_mutex_);
   while (buf_pos_ + buf_len_ + cmd.size() > kBufSize) {
-    // std::cout << "full " << buf_len_ << " " << buf_pos_ << " "  << cmd.size() <<  std::endl;
     buf_w_cond_.Wait();
   }
   memcpy(buf_ + buf_pos_ + buf_len_ , cmd.data(), cmd.size());
@@ -66,6 +65,9 @@ void *SenderThread::ThreadMain() {
     if(mask & kReadable) {
       while (num() > 0) {
         pink::Status s = cli_->Recv(NULL);
+        for (size_t i = 0; i < cli_->argv_.size(); i++) {
+          std::cout << "Recv " << cli_->argv_[i] << std::endl;
+        }
         if (!s.ok()) {
           for (size_t i = 0; i < cli_->argv_.size(); i++) {
             std::cout << cli_->argv_[i] << std::endl;
@@ -93,12 +95,14 @@ void *SenderThread::ThreadMain() {
         int nwritten = write(fd, buf_ + buf_pos_, len);
         if (nwritten == -1) {
           if (errno != EAGAIN && errno != EINTR) {
+            std::cout << "buf_pos=" << buf_pos_ << " len=" << len << std::endl; 
             log_err("Error writting to the server : %s", strerror(errno));
             return NULL;
           } else {
             nwritten = 0;
           }  
         }
+        std::cout << "send " << std::string(buf_, kBufSize) << std::endl;
         {
           if ((int)len != nwritten) {
             break;  // write failed
@@ -113,9 +117,9 @@ void *SenderThread::ThreadMain() {
             buf_pos_ = 0;
           }
        }
-        // if (loop_nwritten > kWirteLoopMaxBYTES ) {
-          // // break;
-        // }  
+        if (loop_nwritten > kWirteLoopMaxBYTES ) {
+          break;
+        }  
       }
     } // end of writable    
   }   // end of while

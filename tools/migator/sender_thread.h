@@ -17,9 +17,9 @@ public:
 private:
   static const int kReadable = 1;
   static const int kWritable = 2;
-  static const size_t kBufSize = 1024 * 128; 
-  static const size_t kThreshold = 1024 * 64;
-  static const size_t kWirteLoopMaxBYTES = 128 * 1024 * 12 ; // 10k cmds 
+  static const size_t kBufSize = 1024 * 32; 
+  // static const size_t kThreshold = 1024 * 64;
+  static const size_t kWirteLoopMaxBYTES = 1024 * 32; // 10k cmds 
   
   int Wait(int fd, int mask, long long milliseconds);
 
