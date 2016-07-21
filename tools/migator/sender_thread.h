@@ -17,11 +17,8 @@ public:
 private:
   static const int kReadable = 1;
   static const int kWritable = 2;
-  // static const size_t kBufSize = 1024 * 32;  2097152
-  // static const size_t kBufSize =  2097152; // 2M
-  static const size_t kBufSize = 2097152;
-  // static const size_t kThreshold = 1024 * 64;
-  static const size_t kWirteLoopMaxBYTES = 10 * 1024 * 128; // 10k cmds 
+  static const size_t kBufSize = 2097152; //2M 
+  static const size_t kWirteLoopMaxBYTES = 1024 * 2048; // 10k cmds 
   
   int Wait(int fd, int mask, long long milliseconds);
 
@@ -37,6 +34,15 @@ private:
   int elements_;    // the elements number of this current reply
   int err_;
 
+  // int GetReply();
+  int GetReplyFromReader();
+  char* ReadBytes(unsigned int bytes);
+
+  int TryRead(); 
+  // static char *seekNewline(char *s, size_t len);
+  char *seekNewline(char *s, size_t len);
+  ssize_t BufferRead();
+  char* ReadLine(int *_len);
 
 
   pink::Mutex buf_mutex_;
