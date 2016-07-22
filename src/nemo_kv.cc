@@ -463,7 +463,7 @@ bool Nemo::ScanKeys(std::unique_ptr<rocksdb::DBWithTTL>& db, const char kType, s
         if (key.size() == 0 || key.at(0) != kType) {
         break;
         }
-        if (stringmatchlen(pattern.data(), pattern.size(), key.data(), key.size(), 0)) {
+        if (stringmatchlen(pattern.data(), pattern.size(), key.data() + 1, key.size() - 1, 0)) {
             key.erase(key.begin());//erase the first marked letter
             keys.push_back(key);
             (*count)--;
