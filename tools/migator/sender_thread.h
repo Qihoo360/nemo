@@ -34,38 +34,14 @@ private:
   int elements_;    // the elements number of this current reply
   int err_;
 
-  // int GetReply();
-  int GetReplyFromReader();
-  char* ReadBytes(unsigned int bytes);
-
   int TryRead(); 
-  // static char *seekNewline(char *s, size_t len);
+  char* ReadBytes(unsigned int bytes);
   char *seekNewline(char *s, size_t len);
-  ssize_t BufferRead();
   char* ReadLine(int *_len);
-
 
   pink::Mutex buf_mutex_;
   pink::CondVar buf_r_cond_;
   pink::CondVar buf_w_cond_;
-
-  pink::Mutex num_mutex_;
-  size_t num_;
-
-  void PlusNum() {
-    pink::MutexLock l(&num_mutex_);
-    num_++;
-  }
-
-  size_t num() {
-    pink::MutexLock l(&num_mutex_);
-    return num_;
-  }
-
-  void DecNum() {
-    pink::MutexLock l(&num_mutex_);
-    num_--;
-  }
 
   virtual void *ThreadMain();
 };

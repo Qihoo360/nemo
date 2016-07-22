@@ -19,8 +19,8 @@ SenderThread::SenderThread(pink::RedisCli *cli) :
   buf_len_(0),
   buf_pos_(0),
   buf_r_cond_(&buf_mutex_),
-  buf_w_cond_(&buf_mutex_),
-  num_(0){
+  buf_w_cond_(&buf_mutex_)
+  {
 }
 
 SenderThread::~SenderThread() {
@@ -38,7 +38,7 @@ int SenderThread::Wait(int fd, int mask, long long milliseconds) {
   if (mask & kReadable) pfd.events |= POLLIN;
   if (mask & kWritable) pfd.events |= POLLOUT;
 
-  if((retval = poll(&pfd, 1, milliseconds)) == 1) {
+  if ((retval = poll(&pfd, 1, milliseconds)) == 1) {
     if (pfd.revents & POLLIN) retmask |= kReadable;
     if (pfd.revents & POLLOUT) retmask |= kWritable;
     if (pfd.revents & POLLERR) retmask |= kWritable;
@@ -57,7 +57,6 @@ void SenderThread::LoadCmd(const std::string &cmd) {
   }
   memcpy(buf_ + buf_pos_ + buf_len_ , cmd.data(), cmd.size());
   buf_len_ += cmd.size();
-  PlusNum();
   buf_r_cond_.Signal();
 }
 
@@ -72,11 +71,11 @@ void *SenderThread::ThreadMain() {
     log_err("fcntl(F_SETFL,O_NONBLOCK): %s", strerror(errno));
   }
 
-  while (!should_exit_ || buf_len_ != 0 || num() > 0) {
+  while (!should_exit_ || buf_len_ != 0) {
     int mask = kReadable;
-    if( buf_len_ != 0) mask |= kWritable;
+    if ( buf_len_ != 0) mask |= kWritable;
     mask = Wait(fd, mask, 1000);
-    if(mask & kReadable) {
+    if (mask & kReadable) {
       if (rbuf_pos_ > 0) {
         if (rbuf_offset_ > 0) {
           memmove(rbuf_, rbuf_ + rbuf_pos_, rbuf_offset_);
@@ -88,37 +87,29 @@ void *SenderThread::ThreadMain() {
       do {
         nread = read(fd, rbuf_ + rbuf_pos_ + rbuf_offset_,
                      rbuf_size_ - rbuf_pos_ - rbuf_offset_);
-        if (nread == -1 && errno != EINTR && errno != EAGAIN ) {
+        if (nread == -1 && errno != EINTR && errno != EAGAIN) {
           log_err("Error reading from the server : %s", strerror(errno));
-        }
-
-        if (nread == 0) {
-          std::cout << "nread = 0\n";
         }
         if (nread > 0) {
           rbuf_offset_ += nread;
 
           int status = TryRead();
           if (status == REDIS_HALF) {
-            std::cout << "REDIS_HALF\n";
+            // std::cout << "REDIS_HALF\n";
             continue;
           } else if (status == REDIS_ERR) {
-            log_err("bad data from server");
+            log_err("Bad data from server");
           }
         }
       } while (nread > 0);
     }
-    if(mask & kWritable) {
+    if (mask & kWritable) {
       size_t loop_nwritten = 0;
       while (1) {
         size_t len; 
         {
           pink::MutexLock l(&buf_mutex_);
           if (buf_len_ == 0) { 
-            if (loop_nwritten > kWirteLoopMaxBYTES)
-            {
-              break;
-            }
             buf_r_cond_.Wait();
           } 
           if (buf_len_ > 1024 * 16) {
@@ -147,9 +138,7 @@ void *SenderThread::ThreadMain() {
           if (buf_len_ == 0) {
             buf_pos_ = 0;
           }
-          
           if ((size_t)nwritten < len) {
-            // std::cout << "nwritten=" << nwritten << " len=" << len <<   " quit writing\n";
             break;
           }
        }
@@ -201,7 +190,6 @@ int SenderThread::TryRead() {
     return REDIS_HALF;
   }
   
-  std::cout << std::string(p, len) << std::endl;
   if (type == REDIS_REPLY_ERROR) {
     err_++;
     std::cout << std::string(p, len) << std::endl;

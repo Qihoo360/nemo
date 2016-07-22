@@ -10,8 +10,9 @@
 const int64_t kTestPoint = 500000;
 // const int64_t kTestNum = 3800000;
 const int64_t kTestNum = LLONG_MAX;
+// const int64_t kTestNum = 10000000;
 
-const size_t num_thread = 2; //
+const size_t num_thread = 10; //
 size_t thread_index = 0;
 
 std::vector<ParseThread*> parsers;
@@ -45,21 +46,16 @@ int main(int argc, char **argv)
   std::string ip = "127.0.0.1";
   int port = 6379;
 
-  if(argc == 4) {
-    db_path = std::string(argv[1]);
-    ip = std::string(argv[2]);
-    port = atoi(argv[3]);
+  if (argc != 1) {
+    if (argc == 4) {
+      db_path = std::string(argv[1]);
+      ip = std::string(argv[2]);
+      port = atoi(argv[3]);
+    } else {
+      Usage();
+      return 1;
+    }
   }
-
-  // for release
-  // if (argc != 4) {
-    // Usage();
-    // log_err("");
-  // }
-  // string db_path(argv[1]);
-  // string ip(argv[2]);
-  // int port = atoi(argv[3]);
-
   // init db
   nemo::Options option;
   option.write_buffer_size = 256 * 1024 * 1024; // 256M
@@ -74,8 +70,8 @@ int main(int argc, char **argv)
     cli->set_connect_timeout(3000);
     pink_s = cli->Connect(ip, port);
     if(!pink_s.ok()) {
-      log_err("cann't connect %s:%d:%s", ip.data(), port, pink_s.ToString().data());
       Usage();
+      log_err("cann't connect %s:%d:%s\n", ip.data(), port, pink_s.ToString().data());
       return -1;
     }
     SenderThread *sender = new SenderThread(cli);
@@ -85,9 +81,9 @@ int main(int argc, char **argv)
   }
 
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
-  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));     
-  // migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kSSize));
-  // migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));      
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kSSize));
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kZSize));
 
   for (size_t i = 0; i < migrators.size(); i++) {
