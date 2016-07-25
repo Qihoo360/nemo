@@ -138,6 +138,8 @@ void *ParseThread::ThreadMain() {
     }
     ParseKey(key, type);
   }
+  sender_->should_exit_ = true;
+  std::cout << "Parser " <<  pthread_self() << " is over \n";
   return NULL;
 }
 

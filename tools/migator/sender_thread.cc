@@ -60,6 +60,12 @@ void SenderThread::LoadCmd(const std::string &cmd) {
   buf_r_cond_.Signal();
 }
 
+int64_t SenderThread::NowMicros_() {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return static_cast<uint64_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
+}
+
 void *SenderThread::ThreadMain() {
   int fd = cli_->fd();
   int flags;
@@ -71,7 +77,8 @@ void *SenderThread::ThreadMain() {
     log_err("fcntl(F_SETFL,O_NONBLOCK): %s", strerror(errno));
   }
 
-  while (!should_exit_ || buf_len_ != 0) {
+  // int64_t last = NowMicros_();
+  while (1) {
     int mask = kReadable;
     if ( buf_len_ != 0) mask |= kWritable;
     mask = Wait(fd, mask, 1000);
@@ -89,28 +96,40 @@ void *SenderThread::ThreadMain() {
                      rbuf_size_ - rbuf_pos_ - rbuf_offset_);
         if (nread == -1 && errno != EINTR && errno != EAGAIN) {
           log_err("Error reading from the server : %s", strerror(errno));
+          std::cout << "Error reading from the server :" << strerror(errno) << std::endl;
         }
         if (nread > 0) {
           rbuf_offset_ += nread;
-
-          int status = TryRead();
-          if (status == REDIS_HALF) {
-            // std::cout << "REDIS_HALF\n";
-            continue;
-          } else if (status == REDIS_ERR) {
-            log_err("Bad data from server");
-          }
+          int status = REDIS_OK;
+          do {
+            int status = TryRead();
+            if (status == REDIS_HALF) {
+              break;     
+            } else if (status == REDIS_ERR) {
+              log_err("Bad data from server");
+            } 
+          } while (status == REDIS_OK);
         }
       } while (nread > 0);
     }
+
     if (mask & kWritable) {
       size_t loop_nwritten = 0;
       while (1) {
         size_t len; 
         {
           pink::MutexLock l(&buf_mutex_);
+          // no data to send and should exit 
+          if (buf_len_ == 0 && should_exit_) {
+          
+          }
+
           if (buf_len_ == 0) { 
-            buf_r_cond_.Wait();
+            if (should_exit_) {
+                
+            } else {
+              buf_r_cond_.Wait();
+            }
           } 
           if (buf_len_ > 1024 * 16) {
             len = 1024 * 16;
@@ -118,11 +137,20 @@ void *SenderThread::ThreadMain() {
             len = buf_len_;
           }
         } 
+   /*      int64_t now = NowMicros_(); */
+        // std::cout << pthread_self() << " " << now - last << " \n";
+        // last = now;
 
         int nwritten = write(fd, buf_ + buf_pos_, len);
         if (nwritten == -1) { 
           if (errno != EAGAIN && errno != EINTR) {
+/*             int64_t now = NowMicros_(); */
+            // std::cout << pthread_self() << " " << now - last << " \n";
+            // last = now;
+
+            std::cout << std::string(buf_ + buf_pos_, len) << "\n";
             std::cout << "buf_pos=" << buf_pos_ << " len=" << len << std::endl; 
+            std::cout << "Error writting to the server :" << strerror(errno) << std::endl;
             log_err("Error writting to the server : %s", strerror(errno));
             return NULL;
           } else {
@@ -162,6 +190,7 @@ int SenderThread::TryRead() {
   }
 
   int type;
+
   switch (*p) {
     case '-':
       type = REDIS_REPLY_ERROR;
@@ -182,10 +211,11 @@ int SenderThread::TryRead() {
       return REDIS_ERR;
   }
 
+
   int len;
   // when not a complete, p == NULL 
   if ((p = ReadLine(&len)) == NULL) {
-    rbuf_offset_ -= 1;
+    rbuf_offset_ += 1;
     rbuf_pos_ -= 1;
     return REDIS_HALF;
   }
@@ -193,7 +223,7 @@ int SenderThread::TryRead() {
   if (type == REDIS_REPLY_ERROR) {
     err_++;
     std::cout << std::string(p, len) << std::endl;
-  } else if (type == REDIS_OK) {
+  } else {
     elements_++;
   }
 

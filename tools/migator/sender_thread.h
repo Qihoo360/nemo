@@ -42,7 +42,7 @@ private:
   pink::Mutex buf_mutex_;
   pink::CondVar buf_r_cond_;
   pink::CondVar buf_w_cond_;
-
+  int64_t NowMicros_(); 
   virtual void *ThreadMain();
 };
 #endif

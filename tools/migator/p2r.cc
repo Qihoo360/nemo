@@ -8,9 +8,9 @@
 #include "migrator_thread.h"
 
 const int64_t kTestPoint = 500000;
-// const int64_t kTestNum = 3800000;
+// const int64_t kTestPoint = 5000;
+// const int64_t kTestNum = 1000000;
 const int64_t kTestNum = LLONG_MAX;
-// const int64_t kTestNum = 10000000;
 
 const size_t num_thread = 10; //
 size_t thread_index = 0;
@@ -31,7 +31,6 @@ void Usage() {
   std::cout << "./p2r db_path ip port" << std::endl;
 }
 
-
 int64_t NowMicros() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
@@ -42,7 +41,7 @@ int main(int argc, char **argv)
 {
   // for coding test
   // std::string db_path = "/home/yinshucheng/pika/output/mydb/";
-  std::string db_path = "/home/yinshucheng/db";
+  std::string db_path = "/home/yinshucheng/test/db";
   std::string ip = "127.0.0.1";
   int port = 6379;
 
@@ -53,7 +52,7 @@ int main(int argc, char **argv)
       port = atoi(argv[3]);
     } else {
       Usage();
-      return 1;
+      return -1;
     }
   }
   // init db
@@ -81,7 +80,7 @@ int main(int argc, char **argv)
   }
 
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
-  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));      
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));       
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kSSize));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kZSize));
@@ -124,7 +123,6 @@ int main(int argc, char **argv)
     if (should_exit) {
       for (size_t i = 0; i < num_thread; i++) {
         parsers[i]->should_exit_ = true;
-        senders[i]->should_exit_ = true;
       } 
       break;
     }
