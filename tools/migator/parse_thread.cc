@@ -118,18 +118,24 @@ void ParseThread::Schedul(const std::string &key, char type) {
   }
 }
 
+void ParseThread::Stop() {
+  should_exit_ = true;
+  pink::MutexLock l(&task_mutex_);
+  task_r_cond_.Signal();
+}
+
 void *ParseThread::ThreadMain() {
-  while (!should_exit_ || !task_queue_.empty()) {
-    char type;
-    std::string key;
+  char type;
+  std::string key;
+  while (!should_exit_) {
     {
       pink::MutexLock l(&task_mutex_);
       while (task_queue_.empty() && !should_exit_) {
         task_r_cond_.Wait();
       }
-      if (should_exit_) {
-        task_mutex_.Unlock();
-        continue;
+      
+      if (task_queue_.empty()) {
+        break;
       }
       key = task_queue_.front().key;
       type = task_queue_.front().type;
@@ -138,7 +144,15 @@ void *ParseThread::ThreadMain() {
     }
     ParseKey(key, type);
   }
-  sender_->should_exit_ = true;
+  
+  if (!task_queue_.empty()) {
+    key = task_queue_.front().key;
+    type = task_queue_.front().type;
+    task_queue_.pop_front();
+    ParseKey(key, type);
+  }
+
+  sender_->Stop();
   std::cout << "Parser " <<  pthread_self() << " is over \n";
   return NULL;
 }

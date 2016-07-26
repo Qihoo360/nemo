@@ -13,6 +13,14 @@ public:
   SenderThread(pink::RedisCli *cli);
   ~SenderThread();
   void LoadCmd(const std::string &cmd);
+  void Stop();
+  int64_t elements() {
+    return elements_;
+  }
+
+  int64_t err() {
+    return err_;
+  }
 
 private:
   static const int kReadable = 1;
@@ -31,10 +39,13 @@ private:
   int32_t rbuf_size_ = kBufSize;
   int32_t rbuf_pos_;
   int32_t rbuf_offset_;
-  int elements_;    // the elements number of this current reply
-  int err_;
+  int64_t elements_;    // the elements number of this current reply
+  int64_t err_;
 
   int TryRead(); 
+  int TryReadType();
+  int TryReadLine(char *p,int *plen);
+
   char* ReadBytes(unsigned int bytes);
   char *seekNewline(char *s, size_t len);
   char* ReadLine(int *_len);

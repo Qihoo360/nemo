@@ -41,7 +41,7 @@ int main(int argc, char **argv)
 {
   // for coding test
   // std::string db_path = "/home/yinshucheng/pika/output/mydb/";
-  std::string db_path = "/home/yinshucheng/test/db";
+  std::string db_path = "/home/yinshucheng/test1db";
   std::string ip = "127.0.0.1";
   int port = 6379;
 
@@ -80,7 +80,7 @@ int main(int argc, char **argv)
   }
 
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
-  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));       
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));        
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kSSize));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kZSize));
@@ -103,7 +103,6 @@ int main(int argc, char **argv)
     if (num >= kTestPoint * times) {
       times++;
       int dur = NowMicros() - start_time;
-
       std::cout << dur / 1000000 << ":" << dur % 1000000 << " " <<  num << std::endl; 
       log_info("timestamp:%d:%d line:%ld", dur / 1000000, dur % 1000000, num);
     }
@@ -122,7 +121,8 @@ int main(int argc, char **argv)
     
     if (should_exit) {
       for (size_t i = 0; i < num_thread; i++) {
-        parsers[i]->should_exit_ = true;
+        parsers[i]->Stop();
+        std::cout << "parsers over\n"; 
       } 
       break;
     }
@@ -132,6 +132,18 @@ int main(int argc, char **argv)
     parsers[i]->JoinThread();
     senders[i]->JoinThread();
   }
+
+  int64_t replies = 0;
+  int64_t errors = 0;
+
+  for (size_t i = 0; i < num_thread; i++) {
+    replies += senders[i]->elements();
+    errors += senders[i]->err(); 
+  }
+  
+  std::cout << "Total records :" << replies << "\n";
+  std::cout << "Total errors  :" << errors << "\n";
+
 
   for (size_t i = 0; i < migrators.size(); i++) {
     delete migrators[i];

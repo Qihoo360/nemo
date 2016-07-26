@@ -19,7 +19,7 @@ public:
   }
   
   virtual ~ParseThread();
-
+  void Stop();
   void Schedul(const std::string &key, char type);
   int64_t num() {
     pink::MutexLock l(&num_mutex_);
