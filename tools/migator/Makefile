@@ -1,7 +1,7 @@
 GCC = g++
 #CPPFLAGS = -Wall -W -Wno-unused-parameter -g -O2 -std=c++11
 CPPFLAGS = -Wall -W -Wno-unused-parameter -DDEBUG -D__XDEBUG__ -g -O2 -std=c++11
-OBJECT = p2r p2r_test_correct 
+OBJECT = pika_to_redis p2r_test_correct 
 
 LIB_PATH = -L ../../output/lib \
 					 -L ../../../pink/output/lib/ \
@@ -34,7 +34,7 @@ all: $(OBJECT)
 
 #$(OBJECT): $(OBJECT).o
 #p2r : p2r.o worker_thread.o parse_thread.o sender_thread.o
-p2r : p2r.o migrator_thread.o sender_thread.o parse_thread.o 
+pika_to_redis : pika_to_redis.o migrator_thread.o sender_thread.o parse_thread.o 
 	$(GCC) $(CPPFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
 
 p2r_test_correct : p2r_test_correct.o

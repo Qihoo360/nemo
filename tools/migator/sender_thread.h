@@ -44,7 +44,7 @@ private:
 
   int TryRead(); 
   int TryReadType();
-  int TryReadLine(char *p,int *plen);
+  // int TryReadLine(char *p,int *plen);
 
   char* ReadBytes(unsigned int bytes);
   char *seekNewline(char *s, size_t len);

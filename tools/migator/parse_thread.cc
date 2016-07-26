@@ -151,9 +151,8 @@ void *ParseThread::ThreadMain() {
     task_queue_.pop_front();
     ParseKey(key, type);
   }
-
   sender_->Stop();
-  std::cout << "Parser " <<  pthread_self() << " is over \n";
+  std::cout << "Parser " <<  pthread_self() << " exit \n";
   return NULL;
 }
 

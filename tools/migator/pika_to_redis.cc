@@ -8,11 +8,9 @@
 #include "migrator_thread.h"
 
 const int64_t kTestPoint = 500000;
-// const int64_t kTestPoint = 5000;
-// const int64_t kTestNum = 1000000;
 const int64_t kTestNum = LLONG_MAX;
 
-const size_t num_thread = 10; //
+size_t num_thread = 12; //
 size_t thread_index = 0;
 
 std::vector<ParseThread*> parsers;
@@ -28,7 +26,8 @@ int64_t GetNum();
 
 void Usage() {
   std::cout << "Usage: " << std::endl;
-  std::cout << "./p2r db_path ip port" << std::endl;
+  std::cout << "./pika_to_redis db_path ip port sender_num\n;
+  std::cout << "example: ./pika_to_redis ~/db 127.0.0.1 6379 16\n";
 }
 
 int64_t NowMicros() {
@@ -41,20 +40,19 @@ int main(int argc, char **argv)
 {
   // for coding test
   // std::string db_path = "/home/yinshucheng/pika/output/mydb/";
-  std::string db_path = "/home/yinshucheng/test1db";
+  std::string db_path = "/home/yinshucheng/db";
   std::string ip = "127.0.0.1";
   int port = 6379;
+  num_thread = 12;
 
-  if (argc != 1) {
-    if (argc == 4) {
-      db_path = std::string(argv[1]);
-      ip = std::string(argv[2]);
-      port = atoi(argv[3]);
-    } else {
-      Usage();
-      return -1;
-    }
-  }
+  if (argc != 5) {
+    Usage();
+  } 
+  db_path = std::string(argv[1]);
+  ip = std::string(argv[2]);
+  port = atoi(argv[3]);
+  num_thread = atoi(argv[4]);
+
   // init db
   nemo::Options option;
   option.write_buffer_size = 256 * 1024 * 1024; // 256M
@@ -74,7 +72,6 @@ int main(int argc, char **argv)
       return -1;
     }
     SenderThread *sender = new SenderThread(cli);
-
     senders.push_back(sender);
     parsers.push_back(new ParseThread(db, sender));
   }
@@ -104,7 +101,6 @@ int main(int argc, char **argv)
       times++;
       int dur = NowMicros() - start_time;
       std::cout << dur / 1000000 << ":" << dur % 1000000 << " " <<  num << std::endl; 
-      log_info("timestamp:%d:%d line:%ld", dur / 1000000, dur % 1000000, num);
     }
 
     bool should_exit = true;
@@ -122,7 +118,6 @@ int main(int argc, char **argv)
     if (should_exit) {
       for (size_t i = 0; i < num_thread; i++) {
         parsers[i]->Stop();
-        std::cout << "parsers over\n"; 
       } 
       break;
     }
@@ -143,7 +138,6 @@ int main(int argc, char **argv)
   
   std::cout << "Total records :" << replies << "\n";
   std::cout << "Total errors  :" << errors << "\n";
-
 
   for (size_t i = 0; i < migrators.size(); i++) {
     delete migrators[i];
