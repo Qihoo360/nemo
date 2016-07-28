@@ -5,14 +5,14 @@ OBJECT = pika_to_redis p2r_test_correct
 
 LIB_PATH = -L ../../output/lib \
 					 -L ../../../pink/output/lib/ \
-			
+
 LIBS = -Wl,-Bstatic -lnemo -lrocksdb\
-	   -Wl,-Bdynamic -lpthread\
-	   -lsnappy \
-	   -lrt \
-	   -lz \
-	   -lbz2 \
-		 -lpink
+			 -Wl,-Bdynamic -lpthread\
+			 -lsnappy \
+			 -lrt \
+			 -lz \
+			 -lbz2 \
+			 -lpink
 
 INCLUDE_PATH = -I../../include/ \
 							 -I../../3rdparty/rocksdb/include/ \

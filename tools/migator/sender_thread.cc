@@ -14,19 +14,19 @@ enum REDIS_STATUS {
 };
 
 SenderThread::SenderThread(pink::RedisCli *cli) :
-  cli_(cli),
-  buf_len_(0),
-  buf_pos_(0),
-  buf_r_cond_(&buf_mutex_),
-  buf_w_cond_(&buf_mutex_)
-  {
+    cli_(cli),
+    buf_len_(0),
+    buf_pos_(0),
+    buf_r_cond_(&buf_mutex_),
+    buf_w_cond_(&buf_mutex_)
+{
 }
 
 SenderThread::~SenderThread() {
   should_exit_ = true;
   delete cli_;
 }
-  
+
 int SenderThread::Wait(int fd, int mask, long long milliseconds) {
   struct pollfd pfd;
   int retmask = 0;
@@ -76,8 +76,6 @@ void *SenderThread::ThreadMain() {
   srand(time(NULL));
   int eof = 0;
   int done = 0;
-
-
   int flags;
   if ((flags = fcntl(fd, F_GETFL)) == -1) {
     log_err("fcntl(F_GETFL): %s", strerror(errno));
@@ -105,7 +103,6 @@ void *SenderThread::ThreadMain() {
                      rbuf_size_ - rbuf_pos_ - rbuf_offset_);
         if (nread == -1 && errno != EINTR && errno != EAGAIN) {
           log_err("Error reading from the server : %s", strerror(errno));
-          std::cout << "Error reading from the server :" << strerror(errno) << std::endl;
         }
         if (nread > 0) {
           rbuf_offset_ += nread;
@@ -129,13 +126,14 @@ void *SenderThread::ThreadMain() {
 
             if (type == REDIS_REPLY_ERROR) {
               err_++;
-              std::cout << std::string(p, len) << "\n"; 
+              log_err("%s", std::string(p, len).data());
             } else {
               elements_++;
               // Recive command "ECHO magic" reply
               if (eof && type == REDIS_REPLY_STRING) {
                 if ((memcmp(p, "20", 2) == 0) && (memcmp(p + 4, magic, 20) == 0)) {
-                  std::cout << "Last reply received from server.\n";
+                  // std::cout << "Last reply received from server.\n";
+                  // log_info("Last reply received from server.");
                   done = 1;
                   elements_--;
                   rbuf_pos_ = 0;
@@ -159,15 +157,15 @@ void *SenderThread::ThreadMain() {
           if (buf_len_ == 0) { 
             if (should_exit_) {
               char echo[] = 
-              "\r\n*2\r\n$4\r\nECHO\r\n$20\r\n01234567890123456789\r\n";
-              for (int i = 0; i < 20; i++) {
+                  "\r\n*2\r\n$4\r\nECHO\r\n$20\r\n01234567890123456789\r\n";
+              for(int i = 0; i < 20; i++) {
                 magic[i] = rand() % 26 + 65;
               }
               memcpy(echo + 21, magic, sizeof(echo) - 1);
               memcpy(buf_, echo, sizeof(echo) - 1);
               buf_len_ = sizeof(echo) - 1;
               buf_pos_ = 0;
-              log_info("All data transferred. Waiting for the last reply...");
+              // log_info("All data transferred. Waiting for the last reply...");
               eof = 1;
             } else {
               buf_r_cond_.Wait();
@@ -186,7 +184,7 @@ void *SenderThread::ThreadMain() {
         int nwritten = write(fd, buf_ + buf_pos_, len);
         if (nwritten == -1) { 
           if (errno != EAGAIN && errno != EINTR) {
-            std::cout << "Error writting to the server :" << strerror(errno) << std::endl;
+            // std::cout << "Error writting to the server :" << strerror(errno) << std::endl;
             log_err("Error writting to the server : %s", strerror(errno));
             return NULL;
           } else {
@@ -210,9 +208,9 @@ void *SenderThread::ThreadMain() {
     } // end of writable    
   }   // end of while
 
-  std::cout << "Sender " << pthread_self() << "exit" << std::endl;
-  std::cout << "thread:" << pthread_self() << " replies:" << elements_;
-  std::cout << "errors:" << err_ << "\n";
+  // std::cout << "Sender " << pthread_self() << "exit" << std::endl;
+  // std::cout << "thread:" << pthread_self() << " replies:" << elements_;
+  /* std::cout << "errors:" << err_ << "\n"; */
   return NULL;
 }
 
@@ -220,7 +218,7 @@ int SenderThread::TryReadType() {
   if (rbuf_offset_ == 0) {
     return REDIS_HALF;
   }
- 
+
   char *p;
   if ((p = ReadBytes(1)) == NULL) {
     return REDIS_HALF;
@@ -250,13 +248,13 @@ int SenderThread::TryReadType() {
 }
 
 // int SenderThread::TryReadLine(char *_p, int *plen) {
-  // char *p;
-  // // when not a complete, p == NULL 
-  // if ((p = ReadLine(plen)) == NULL) {
-    // return REDIS_HALF;
-  // }
-  // _p = p;
-  // return REDIS_OK;
+// char *p;
+// // when not a complete, p == NULL 
+// if ((p = ReadLine(plen)) == NULL) {
+// return REDIS_HALF;
+// }
+// _p = p;
+// return REDIS_OK;
 // }
 
 char *SenderThread::ReadLine(int *_len) {

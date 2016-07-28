@@ -10,48 +10,33 @@
 const int64_t kTestPoint = 500000;
 const int64_t kTestNum = LLONG_MAX;
 
-size_t num_thread = 12; //
-size_t thread_index = 0;
+std::string db_path = "/home/yinshucheng/test/db";
+std::string ip = "127.0.0.1";
+int port = 6379;
+size_t num_thread = 12;
 
 std::vector<ParseThread*> parsers;
 std::vector<SenderThread*> senders;
 std::vector<MigratorThread*> migrators;
 nemo::Nemo *db;
 
-std::string GetKey(const rocksdb::Iterator *it);
-void MigrateDB(char type);
-void DispatchKey(const std::string &key, char type);
-void StopThreads();
 int64_t GetNum(); 
-
-void Usage() {
-  std::cout << "Usage: " << std::endl;
-  std::cout << "./pika_to_redis db_path ip port sender_num\n;
-  std::cout << "example: ./pika_to_redis ~/db 127.0.0.1 6379 16\n";
-}
-
-int64_t NowMicros() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return static_cast<uint64_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
-}
+int64_t NowMicros();
+void Usage();
+void PrintConf();
 
 int main(int argc, char **argv)
 {
-  // for coding test
-  // std::string db_path = "/home/yinshucheng/pika/output/mydb/";
-  std::string db_path = "/home/yinshucheng/db";
-  std::string ip = "127.0.0.1";
-  int port = 6379;
-  num_thread = 12;
-
   if (argc != 5) {
     Usage();
+    return -1;
   } 
   db_path = std::string(argv[1]);
   ip = std::string(argv[2]);
   port = atoi(argv[3]);
   num_thread = atoi(argv[4]);
+
+  PrintConf();
 
   // init db
   nemo::Options option;
@@ -158,6 +143,25 @@ int64_t GetNum() {
     num += parsers[i]->num();
   }
   return num;
+}
+
+void PrintConf() {
+  std::cout << "db_path:" << db_path << std::endl;
+  std::cout << "ip:" << ip << std::endl;
+  std::cout << "port:" << port << std::endl;
+  std::cout << "num_sender" << num_thread << std::endl;
+}
+
+void Usage() {
+  std::cout << "Usage: " << std::endl;
+  std::cout << "./pika_to_redis db_path ip port sender_num\n";
+  std::cout << "example: ./pika_to_redis ~/db 127.0.0.1 6379 16\n";
+}
+
+int64_t NowMicros() {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return static_cast<uint64_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
 }
 
 
