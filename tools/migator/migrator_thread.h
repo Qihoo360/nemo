@@ -1,5 +1,5 @@
 #ifndef MIGRATOR_THREAD_H_
-#define MIGRATOR_THREAD_H_ 
+#define MIGRATOR_THREAD_H_
 
 #include "nemo.h"
 #include "pink_mutex.h"
