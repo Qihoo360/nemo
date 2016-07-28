@@ -20,7 +20,7 @@ std::vector<SenderThread*> senders;
 std::vector<MigratorThread*> migrators;
 nemo::Nemo *db;
 
-int64_t GetNum(); 
+int64_t GetNum();
 int64_t NowMicros();
 void Usage();
 void PrintConf();
@@ -30,7 +30,7 @@ int main(int argc, char **argv)
   if (argc != 5) {
     Usage();
     return -1;
-  } 
+  }
   db_path = std::string(argv[1]);
   ip = std::string(argv[2]);
   port = atoi(argv[3]);
@@ -44,7 +44,7 @@ int main(int argc, char **argv)
   option.target_file_size_base = 20 * 1024 * 1024; // 20M
   db = new nemo::Nemo(db_path ,option);
 
-  // init ParseThread and SenderThread 
+  // init ParseThread and SenderThread
   pink::Status pink_s;
   for (size_t i = 0; i < num_thread; i++) {
      // init a redis-cli
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
   }
 
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kKv));
-  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));        
+  migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kHSize));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kSSize));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kZSize));
@@ -85,25 +85,25 @@ int main(int argc, char **argv)
     if (num >= kTestPoint * times) {
       times++;
       int dur = NowMicros() - start_time;
-      std::cout << dur / 1000000 << ":" << dur % 1000000 << " " <<  num << std::endl; 
+      std::cout << dur / 1000000 << ":" << dur % 1000000 << " " <<  num << std::endl;
     }
 
     bool should_exit = true;
     for (size_t i = 0; i < migrators.size(); i++) {
       if (!migrators[i]->should_exit_) {
         should_exit = false;
-        break; 
+        break;
       }
     }
 
     if (num >= kTestNum) {
       should_exit = true;
-    } 
-    
+    }
+
     if (should_exit) {
       for (size_t i = 0; i < num_thread; i++) {
         parsers[i]->Stop();
-      } 
+      }
       break;
     }
   }
@@ -118,9 +118,9 @@ int main(int argc, char **argv)
 
   for (size_t i = 0; i < num_thread; i++) {
     replies += senders[i]->elements();
-    errors += senders[i]->err(); 
+    errors += senders[i]->err();
   }
-  
+
   std::cout << "Total records :" << replies << "\n";
   std::cout << "Total errors  :" << errors << "\n";
 

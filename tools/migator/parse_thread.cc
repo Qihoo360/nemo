@@ -19,7 +19,7 @@ void ParseThread::ParseKey(const std::string &key,char type) {
 }
 
 void ParseThread::ParseKKey(const std::string &cmd) {
-  PlusNum();   
+  PlusNum();
   sender_->LoadCmd(cmd);
 }
 
@@ -59,19 +59,19 @@ void ParseThread::ParseSKey(const std::string &key) {
 }
 
 void ParseThread::ParseZKey(const std::string &key) {
-  nemo::ZIterator *iter = db_->ZScan(key, nemo::ZSET_SCORE_MIN, 
+  nemo::ZIterator *iter = db_->ZScan(key, nemo::ZSET_SCORE_MIN,
                                      nemo::ZSET_SCORE_MAX, -1, false);
   for(; iter->Valid(); iter->Next()) {
     pink::RedisCmdArgsType argv;
     std::string cmd;
 
     std::string score = std::to_string(iter->score());
-    
+
     argv.push_back("ZADD");
     argv.push_back(iter->key());
     argv.push_back(score);
     argv.push_back(iter->member());
-    
+
     pink::RedisCli::SerializeCommand(argv, &cmd);
     PlusNum();
     sender_->LoadCmd(cmd);
@@ -99,7 +99,7 @@ void ParseThread::ParseLKey(const std::string &key) {
     }
     pink::RedisCli::SerializeCommand(argv, &cmd);
     sender_->LoadCmd(cmd);
-    
+
     pos += len;
     ivs.clear();
     db_->LRange(key, pos, pos + len, ivs);
@@ -133,7 +133,7 @@ void *ParseThread::ThreadMain() {
       while (task_queue_.empty() && !should_exit_) {
         task_r_cond_.Wait();
       }
-      
+
       if (task_queue_.empty()) {
         break;
       }
@@ -144,7 +144,7 @@ void *ParseThread::ThreadMain() {
     }
     ParseKey(key, type);
   }
-  
+
   if (!task_queue_.empty()) {
     key = task_queue_.front().key;
     type = task_queue_.front().type;

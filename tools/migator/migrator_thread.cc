@@ -38,7 +38,7 @@ void MigratorThread::DispatchKey(const std::string &key,char type) {
 }
 
 void *MigratorThread::ThreadMain() {
-  MigrateDB(type_); 
+  MigrateDB(type_);
   should_exit_ = true;
   std::cout << type_ << "keys have been dispatched completly" << std::endl;
   return NULL;

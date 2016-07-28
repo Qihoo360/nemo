@@ -25,9 +25,9 @@ public:
 private:
   static const int kReadable = 1;
   static const int kWritable = 2;
-  static const size_t kBufSize = 2097152; //2M 
-  static const size_t kWirteLoopMaxBYTES = 1024 * 2048; // 10k cmds 
-  
+  static const size_t kBufSize = 2097152; //2M
+  static const size_t kWirteLoopMaxBYTES = 1024 * 2048; // 10k cmds
+
   int Wait(int fd, int mask, long long milliseconds);
 
   pink::RedisCli *cli_;
@@ -42,7 +42,7 @@ private:
   int64_t elements_;    // the elements number of this current reply
   int64_t err_;
 
-  int TryRead(); 
+  int TryRead();
   int TryReadType();
   // int TryReadLine(char *p,int *plen);
 
@@ -53,7 +53,7 @@ private:
   pink::Mutex buf_mutex_;
   pink::CondVar buf_r_cond_;
   pink::CondVar buf_w_cond_;
-  int64_t NowMicros_(); 
+  int64_t NowMicros_();
   virtual void *ThreadMain();
 };
 #endif

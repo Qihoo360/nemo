@@ -1,5 +1,5 @@
 #ifndef PARSE_THREAD_H_
-#define PARSE_THREAD_H_ 
+#define PARSE_THREAD_H_
 
 #include "nemo.h"
 #include "pink_mutex.h"
@@ -14,10 +14,10 @@ public:
     sender_(sender),
     task_r_cond_(&task_mutex_),
     task_w_cond_(&task_mutex_),
-    full_(full), 
+    full_(full),
     num_(0) {
   }
-  
+
   virtual ~ParseThread();
   void Stop();
   void Schedul(const std::string &key, char type);
@@ -34,7 +34,7 @@ private:
   void ParseSKey(const std::string &key);
   void ParseZKey(const std::string &key);
   void ParseLKey(const std::string &key);
- 
+
   struct Task {
     std::string key;
     char type;
@@ -44,7 +44,7 @@ private:
 
   nemo::Nemo *db_;
   SenderThread *sender_;
- 
+
   std::deque<Task> task_queue_;
   pink::Mutex task_mutex_;
   pink::CondVar task_r_cond_;

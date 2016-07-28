@@ -106,7 +106,7 @@ void *SenderThread::ThreadMain() {
         }
         if (nread > 0) {
           rbuf_offset_ += nread;
-          // parse result 
+          // parse result
           do {
             int type = TryReadType();
             if (type == REDIS_ERR) {
@@ -120,7 +120,7 @@ void *SenderThread::ThreadMain() {
             char *p = ReadLine(&len);
             if (p == NULL) {
               rbuf_offset_ += 1;
-              rbuf_pos_ -= 1; 
+              rbuf_pos_ -= 1;
               break;
             }
 
@@ -143,20 +143,20 @@ void *SenderThread::ThreadMain() {
               }
             }
           } while (1);
-        } // end of parse 
+        } // end of parse
       } while (nread > 0 && !done);
     }
 
     if (mask & kWritable) {
       size_t loop_nwritten = 0;
       while (!eof) {
-        size_t len; 
+        size_t len;
         {
           pink::MutexLock l(&buf_mutex_);
-          // no data to send and should exit 
-          if (buf_len_ == 0) { 
+          // no data to send and should exit
+          if (buf_len_ == 0) {
             if (should_exit_) {
-              char echo[] = 
+              char echo[] =
                   "\r\n*2\r\n$4\r\nECHO\r\n$20\r\n01234567890123456789\r\n";
               for(int i = 0; i < 20; i++) {
                 magic[i] = rand() % 26 + 65;
@@ -173,23 +173,23 @@ void *SenderThread::ThreadMain() {
                 continue;
               }
             }
-          } 
+          }
           if (buf_len_ > 1024 * 16) {
             len = 1024 * 16;
           } else {
             len = buf_len_;
           }
-        } 
+        }
 
         int nwritten = write(fd, buf_ + buf_pos_, len);
-        if (nwritten == -1) { 
+        if (nwritten == -1) {
           if (errno != EAGAIN && errno != EINTR) {
             // std::cout << "Error writting to the server :" << strerror(errno) << std::endl;
             log_err("Error writting to the server : %s", strerror(errno));
             return NULL;
           } else {
             nwritten = 0;
-          }  
+          }
         }
         {
           pink::MutexLock l(&buf_mutex_);
@@ -202,10 +202,10 @@ void *SenderThread::ThreadMain() {
           }
           if (loop_nwritten > kWirteLoopMaxBYTES || (eof && buf_len_ == 0)  || (size_t)nwritten < len) {
             break;
-          } 
+          }
         }
       }
-    } // end of writable    
+    } // end of writable
   }   // end of while
 
   // std::cout << "Sender " << pthread_self() << "exit" << std::endl;
@@ -249,7 +249,7 @@ int SenderThread::TryReadType() {
 
 // int SenderThread::TryReadLine(char *_p, int *plen) {
 // char *p;
-// // when not a complete, p == NULL 
+// // when not a complete, p == NULL
 // if ((p = ReadLine(plen)) == NULL) {
 // return REDIS_HALF;
 // }
@@ -264,7 +264,7 @@ char *SenderThread::ReadLine(int *_len) {
   p = rbuf_ + rbuf_pos_;
   s = seekNewline(p, rbuf_offset_);
   if (s != NULL) {
-    len = s - (rbuf_ + rbuf_pos_); 
+    len = s - (rbuf_ + rbuf_pos_);
     rbuf_pos_ += len + 2; /* skip \r\n */
     rbuf_offset_ -= len + 2;
     if (_len) *_len = len;
