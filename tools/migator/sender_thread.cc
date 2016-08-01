@@ -23,7 +23,6 @@ SenderThread::SenderThread(pink::RedisCli *cli) :
 }
 
 SenderThread::~SenderThread() {
-  should_exit_ = true;
   delete cli_;
 }
 
@@ -126,7 +125,7 @@ void *SenderThread::ThreadMain() {
 
             if (type == REDIS_REPLY_ERROR) {
               err_++;
-              log_err("%s", std::string(p, len).data());
+              log_warn("%s", std::string(p, len).data());
             } else {
               elements_++;
               // Recive command "ECHO magic" reply

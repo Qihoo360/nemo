@@ -61,7 +61,7 @@ void ParseThread::ParseSKey(const std::string &key) {
 void ParseThread::ParseZKey(const std::string &key) {
   nemo::ZIterator *iter = db_->ZScan(key, nemo::ZSET_SCORE_MIN,
                                      nemo::ZSET_SCORE_MAX, -1, false);
-  for(; iter->Valid(); iter->Next()) {
+  for (; iter->Valid(); iter->Next()) {
     pink::RedisCmdArgsType argv;
     std::string cmd;
 
@@ -108,11 +108,11 @@ void ParseThread::ParseLKey(const std::string &key) {
 
 void ParseThread::Schedul(const std::string &key, char type) {
   pink::MutexLock l(&task_mutex_);
-  while(task_queue_.size() >= full_) {
+  while (task_queue_.size() >= full_) {
     task_w_cond_.Wait();
   }
 
-  if(task_queue_.size() < full_) {
+  if (task_queue_.size() < full_) {
     task_queue_.push_back(Task(key, type));
     task_r_cond_.Signal();
   }

@@ -24,6 +24,7 @@ int64_t GetNum();
 int64_t NowMicros();
 void Usage();
 void PrintConf();
+void HumanTime(int64_t time); 
 
 int main(int argc, char **argv)
 {
@@ -67,11 +68,10 @@ int main(int argc, char **argv)
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kLMeta));
   migrators.push_back(new MigratorThread(db, parsers, nemo::DataType::kZSize));
 
+  // start threads
   for (size_t i = 0; i < migrators.size(); i++) {
     migrators[i]->StartThread();
   }
-
-  // start threads
   for (size_t i = 0; i < num_thread; i++) {
     parsers[i]->StartThread();
     senders[i]->StartThread();
@@ -84,10 +84,12 @@ int main(int argc, char **argv)
     int64_t num = GetNum();
     if (num >= kTestPoint * times) {
       times++;
-      int dur = NowMicros() - start_time;
-      std::cout << dur / 1000000 << ":" << dur % 1000000 << " " <<  num << std::endl;
+      int64_t dur = NowMicros() - start_time;
+      std::cout << "Running time:" << dur / 1000000 << "s "  
+         << num << " records" << std::endl;
     }
 
+    // check if all migrators have exited
     bool should_exit = true;
     for (size_t i = 0; i < migrators.size(); i++) {
       if (!migrators[i]->should_exit_) {
@@ -100,6 +102,7 @@ int main(int argc, char **argv)
       should_exit = true;
     }
 
+    // inform parser to exit
     if (should_exit) {
       for (size_t i = 0; i < num_thread; i++) {
         parsers[i]->Stop();
@@ -115,14 +118,11 @@ int main(int argc, char **argv)
 
   int64_t replies = 0;
   int64_t errors = 0;
-
+  int64_t records = GetNum();
   for (size_t i = 0; i < num_thread; i++) {
     replies += senders[i]->elements();
     errors += senders[i]->err();
   }
-
-  std::cout << "Total records :" << replies << "\n";
-  std::cout << "Total errors  :" << errors << "\n";
 
   for (size_t i = 0; i < migrators.size(); i++) {
     delete migrators[i];
@@ -131,10 +131,26 @@ int main(int argc, char **argv)
     delete parsers[i];
     delete senders[i];
   }
-
   delete db;
 
+  std::cout << "====================================" << std::endl;
+  int64_t curr = NowMicros() - start_time; 
+  std::cout << "Running time  :"; 
+  HumanTime(curr);
+  std::cout << "Total records :" << records << " have been migreated\n"; 
+  std::cout << "Total replies :" << replies << " received from redis server\n";
+  std::cout << "Total errors  :" << errors << " received from redis server\n";
   return 0;
+}
+
+void HumanTime(int64_t time) {
+  time = time / 1000000;  
+  int64_t hours = time / 3600;
+  time = time % 3600;
+  int64_t minutes = time / 60;
+  int64_t secs = time % 60;
+
+  std::cout << hours << "hour " << minutes << "min " << secs << "s\n";
 }
 
 int64_t GetNum() {
@@ -146,10 +162,12 @@ int64_t GetNum() {
 }
 
 void PrintConf() {
-  std::cout << "db_path:" << db_path << std::endl;
-  std::cout << "ip:" << ip << std::endl;
-  std::cout << "port:" << port << std::endl;
-  std::cout << "num_sender" << num_thread << std::endl;
+  std::cout << "db_path : " << db_path << std::endl;
+  std::cout << "ip : " << ip << std::endl;
+  std::cout << "port : " << port << std::endl;
+  std::cout << "num_sender : " << num_thread << std::endl;
+  std::cout << "====================================" << std::endl;
+
 }
 
 void Usage() {
@@ -163,5 +181,3 @@ int64_t NowMicros() {
   gettimeofday(&tv, NULL);
   return static_cast<uint64_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
 }
-
-
