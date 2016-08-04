@@ -131,7 +131,6 @@ int main(int argc, char **argv)
     delete parsers[i];
     delete senders[i];
   }
-  delete db;
 
   std::cout << "====================================" << std::endl;
   int64_t curr = NowMicros() - start_time; 
@@ -140,6 +139,7 @@ int main(int argc, char **argv)
   std::cout << "Total records :" << records << " have been migreated\n"; 
   std::cout << "Total replies :" << replies << " received from redis server\n";
   std::cout << "Total errors  :" << errors << " received from redis server\n";
+  delete db;
   return 0;
 }
 

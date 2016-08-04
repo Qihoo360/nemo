@@ -43,7 +43,7 @@ int SenderThread::Wait(int fd, int mask, long long milliseconds) {
     if (pfd.revents & POLLHUP) retmask |= kWritable;
     return retmask;
   } else {
-    return retval;
+    return kWritable;
   }
 }
 
@@ -209,7 +209,7 @@ void *SenderThread::ThreadMain() {
 
   // std::cout << "Sender " << pthread_self() << "exit" << std::endl;
   // std::cout << "thread:" << pthread_self() << " replies:" << elements_;
-  /* std::cout << "errors:" << err_ << "\n"; */
+  // std::cout << "errors:" << err_ << "\n"; 
   return NULL;
 }
 

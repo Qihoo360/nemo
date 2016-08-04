@@ -185,7 +185,7 @@ void *ParseThread::ThreadMain() {
     ParseKey(key, type);
   }
   sender_->Stop();
-  // std::cout << "Parser " <<  pthread_self() << " exit \n";
+  std::cout << "Parser " <<  pthread_self() << " exit \n";
   return NULL;
 }
 
