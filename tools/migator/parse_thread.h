@@ -28,6 +28,7 @@ public:
 
 private:
   // prase key and generate cmd
+  void SetTTL(const std::string &key, int64_t ttl);
   void ParseKey(const std::string &key,char type);
   void ParseKKey(const std::string &key);
   void ParseHKey(const std::string &key);

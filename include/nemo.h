@@ -80,6 +80,11 @@ public:
     std::string GetCurrentTaskType();
 
 
+    Status LTTL(const std::string &key, int64_t *res);
+    Status STTL(const std::string &key, int64_t *res);
+    Status ZTTL(const std::string &key, int64_t *res);
+    Status HTTL(const std::string &key, int64_t *res);
+    Status KTTL(const std::string &key, int64_t *res);
     // =================String=====================
     Status Del(const std::string &key, int64_t *count);
     Status MDel(const std::vector<std::string> &keys, int64_t* count);
@@ -268,27 +273,28 @@ private:
 
     Status KDel(const std::string &key, int64_t *res);
     Status KExpire(const std::string &key, const int32_t seconds, int64_t *res);
-    Status KTTL(const std::string &key, int64_t *res);
     Status KPersist(const std::string &key, int64_t *res);
     Status KExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
     Status HDelKey(const std::string &key, int64_t *res);
     Status HExpire(const std::string &key, const int32_t seconds, int64_t *res);
-    Status HTTL(const std::string &key, int64_t *res);
     Status HPersist(const std::string &key, int64_t *res);
     Status HExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
     Status ZDelKey(const std::string &key, int64_t *res);
     Status ZExpire(const std::string &key, const int32_t seconds, int64_t *res);
-    Status ZTTL(const std::string &key, int64_t *res);
     Status ZPersist(const std::string &key, int64_t *res);
     Status ZExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
     Status SDelKey(const std::string &key, int64_t *res);
     Status SExpire(const std::string &key, const int32_t seconds, int64_t *res);
-    Status STTL(const std::string &key, int64_t *res);
     Status SPersist(const std::string &key, int64_t *res);
     Status SExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
     Status LDelKey(const std::string &key, int64_t *res);
     Status LExpire(const std::string &key, const int32_t seconds, int64_t *res);
-    Status LTTL(const std::string &key, int64_t *res);
+    // for migration
+    // Status LTTL(const std::string &key, int64_t *res);
+    // Status STTL(const std::string &key, int64_t *res);
+    // Status ZTTL(const std::string &key, int64_t *res);
+    // Status HTTL(const std::string &key, int64_t *res);
+    // Status KTTL(const std::string &key, int64_t *res);
     Status LPersist(const std::string &key, int64_t *res);
     Status LExpireat(const std::string &key, const int32_t timestamp, int64_t *res);
 

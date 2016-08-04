@@ -16,7 +16,40 @@ void ParseThread::ParseKey(const std::string &key,char type) {
   } else if (type == nemo::DataType::kKv) {
     ParseKKey(key);
   }
+
+  if (type == nemo::DataType::kKv) {
+    return;
+  }
+  int64_t ttl;
+  // int64_t *ttl = -1; 
+  if (type == nemo::DataType::kHSize) {
+    db_->HTTL(key, &ttl);
+  } else if (type == nemo::DataType::kSSize) {
+    db_->STTL(key, &ttl);
+  } else if (type == nemo::DataType::kLMeta) {
+    db_->LTTL(key, &ttl);
+  } else if (type == nemo::DataType::kZSize) {
+    db_->ZTTL(key, &ttl);
+  }
+  // no kv, because kv cmd: SET key value ttl
+  SetTTL(key, ttl); 
+
 }
+
+void ParseThread::SetTTL(const std::string &key, int64_t ttl) {
+  if (ttl < 0) return;
+  pink::RedisCmdArgsType argv;
+  std::string cmd;
+
+  argv.push_back("EXPIRE");
+  argv.push_back(key);
+  argv.push_back(std::to_string(ttl));
+
+  pink::RedisCli::SerializeCommand(argv, &cmd);
+  sender_->LoadCmd(cmd);
+}
+
+
 
 void ParseThread::ParseKKey(const std::string &cmd) {
   PlusNum();
