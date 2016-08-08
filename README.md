@@ -2,6 +2,9 @@
 A library that provide multiply data structure. Such as map, hash, list, set. We
 build these data structure base on rocksdb
 
+https://travis-ci.org/Qihoo360/nemo.svg?branch=master
+[![Build Status](https://travis-ci.org/Qihoo360/nemo.svg?branch=master)](https://travis-ci.org/Qihoo360/nemo)
+
 ## Performance
 
 We test the nemo library simply. We run set/get 100,000 times with a 13 bytes key and value.
