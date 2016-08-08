@@ -1,8 +1,9 @@
 # nemo
+[![Build
+Status](https://travis-ci.org/pingcap/tidb.svg?branch=master)](https://travis-ci.org/pingcap/tidb)
 A library that provide multiply data structure. Such as map, hash, list, set. We
 build these data structure base on rocksdb
 
-[![Build Status](https://travis-ci.org/Qihoo360/nemo.svg?branch=master)](https://travis-ci.org/Qihoo360/nemo)
 
 ## Performance
 
