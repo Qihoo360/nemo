@@ -2,7 +2,6 @@
 A library that provide multiply data structure. Such as map, hash, list, set. We
 build these data structure base on rocksdb
 
-https://travis-ci.org/Qihoo360/nemo.svg?branch=master
 [![Build Status](https://travis-ci.org/Qihoo360/nemo.svg?branch=master)](https://travis-ci.org/Qihoo360/nemo)
 
 ## Performance
