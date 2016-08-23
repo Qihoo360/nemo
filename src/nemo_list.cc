@@ -585,6 +585,8 @@ Status Nemo::LTrim(const std::string &key, const int64_t begin, const int64_t en
                     s = list_db_->Put(rocksdb::WriteOptions(), l_key, en_val);
                     //batch.Put(l_key, en_val);
                 }
+
+                priv = 0;
                 t_cur = meta.right;
                 for (int64_t i = meta.len - 1; i > index_e; i--) {
                     db_key = EncodeListKey(key, t_cur);
