@@ -1,5 +1,7 @@
-Tool for Manual Compact
+Tool for Meta Scan
 
 Usage:
-./compact db_path type
+./meta_scan db_path type pattern
 type is one of: kv, hash, list, zset, set, all
+Example:
+./meta_scan ./db list \*

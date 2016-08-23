@@ -1,5 +1,7 @@
-Tool for Manual Compact
+Tool for Nemo Check
 
 Usage:
-./compact db_path type
+./nemock db_path type pattern
 type is one of: kv, hash, list, zset, set, all
+Example:
+./nemock ./db list \*
