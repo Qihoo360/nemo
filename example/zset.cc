@@ -111,5 +111,59 @@ int main()
 
     s = n->ZScore("zr", "e", &score);
     log_info( "zscore e return %s, score is %lf\n", s.ToString().c_str(), score);
+
+    /*
+     *  Test ZUnionStore
+     */
+    log_info("======Test ZUnionStore======");
+    s = n->ZAdd("tZUnionKey1", 0, "member1", &zadd_res);
+    s = n->ZAdd("tZUnionKey1", 1.0, "member2", &zadd_res);
+    s = n->ZAdd("tZUnionKey1", 2.0, "member3", &zadd_res);
+    s = n->ZAdd("tZUnionKey1", 3.0, "member4", &zadd_res);
+
+
+    s = n->ZAdd("tZUnionKey2", 1.0, "member1", &zadd_res);
+    s = n->ZAdd("tZUnionKey2", 2.5, "member2", &zadd_res);
+    s = n->ZAdd("tZUnionKey2", 2.9, "member3", &zadd_res);
+
+    s = n->ZAdd("tZUnionKey3", 2.5, "member1", &zadd_res);
+
+    keys.clear();
+    keys.push_back("tZUnionKey2");
+    keys.push_back("tZUnionKey1");
+
+    std::vector<double> weights;
+    weights.push_back(1);
+    weights.push_back(10);
+
+    int64_t union_ret;
+    s = n->ZUnionStore("tZUnionNewKey1", 2, keys, weights, Aggregate::SUM, &union_ret);
+    if (!s.ok()) {
+        log_info("Test ZUnionStore [newkey1, key1, key2] return %s", s.ToString().c_str());
+    } else {
+        sms.clear();
+        s = n->ZRange("tZUnionNewKey1", -10, -1, sms);
+        log_info(" ZUnionStore OK, union (10 * key1, 1 * key2) should be [member1=1, member2=12.5, member3=22.9,member4=30]");
+        for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
+          log_info("            score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
+        }
+    }
+
+    weights.clear();
+    s = n->ZUnionStore("tZUnionNewKey2", 2, keys, weights, Aggregate::MAX, &union_ret);
+    if (!s.ok()) {
+        log_info("Test ZUnionStore [newkey2, key1, key2] return %s", s.ToString().c_str());
+    } else {
+        sms.clear();
+        s = n->ZRange("tZUnionNewKey2", -10, -1, sms);
+        log_info(" ZUnionStore OK, union MAX(1 * key1, 1 * key2) should be [member1=1, member2=2.5, member3=2.9,member4=3]");
+        for (it_sm = sms.begin(); it_sm != sms.end(); it_sm++) {
+          log_info("            score: %lf, member: %s", it_sm->score, it_sm->member.c_str());
+        }
+    }
+    log_info("");
+
+
+
     return 0;
 }

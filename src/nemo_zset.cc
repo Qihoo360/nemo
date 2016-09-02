@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <climits>
 #include <ctime>
+#include <set>
 
 #include "nemo_zset.h"
 #include "nemo_mutex.h"
@@ -445,15 +446,19 @@ Status Nemo::ZRangebyscore(const std::string &key, const double mn, const double
     return Status::OK();
 }
 
+// numkeys should equal keys.size()
 Status Nemo::ZUnionStore(const std::string &destination, const int numkeys, const std::vector<std::string>& keys, const std::vector<double>& weights = std::vector<double>(), Aggregate agg = SUM, int64_t *res = 0) {
     std::map<std::string, double> mp_member_score;
     *res = 0;
 
-    //MutexLock l(&mutex_zset_);
-    RecordLock l(&mutex_zset_record_, destination);
+    // we should lock destination and keys in order
+    // TODO: maybe a MultiRecordLock is a better way;
+    std::set<std::string> lock_keys(keys.begin(), keys.end());
+    lock_keys.insert(destination);
 
-    for (int key_i = 0; key_i < numkeys; key_i++) {
-      mutex_set_record_.Lock(keys[key_i]);
+    for (auto iter = lock_keys.begin(); iter != lock_keys.end(); iter++) {
+      mutex_zset_record_.Lock(*iter);
+      //printf ("->ZUnionStore lock key(%s)\n", iter->c_str());
     }
 
     int weights_size = static_cast<int>(weights.size());
@@ -497,8 +502,9 @@ Status Nemo::ZUnionStore(const std::string &destination, const int numkeys, cons
         }
     }
 
-    for (int key_i = 0; key_i < numkeys; key_i++) {
-      mutex_set_record_.Unlock(keys[key_i]);
+    for (auto iter = lock_keys.begin(); iter != lock_keys.end(); iter++) {
+      mutex_zset_record_.Unlock(*iter);
+      //printf ("<-ZUnionStore unlock key(%s)\n", iter->c_str());
     }
 
     *res = mp_member_score.size();
@@ -524,11 +530,13 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
     double l_score;
     int key_i;
 
-    //MutexLock l(&mutex_zset_);
-    RecordLock l(&mutex_zset_record_, destination);
+    // TODO: maybe a MultiRecordLock is a better way;
+    std::set<std::string> lock_keys(keys.begin(), keys.end());
+    lock_keys.insert(destination);
 
-    for (int key_i = 0; key_i < numkeys; key_i++) {
-      mutex_set_record_.Lock(keys[key_i]);
+    for (auto iter = lock_keys.begin(); iter != lock_keys.end(); iter++) {
+      mutex_zset_record_.Lock(*iter);
+      //printf ("->ZInterStore lock key(%s)\n", iter->c_str());
     }
 
     int weights_size = static_cast<int>(weights.size());
@@ -562,6 +570,10 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
               break;
           } else {
               delete iter;
+              // unlock
+              for (auto iter = lock_keys.begin(); iter != lock_keys.end(); iter++) {
+                mutex_zset_record_.Unlock(*iter);
+              }
               return s;
           }
         }
@@ -585,8 +597,10 @@ Status Nemo::ZInterStore(const std::string &destination, const int numkeys, cons
         (*res)++;
     }
 
-    for (int key_i = 0; key_i < numkeys; key_i++) {
-      mutex_set_record_.Unlock(keys[key_i]);
+    // unlock
+    for (auto iter = lock_keys.begin(); iter != lock_keys.end(); iter++) {
+      mutex_zset_record_.Unlock(*iter);
+      //printf ("<-ZInterStore lock key(%s)\n", iter->c_str());
     }
 
     return Status::OK();

@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <ctime>
+#include <set>
 
 #include "nemo_set.h"
 #include "nemo_mutex.h"
@@ -347,8 +348,13 @@ Status Nemo::SInterStore(const std::string &destination, const std::vector<std::
         return Status::Corruption("SInter invalid parameter, no keys");
     }
 
-    for (size_t i = 0; i < keys.size(); i++) {
-      mutex_set_record_.Lock(keys[i]);
+    // TODO: maybe a MultiRecordLock is a better way;
+    std::set<std::string> lock_keys(keys.begin(), keys.end());
+    lock_keys.insert(destination);
+
+    for (auto iter = lock_keys.begin(); iter != lock_keys.end(); iter++) {
+      mutex_set_record_.Lock(*iter);
+      //printf ("SInter lock key(%s)\n", iter->c_str());
     }
 
     std::map<std::string, int> member_result;
@@ -370,39 +376,43 @@ Status Nemo::SInterStore(const std::string &destination, const std::vector<std::
     set_db_->ReleaseSnapshot(iter->read_options().snapshot);
     delete iter;
 
-    for (size_t i = 0; i < keys.size(); i++) {
-      mutex_set_record_.Unlock(keys[i]);
-    }
-
     // we delete the destination if it exists
     Status s;
     int64_t tmp_res;
 
-    RecordLock l(&mutex_set_record_, destination);
+    //RecordLock l(&mutex_set_record_, destination);
     if (SCard(destination) > 0) {
         SIterator *iter = SScan(destination, -1, true);
         for (; iter->Valid(); iter->Next()) {
             s = SRemNoLock(destination, iter->member(), &tmp_res);
             if (!s.ok()) {
-                delete iter;
-                return s;
+                break;
+                //delete iter;
+                //return s;
             }
         }
         set_db_->ReleaseSnapshot(iter->read_options().snapshot);
         delete iter;
     }
 
-    for (it = member_result.begin(); it != member_result.end(); it++) {
+    if (s.ok()) {
+      for (it = member_result.begin(); it != member_result.end(); it++) {
         s = SAddNoLock(destination, it->first, &tmp_res);
         if (!s.ok()) {
-            break;
+          break;
         }
+      }
+    }
+
+    for (auto iter = lock_keys.begin(); iter != lock_keys.end(); iter++) {
+      mutex_set_record_.Unlock(*iter);
     }
 
     *res = member_result.size();
     return s;
 }
 
+// TODO need lock
 Status Nemo::SDiff(const std::vector<std::string> &keys, std::vector<std::string>& members) {
     int numkey = keys.size();
     if (numkey <= 0) {
