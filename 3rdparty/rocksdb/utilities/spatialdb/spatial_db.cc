@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -65,28 +65,56 @@ inline bool GetSpatialIndexName(const std::string& column_family_name,
 
 }  // namespace
 
-Variant::Variant(const Variant& v) : type_(v.type_) {
+void Variant::Init(const Variant& v, Data& d) {
   switch (v.type_) {
     case kNull:
       break;
     case kBool:
-      data_.b = v.data_.b;
+      d.b = v.data_.b;
       break;
     case kInt:
-      data_.i = v.data_.i;
+      d.i = v.data_.i;
       break;
     case kDouble:
-      data_.d = v.data_.d;
+      d.d = v.data_.d;
       break;
     case kString:
-      new (&data_.s) std::string(v.data_.s);
+      new (d.s) std::string(*GetStringPtr(v.data_));
       break;
     default:
       assert(false);
   }
 }
 
-bool Variant::operator==(const Variant& rhs) {
+Variant& Variant::operator=(const Variant& v) {
+  // Construct first a temp so exception from a string ctor
+  // does not change this object
+  Data tmp;
+  Init(v, tmp);
+
+  Type thisType = type_;
+  // Boils down to copying bits so safe
+  std::swap(tmp, data_);
+  type_ = v.type_;
+
+  Destroy(thisType, tmp);
+
+  return *this;
+}
+
+Variant& Variant::operator=(Variant&& rhs) {
+  Destroy(type_, data_);
+  if (rhs.type_ == kString) {
+    new (data_.s) std::string(std::move(*GetStringPtr(rhs.data_)));
+  } else {
+    data_ = rhs.data_;
+  }
+  type_ = rhs.type_;
+  rhs.type_ = kNull;
+  return *this;
+}
+
+bool Variant::operator==(const Variant& rhs) const {
   if (type_ != rhs.type_) {
     return false;
   }
@@ -101,15 +129,13 @@ bool Variant::operator==(const Variant& rhs) {
     case kDouble:
       return data_.d == rhs.data_.d;
     case kString:
-      return data_.s == rhs.data_.s;
+      return *GetStringPtr(data_) == *GetStringPtr(rhs.data_);
     default:
       assert(false);
   }
   // it will never reach here, but otherwise the compiler complains
   return false;
 }
-
-bool Variant::operator!=(const Variant& rhs) { return !(*this == rhs); }
 
 FeatureSet* FeatureSet::Set(const std::string& key, const Variant& value) {
   map_.insert({key, value});
@@ -589,7 +615,7 @@ class SpatialDBImpl : public SpatialDB {
 
           Status t = Flush(FlushOptions(), cfh);
           if (t.ok()) {
-            t = CompactRange(cfh, nullptr, nullptr);
+            t = CompactRange(CompactRangeOptions(), cfh, nullptr, nullptr);
           }
 
           {
@@ -687,7 +713,7 @@ ColumnFamilyOptions GetColumnFamilyOptions(const SpatialDBOptions& options,
   column_family_options.target_file_size_base = 64 * 1024 * 1024;      // 64MB
   column_family_options.level0_file_num_compaction_trigger = 2;
   column_family_options.level0_slowdown_writes_trigger = 16;
-  column_family_options.level0_slowdown_writes_trigger = 32;
+  column_family_options.level0_stop_writes_trigger = 32;
   // only compress levels >= 2
   column_family_options.compression_per_level.resize(
       column_family_options.num_levels);

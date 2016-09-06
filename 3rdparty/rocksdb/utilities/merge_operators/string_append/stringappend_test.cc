@@ -23,7 +23,7 @@ using namespace rocksdb;
 namespace rocksdb {
 
 // Path to the database on file system
-const std::string kDbName = "/tmp/mergetestdb";
+const std::string kDbName = test::TmpDir() + "/stringappend_test";
 
 namespace {
 // OpenDb opens a (possibly new) rocksdb database with a StringAppendOperator
@@ -36,6 +36,7 @@ std::shared_ptr<DB> OpenNormalDb(char delim_char) {
   return std::shared_ptr<DB>(db);
 }
 
+#ifndef ROCKSDB_LITE  // TtlDb is not supported in Lite
 // Open a TtlDB with a non-associative StringAppendTESTOperator
 std::shared_ptr<DB> OpenTtlDb(char delim_char) {
   DBWithTTL* db;
@@ -45,6 +46,7 @@ std::shared_ptr<DB> OpenTtlDb(char delim_char) {
   EXPECT_OK(DBWithTTL::Open(options, kDbName, &db, 123456));
   return std::shared_ptr<DB>(db);
 }
+#endif  // !ROCKSDB_LITE
 }  // namespace
 
 /// StringLists represents a set of string-lists, each with a key-index.
@@ -515,7 +517,7 @@ TEST_F(StringAppendOperatorTest, PersistentFlushAndCompaction) {
     slists.Append("c", "bbnagnagsx");
     slists.Append("a", "sa");
     slists.Append("b", "df");
-    db->CompactRange(nullptr, nullptr);
+    db->CompactRange(CompactRangeOptions(), nullptr, nullptr);
     slists.Get("a", &a);
     slists.Get("b", &b);
     slists.Get("c", &c);
@@ -536,7 +538,7 @@ TEST_F(StringAppendOperatorTest, PersistentFlushAndCompaction) {
     ASSERT_EQ(c, "asdasd\nasdasd\nbbnagnagsx\nrogosh");
 
     // Compact, Get
-    db->CompactRange(nullptr, nullptr);
+    db->CompactRange(CompactRangeOptions(), nullptr, nullptr);
     ASSERT_EQ(a, "x\nt\nr\nsa\ngh\njk");
     ASSERT_EQ(b, "y\n2\nmonkey\ndf\nl;");
     ASSERT_EQ(c, "asdasd\nasdasd\nbbnagnagsx\nrogosh");
@@ -544,7 +546,7 @@ TEST_F(StringAppendOperatorTest, PersistentFlushAndCompaction) {
     // Append, Flush, Compact, Get
     slists.Append("b", "afcg");
     db->Flush(rocksdb::FlushOptions());
-    db->CompactRange(nullptr, nullptr);
+    db->CompactRange(CompactRangeOptions(), nullptr, nullptr);
     slists.Get("b", &b);
     ASSERT_EQ(b, "y\n2\nmonkey\ndf\nl;\nafcg");
   }
@@ -585,12 +587,14 @@ int main(int argc, char** argv) {
     result = RUN_ALL_TESTS();
   }
 
+#ifndef ROCKSDB_LITE  // TtlDb is not supported in Lite
   // Run with TTL
   {
     fprintf(stderr, "Running tests with ttl db and generic operator.\n");
     StringAppendOperatorTest::SetOpenDbFunction(&OpenTtlDb);
     result |= RUN_ALL_TESTS();
   }
+#endif  // !ROCKSDB_LITE
 
   return result;
 }

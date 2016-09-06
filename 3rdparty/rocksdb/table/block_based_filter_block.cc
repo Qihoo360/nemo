@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -7,30 +7,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
-#include <algorithm>
 #include "table/block_based_filter_block.h"
+#include <algorithm>
 
 #include "db/dbformat.h"
 #include "rocksdb/filter_policy.h"
 #include "util/coding.h"
+#include "util/perf_context_imp.h"
 #include "util/string_util.h"
 
 namespace rocksdb {
 
 namespace {
-bool SamePrefix(const SliceTransform* prefix_extractor,
-                const Slice& key1, const Slice& key2) {
-  if (!prefix_extractor->InDomain(key1) &&
-      !prefix_extractor->InDomain(key2)) {
-    return true;
-  } else if (!prefix_extractor->InDomain(key1) ||
-             !prefix_extractor->InDomain(key2)) {
-    return false;
-  } else {
-    return (prefix_extractor->Transform(key1) ==
-            prefix_extractor->Transform(key2));
-  }
-}
 
 void AppendItem(std::string* props, const std::string& key,
                 const std::string& value) {
@@ -77,7 +65,9 @@ BlockBasedFilterBlockBuilder::BlockBasedFilterBlockBuilder(
     const BlockBasedTableOptions& table_opt)
     : policy_(table_opt.filter_policy.get()),
       prefix_extractor_(prefix_extractor),
-      whole_key_filtering_(table_opt.whole_key_filtering) {
+      whole_key_filtering_(table_opt.whole_key_filtering),
+      prev_prefix_start_(0),
+      prev_prefix_size_(0) {
   assert(policy_);
 }
 
@@ -90,13 +80,12 @@ void BlockBasedFilterBlockBuilder::StartBlock(uint64_t block_offset) {
 }
 
 void BlockBasedFilterBlockBuilder::Add(const Slice& key) {
-  added_to_start_ = 0;
-  if (whole_key_filtering_) {
-    AddKey(key);
-    added_to_start_ = 1;
-  }
   if (prefix_extractor_ && prefix_extractor_->InDomain(key)) {
     AddPrefix(key);
+  }
+
+  if (whole_key_filtering_) {
+    AddKey(key);
   }
 }
 
@@ -110,19 +99,16 @@ inline void BlockBasedFilterBlockBuilder::AddKey(const Slice& key) {
 inline void BlockBasedFilterBlockBuilder::AddPrefix(const Slice& key) {
   // get slice for most recently added entry
   Slice prev;
-  if (start_.size() > added_to_start_) {
-    size_t prev_start = start_[start_.size() - 1 - added_to_start_];
-    const char* base = entries_.data() + prev_start;
-    size_t length = entries_.size() - prev_start;
-    prev = Slice(base, length);
+  if (prev_prefix_size_ > 0) {
+    prev = Slice(entries_.data() + prev_prefix_start_, prev_prefix_size_);
   }
 
-  // this assumes prefix(prefix(key)) == prefix(key), as the last
-  // entry in entries_ may be either a key or prefix, and we use
-  // prefix(last entry) to get the prefix of the last key.
-  if (prev.size() == 0 || !SamePrefix(prefix_extractor_, key, prev)) {
-    Slice prefix = prefix_extractor_->Transform(key);
+  Slice prefix = prefix_extractor_->Transform(key);
+  // insert prefix only when it's different from the previous prefix.
+  if (prev.size() == 0 || prefix != prev) {
     start_.push_back(entries_.size());
+    prev_prefix_start_ = entries_.size();
+    prev_prefix_size_ = prefix.size();
     entries_.append(prefix.data(), prefix.size());
   }
 }
@@ -168,15 +154,17 @@ void BlockBasedFilterBlockBuilder::GenerateFilter() {
   tmp_entries_.clear();
   entries_.clear();
   start_.clear();
+  prev_prefix_start_ = 0;
+  prev_prefix_size_ = 0;
 }
 
 BlockBasedFilterBlockReader::BlockBasedFilterBlockReader(
     const SliceTransform* prefix_extractor,
-    const BlockBasedTableOptions& table_opt, bool whole_key_filtering,
-    BlockContents&& contents)
-    : policy_(table_opt.filter_policy.get()),
+    const BlockBasedTableOptions& table_opt, bool _whole_key_filtering,
+    BlockContents&& contents, Statistics* stats)
+    : FilterBlockReader(contents.data.size(), stats, _whole_key_filtering),
+      policy_(table_opt.filter_policy.get()),
       prefix_extractor_(prefix_extractor),
-      whole_key_filtering_(whole_key_filtering),
       data_(nullptr),
       offset_(nullptr),
       num_(0),
@@ -219,7 +207,14 @@ bool BlockBasedFilterBlockReader::MayMatch(const Slice& entry,
     uint32_t limit = DecodeFixed32(offset_ + index * 4 + 4);
     if (start <= limit && limit <= (uint32_t)(offset_ - data_)) {
       Slice filter = Slice(data_ + start, limit - start);
-      return policy_->KeyMayMatch(entry, filter);
+      bool const may_match = policy_->KeyMayMatch(entry, filter);
+      if (may_match) {
+        PERF_COUNTER_ADD(bloom_sst_hit_count, 1);
+        return true;
+      } else {
+        PERF_COUNTER_ADD(bloom_sst_miss_count, 1);
+        return false;
+      }
     } else if (start == limit) {
       // Empty filters do not match any entries
       return false;

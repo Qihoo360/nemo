@@ -1,4 +1,4 @@
-//  Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -117,7 +117,8 @@ void PlainTableIndexBuilder::AllocateIndex() {
     index_size_ = 1;
   } else {
     double hash_table_size_multipier = 1.0 / hash_table_ratio_;
-    index_size_ = num_prefixes_ * hash_table_size_multipier + 1;
+    index_size_ =
+      static_cast<uint32_t>(num_prefixes_ * hash_table_size_multipier) + 1;
     assert(index_size_ > 0);
   }
 }
@@ -186,7 +187,7 @@ Slice PlainTableIndexBuilder::FillIndexes(
         index[i] = sub_index_offset | PlainTableIndex::kSubIndexMask;
         char* prev_ptr = &sub_index[sub_index_offset];
         char* cur_ptr = EncodeVarint32(prev_ptr, num_keys_for_bucket);
-        sub_index_offset += (cur_ptr - prev_ptr);
+        sub_index_offset += static_cast<uint32_t>(cur_ptr - prev_ptr);
         char* sub_index_pos = &sub_index[sub_index_offset];
         IndexRecord* record = hash_to_offsets[i];
         int j;
@@ -203,8 +204,8 @@ Slice PlainTableIndexBuilder::FillIndexes(
   assert(sub_index_offset == sub_index_size_);
 
   Log(InfoLogLevel::DEBUG_LEVEL, ioptions_.info_log,
-      "hash table size: %d, suffix_map length %zu",
-      index_size_, sub_index_size_);
+      "hash table size: %d, suffix_map length %" ROCKSDB_PRIszt, index_size_,
+      sub_index_size_);
   return Slice(allocated, GetTotalSize());
 }
 

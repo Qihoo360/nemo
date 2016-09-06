@@ -1,15 +1,17 @@
-//  Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
 
 #ifdef XFUNC
-#include <string>
-#include "db/db_impl.h"
-#include "db/managed_iterator.h"
-#include "rocksdb/options.h"
 #include "util/xfunc.h"
 
+#include <string>
+
+#include "rocksdb/db.h"
+#include "rocksdb/options.h"
+#include "rocksdb/utilities/optimistic_transaction_db.h"
+#include "rocksdb/write_batch.h"
 
 namespace rocksdb {
 
@@ -25,12 +27,6 @@ void GetXFTestOptions(Options* options, int skip_policy) {
   }
 }
 
-void xf_manage_release(ManagedIterator* iter) {
-  if (!(XFuncPoint::GetSkip() & kSkipNoPrefix)) {
-    iter->ReleaseIter(false);
-  }
-}
-
 void xf_manage_options(ReadOptions* read_options) {
   if (!XFuncPoint::Check("managed_xftest_dropold") &&
       (!XFuncPoint::Check("managed_xftest_release"))) {
@@ -39,30 +35,15 @@ void xf_manage_options(ReadOptions* read_options) {
   read_options->managed = true;
 }
 
-void xf_manage_new(DBImpl* db, ReadOptions* read_options,
-                   bool is_snapshot_supported) {
-  if ((!XFuncPoint::Check("managed_xftest_dropold") &&
-       (!XFuncPoint::Check("managed_xftest_release"))) ||
-      (!read_options->managed)) {
-    return;
-  }
-  if ((!read_options->tailing) && (read_options->snapshot == nullptr) &&
-      (!is_snapshot_supported)) {
-    read_options->managed = false;
-    return;
-  }
-  if (db->GetOptions().prefix_extractor != nullptr) {
-    if (strcmp(db->GetOptions().table_factory.get()->Name(), "PlainTable")) {
-      if (!(XFuncPoint::GetSkip() & kSkipNoPrefix)) {
-        read_options->total_order_seek = true;
-      }
-    } else {
-      read_options->managed = false;
-    }
-  }
+void xf_transaction_set_memtable_history(
+    int32_t* max_write_buffer_number_to_maintain) {
+  *max_write_buffer_number_to_maintain = 10;
 }
 
-void xf_manage_create(ManagedIterator* iter) { iter->SetDropOld(false); }
+void xf_transaction_clear_memtable_history(
+    int32_t* max_write_buffer_number_to_maintain) {
+  *max_write_buffer_number_to_maintain = 0;
+}
 
 }  // namespace rocksdb
 

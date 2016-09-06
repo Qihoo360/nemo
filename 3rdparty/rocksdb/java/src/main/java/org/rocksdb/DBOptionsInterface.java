@@ -1,4 +1,4 @@
-// Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
@@ -351,6 +351,25 @@ public interface DBOptionsInterface {
   long deleteObsoleteFilesPeriodMicros();
 
   /**
+   * Suggested number of concurrent background compaction jobs, submitted to
+   * the default LOW priority thread pool.
+   * Default: 1
+   *
+   * @param baseBackgroundCompactions Suggested number of background compaction
+   *     jobs
+   */
+  void setBaseBackgroundCompactions(int baseBackgroundCompactions);
+
+  /**
+   * Suggested number of concurrent background compaction jobs, submitted to
+   * the default LOW priority thread pool.
+   * Default: 1
+   *
+   * @return Suggested number of background compaction jobs
+   */
+  int baseBackgroundCompactions();
+
+  /**
    * Specifies the maximum number of concurrent background compaction jobs,
    * submitted to the default LOW priority thread pool.
    * If you're increasing this, also consider increasing number of threads in
@@ -379,6 +398,28 @@ public interface DBOptionsInterface {
    * @see RocksEnv#setBackgroundThreads(int, int)
    */
   int maxBackgroundCompactions();
+
+  /**
+   * This value represents the maximum number of threads that will
+   * concurrently perform a compaction job by breaking it into multiple,
+   * smaller ones that are run simultaneously.
+   * Default: 1 (i.e. no subcompactions)
+   *
+   * @param maxSubcompactions The maximum number of threads that will
+   *     concurrently perform a compaction job
+   */
+  void setMaxSubcompactions(int maxSubcompactions);
+
+  /**
+   * This value represents the maximum number of threads that will
+   * concurrently perform a compaction job by breaking it into multiple,
+   * smaller ones that are run simultaneously.
+   * Default: 1 (i.e. no subcompactions)
+   *
+   * @return The maximum number of threads that will concurrently perform a
+   *     compaction job
+   */
+  int maxSubcompactions();
 
   /**
    * Specifies the maximum number of concurrent background flush jobs.
@@ -565,7 +606,7 @@ public interface DBOptionsInterface {
    *    are older than WAL_ttl_seconds will be deleted.</li>
    * <li>If both are not 0, WAL files will be checked every 10 min and both
    *    checks will be performed with ttl being first.</li>
-   * </ol> 
+   * </ol>
    *
    * @param sizeLimitMB size limit in mega-bytes.
    * @return the instance of the current Object.
@@ -761,4 +802,108 @@ public interface DBOptionsInterface {
    * @return size in bytes
    */
   long bytesPerSync();
+
+  /**
+   * If true, allow multi-writers to update mem tables in parallel.
+   * Only some memtable factorys support concurrent writes; currently it
+   * is implemented only for SkipListFactory.  Concurrent memtable writes
+   * are not compatible with inplace_update_support or filter_deletes.
+   * It is strongly recommended to set
+   * {@link #setEnableWriteThreadAdaptiveYield(boolean)} if you are going to use
+   * this feature.
+   * Default: false
+   *
+   * @param allowConcurrentMemtableWrite true to enable concurrent writes
+   *     for the memtable
+   */
+  void setAllowConcurrentMemtableWrite(boolean allowConcurrentMemtableWrite);
+
+  /**
+   * If true, allow multi-writers to update mem tables in parallel.
+   * Only some memtable factorys support concurrent writes; currently it
+   * is implemented only for SkipListFactory.  Concurrent memtable writes
+   * are not compatible with inplace_update_support or filter_deletes.
+   * It is strongly recommended to set
+   * {@link #setEnableWriteThreadAdaptiveYield(boolean)} if you are going to use
+   * this feature.
+   * Default: false
+   *
+   * @return true if concurrent writes are enabled for the memtable
+   */
+  boolean allowConcurrentMemtableWrite();
+
+  /**
+   * If true, threads synchronizing with the write batch group leader will
+   * wait for up to {@link #writeThreadMaxYieldUsec()} before blocking on a
+   * mutex. This can substantially improve throughput for concurrent workloads,
+   * regardless of whether {@link #allowConcurrentMemtableWrite()} is enabled.
+   * Default: false
+   *
+   * @param enableWriteThreadAdaptiveYield true to enable adaptive yield for the
+   *     write threads
+   */
+  void setEnableWriteThreadAdaptiveYield(
+      boolean enableWriteThreadAdaptiveYield);
+
+  /**
+   * If true, threads synchronizing with the write batch group leader will
+   * wait for up to {@link #writeThreadMaxYieldUsec()} before blocking on a
+   * mutex. This can substantially improve throughput for concurrent workloads,
+   * regardless of whether {@link #allowConcurrentMemtableWrite()} is enabled.
+   * Default: false
+   *
+   * @return true if adaptive yield is enabled
+   *    for the writing threads
+   */
+  boolean enableWriteThreadAdaptiveYield();
+
+  /**
+   * The maximum number of microseconds that a write operation will use
+   * a yielding spin loop to coordinate with other write threads before
+   * blocking on a mutex.  (Assuming {@link #writeThreadSlowYieldUsec()} is
+   * set properly) increasing this value is likely to increase RocksDB
+   * throughput at the expense of increased CPU usage.
+   * Default: 100
+   *
+   * @param writeThreadMaxYieldUsec maximum number of microseconds
+   */
+  void setWriteThreadMaxYieldUsec(long writeThreadMaxYieldUsec);
+
+  /**
+   * The maximum number of microseconds that a write operation will use
+   * a yielding spin loop to coordinate with other write threads before
+   * blocking on a mutex.  (Assuming {@link #writeThreadSlowYieldUsec()} is
+   * set properly) increasing this value is likely to increase RocksDB
+   * throughput at the expense of increased CPU usage.
+   * Default: 100
+   *
+   * @return the maximum number of microseconds
+   */
+  long writeThreadMaxYieldUsec();
+
+  /**
+   * The latency in microseconds after which a std::this_thread::yield
+   * call (sched_yield on Linux) is considered to be a signal that
+   * other processes or threads would like to use the current core.
+   * Increasing this makes writer threads more likely to take CPU
+   * by spinning, which will show up as an increase in the number of
+   * involuntary context switches.
+   * Default: 3
+   *
+   * @param writeThreadSlowYieldUsec the latency in microseconds
+   */
+  void setWriteThreadSlowYieldUsec(long writeThreadSlowYieldUsec);
+
+  /**
+   * The latency in microseconds after which a std::this_thread::yield
+   * call (sched_yield on Linux) is considered to be a signal that
+   * other processes or threads would like to use the current core.
+   * Increasing this makes writer threads more likely to take CPU
+   * by spinning, which will show up as an increase in the number of
+   * involuntary context switches.
+   * Default: 3
+   *
+   * @return writeThreadSlowYieldUsec the latency in microseconds
+   */
+  long writeThreadSlowYieldUsec();
 }

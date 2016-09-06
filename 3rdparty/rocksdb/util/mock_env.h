@@ -1,4 +1,4 @@
-//  Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -39,14 +39,10 @@ class MockEnv : public EnvWrapper {
                                  unique_ptr<WritableFile>* result,
                                  const EnvOptions& env_options) override;
 
-  virtual Status NewRandomRWFile(const std::string& fname,
-                                 unique_ptr<RandomRWFile>* result,
-                                 const EnvOptions& options) override;
-
   virtual Status NewDirectory(const std::string& name,
                               unique_ptr<Directory>* result) override;
 
-  virtual bool FileExists(const std::string& fname) override;
+  virtual Status FileExists(const std::string& fname) override;
 
   virtual Status GetChildren(const std::string& dir,
                              std::vector<std::string>* result) override;

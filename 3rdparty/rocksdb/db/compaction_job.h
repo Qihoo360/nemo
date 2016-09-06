@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -10,34 +10,36 @@
 
 #include <atomic>
 #include <deque>
+#include <functional>
 #include <limits>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
-#include <string>
-#include <functional>
 
-#include "db/dbformat.h"
-#include "db/log_writer.h"
 #include "db/column_family.h"
-#include "db/version_edit.h"
+#include "db/compaction_iterator.h"
+#include "db/dbformat.h"
+#include "db/flush_scheduler.h"
+#include "db/internal_stats.h"
+#include "db/job_context.h"
+#include "db/log_writer.h"
 #include "db/memtable_list.h"
+#include "db/version_edit.h"
+#include "db/write_controller.h"
+#include "db/write_thread.h"
 #include "port/port.h"
+#include "rocksdb/compaction_filter.h"
+#include "rocksdb/compaction_job_stats.h"
 #include "rocksdb/db.h"
 #include "rocksdb/env.h"
 #include "rocksdb/memtablerep.h"
-#include "rocksdb/compaction_filter.h"
 #include "rocksdb/transaction_log.h"
+#include "table/scoped_arena_iterator.h"
 #include "util/autovector.h"
 #include "util/event_logger.h"
 #include "util/stop_watch.h"
 #include "util/thread_local.h"
-#include "util/scoped_arena_iterator.h"
-#include "db/internal_stats.h"
-#include "db/write_controller.h"
-#include "db/flush_scheduler.h"
-#include "db/write_thread.h"
-#include "db/job_context.h"
 
 namespace rocksdb {
 
@@ -54,11 +56,14 @@ class CompactionJob {
                 const EnvOptions& env_options, VersionSet* versions,
                 std::atomic<bool>* shutting_down, LogBuffer* log_buffer,
                 Directory* db_directory, Directory* output_directory,
-                Statistics* stats,
+                Statistics* stats, InstrumentedMutex* db_mutex,
+                Status* db_bg_error,
                 std::vector<SequenceNumber> existing_snapshots,
-                std::shared_ptr<Cache> table_cache,
-                std::function<uint64_t()> yield_callback,
-                EventLogger* event_logger, bool paranoid_file_checks);
+                SequenceNumber earliest_write_conflict_snapshot,
+                std::shared_ptr<Cache> table_cache, EventLogger* event_logger,
+                bool paranoid_file_checks, bool measure_io_stats,
+                const std::string& dbname,
+                CompactionJobStats* compaction_job_stats);
 
   ~CompactionJob();
 
@@ -71,48 +76,53 @@ class CompactionJob {
   void Prepare();
   // REQUIRED mutex not held
   Status Run();
+
   // REQUIRED: mutex held
-  // status is the return of Run()
-  void Install(Status* status, const MutableCFOptions& mutable_cf_options,
-               InstrumentedMutex* db_mutex);
+  Status Install(const MutableCFOptions& mutable_cf_options);
 
  private:
+  struct SubcompactionState;
+
+  void AggregateStatistics();
+  void GenSubcompactionBoundaries();
+
   // update the thread status for starting a compaction.
   void ReportStartedCompaction(Compaction* compaction);
   void AllocateCompactionOutputFileNumbers();
-  // Call compaction filter if is_compaction_v2 is not true. Then iterate
-  // through input and compact the kv-pairs
-  Status ProcessKeyValueCompaction(int64_t* imm_micros, Iterator* input,
-                                   bool is_compaction_v2);
-  // Call compaction_filter_v2->Filter() on kv-pairs in compact
-  void CallCompactionFilterV2(CompactionFilterV2* compaction_filter_v2,
-                              uint64_t* time);
-  Status FinishCompactionOutputFile(Iterator* input);
-  Status InstallCompactionResults(InstrumentedMutex* db_mutex,
-                                  const MutableCFOptions& mutable_cf_options);
-  SequenceNumber findEarliestVisibleSnapshot(
-      SequenceNumber in, const std::vector<SequenceNumber>& snapshots,
-      SequenceNumber* prev_snapshot);
+  // Call compaction filter. Then iterate through input and compact the
+  // kv-pairs
+  void ProcessKeyValueCompaction(SubcompactionState* sub_compact);
+
+  Status FinishCompactionOutputFile(const Status& input_status,
+                                    SubcompactionState* sub_compact);
+  Status InstallCompactionResults(const MutableCFOptions& mutable_cf_options);
   void RecordCompactionIOStats();
-  Status OpenCompactionOutputFile();
-  void CleanupCompaction(const Status& status);
+  Status OpenCompactionOutputFile(SubcompactionState* sub_compact);
+  void CleanupCompaction();
+  void UpdateCompactionJobStats(
+    const InternalStats::CompactionStats& stats) const;
+  void RecordDroppedKeys(const CompactionIteratorStats& c_iter_stats,
+                         CompactionJobStats* compaction_job_stats = nullptr);
+
+  void UpdateCompactionStats();
+  void UpdateCompactionInputStatsHelper(
+      int* num_files, uint64_t* bytes_read, int input_level);
+
+  void LogCompaction();
 
   int job_id_;
 
   // CompactionJob state
   struct CompactionState;
   CompactionState* compact_;
-
-  bool bottommost_level_;
-  SequenceNumber earliest_snapshot_;
-  SequenceNumber visible_at_tip_;
-  SequenceNumber latest_snapshot_;
-
+  CompactionJobStats* compaction_job_stats_;
   InternalStats::CompactionStats compaction_stats_;
 
   // DBImpl state
+  const std::string& dbname_;
   const DBOptions& db_options_;
   const EnvOptions& env_options_;
+
   Env* env_;
   VersionSet* versions_;
   std::atomic<bool>* shutting_down_;
@@ -120,19 +130,30 @@ class CompactionJob {
   Directory* db_directory_;
   Directory* output_directory_;
   Statistics* stats_;
+  InstrumentedMutex* db_mutex_;
+  Status* db_bg_error_;
   // If there were two snapshots with seq numbers s1 and
   // s2 and s1 < s2, and if we find two instances of a key k1 then lies
   // entirely within s1 and s2, then the earlier version of k1 can be safely
   // deleted because that version is not visible in any snapshot.
   std::vector<SequenceNumber> existing_snapshots_;
-  std::shared_ptr<Cache> table_cache_;
 
-  // yield callback
-  std::function<uint64_t()> yield_callback_;
+  // This is the earliest snapshot that could be used for write-conflict
+  // checking by a transaction.  For any user-key newer than this snapshot, we
+  // should make sure not to remove evidence that a write occurred.
+  SequenceNumber earliest_write_conflict_snapshot_;
+
+  std::shared_ptr<Cache> table_cache_;
 
   EventLogger* event_logger_;
 
+  bool bottommost_level_;
   bool paranoid_file_checks_;
+  bool measure_io_stats_;
+  // Stores the Slices that designate the boundaries for each subcompaction
+  std::vector<Slice> boundaries_;
+  // Stores the approx size of keys covered in the range of each subcompaction
+  std::vector<uint64_t> sizes_;
 };
 
 }  // namespace rocksdb

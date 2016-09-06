@@ -1,4 +1,4 @@
-// Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
@@ -24,6 +24,11 @@
 #include "rocksjni/loggerjnicallback.h"
 #include "rocksjni/writebatchhandlerjnicallback.h"
 
+// Remove macro on windows
+#ifdef DELETE
+#undef DELETE
+#endif
+
 namespace rocksdb {
 
 // Detect if jlong overflows size_t
@@ -44,27 +49,25 @@ template<class PTR, class DERIVED> class RocksDBNativeClass {
     assert(jclazz != nullptr);
     return jclazz;
   }
+};
 
-  // Get the field id of the member variable to store
-  // the ptr
-  static jfieldID getHandleFieldID(JNIEnv* env) {
-    static jfieldID fid = env->GetFieldID(
-        DERIVED::getJClass(env), "nativeHandle_", "J");
-    assert(fid != nullptr);
-    return fid;
-  }
+// Native class template for sub-classes of RocksMutableObject
+template<class PTR, class DERIVED> class NativeRocksMutableObject
+    : public RocksDBNativeClass<PTR, DERIVED> {
+ public:
 
-  // Get the pointer from Java
-  static PTR getHandle(JNIEnv* env, jobject jobj) {
-    return reinterpret_cast<PTR>(
-        env->GetLongField(jobj, getHandleFieldID(env)));
+  static jmethodID getSetNativeHandleMethod(JNIEnv* env) {
+    static jmethodID mid = env->GetMethodID(
+        DERIVED::getJClass(env), "setNativeHandle", "(JZ)V");
+    assert(mid != nullptr);
+    return mid;
   }
 
   // Pass the pointer to the java side.
-  static void setHandle(JNIEnv* env, jobject jdb, PTR ptr) {
-    env->SetLongField(
-        jdb, getHandleFieldID(env),
-        reinterpret_cast<jlong>(ptr));
+  static void setHandle(JNIEnv* env, jobject jobj, PTR ptr,
+      jboolean java_owns_handle) {
+    env->CallVoidMethod(jobj, getSetNativeHandleMethod(env),
+      reinterpret_cast<jlong>(ptr), java_owns_handle);
   }
 };
 
@@ -78,23 +81,15 @@ template<class DERIVED> class RocksDBJavaException {
     return jclazz;
   }
 
-  // Create and throw a java exception by converting the input
-  // Status.
-  //
-  // In case s.ok() is true, then this function will not throw any
-  // exception.
-  static void ThrowNew(JNIEnv* env, Status s) {
-    if (s.ok()) {
-      return;
-    }
-    jstring msg = env->NewStringUTF(s.ToString().c_str());
+  // Create and throw a java exception with the provided message
+  static void ThrowNew(JNIEnv* env, const std::string& msg) {
+    jstring jmsg = env->NewStringUTF(msg.c_str());
     // get the constructor id of org.rocksdb.RocksDBException
     static jmethodID mid = env->GetMethodID(
         DERIVED::getJClass(env), "<init>", "(Ljava/lang/String;)V");
     assert(mid != nullptr);
 
-    env->Throw((jthrowable)env->NewObject(DERIVED::getJClass(env),
-        mid, msg));
+    env->Throw((jthrowable)env->NewObject(DERIVED::getJClass(env), mid, jmsg));
   }
 };
 
@@ -107,6 +102,87 @@ class RocksDBJni : public RocksDBNativeClass<rocksdb::DB*, RocksDBJni> {
   }
 };
 
+// The portal class for org.rocksdb.Status
+class StatusJni : public RocksDBNativeClass<rocksdb::Status*, StatusJni> {
+ public:
+  // Get the java class id of org.rocksdb.Status.
+  static jclass getJClass(JNIEnv* env) {
+    return RocksDBNativeClass::getJClass(env, "org/rocksdb/Status");
+  }
+
+  // Create a new org.rocksdb.Status with the same properties as the
+  // provided C++ rocksdb::Status object
+  static jobject construct(JNIEnv* env, const Status& status) {
+    static jmethodID mid =
+        env->GetMethodID(getJClass(env), "<init>", "(BBLjava/lang/String;)V");
+    assert(mid != nullptr);
+
+    jstring jstate = nullptr;
+    if (status.getState() != nullptr) {
+      std::string s(status.getState());
+      jstate = env->NewStringUTF(s.c_str());
+    }
+    return env->NewObject(getJClass(env), mid, toJavaStatusCode(status.code()),
+                          toJavaStatusSubCode(status.subcode()), jstate);
+  }
+
+  // Returns the equivalent org.rocksdb.Status.Code for the provided
+  // C++ rocksdb::Status::Code enum
+  static jbyte toJavaStatusCode(const rocksdb::Status::Code& code) {
+    switch (code) {
+      case rocksdb::Status::Code::kOk:
+        return 0x0;
+      case rocksdb::Status::Code::kNotFound:
+        return 0x1;
+      case rocksdb::Status::Code::kCorruption:
+        return 0x2;
+      case rocksdb::Status::Code::kNotSupported:
+        return 0x3;
+      case rocksdb::Status::Code::kInvalidArgument:
+        return 0x4;
+      case rocksdb::Status::Code::kIOError:
+        return 0x5;
+      case rocksdb::Status::Code::kMergeInProgress:
+        return 0x6;
+      case rocksdb::Status::Code::kIncomplete:
+        return 0x7;
+      case rocksdb::Status::Code::kShutdownInProgress:
+        return 0x8;
+      case rocksdb::Status::Code::kTimedOut:
+        return 0x9;
+      case rocksdb::Status::Code::kAborted:
+        return 0xA;
+      case rocksdb::Status::Code::kBusy:
+        return 0xB;
+      case rocksdb::Status::Code::kExpired:
+        return 0xC;
+      case rocksdb::Status::Code::kTryAgain:
+        return 0xD;
+      default:
+        return 0xFF;  // undefined
+    }
+  }
+
+  // Returns the equivalent org.rocksdb.Status.SubCode for the provided
+  // C++ rocksdb::Status::SubCode enum
+  static jbyte toJavaStatusSubCode(const rocksdb::Status::SubCode& subCode) {
+    switch (subCode) {
+      case rocksdb::Status::SubCode::kNone:
+        return 0x0;
+      case rocksdb::Status::SubCode::kMutexTimeout:
+        return 0x1;
+      case rocksdb::Status::SubCode::kLockTimeout:
+        return 0x2;
+      case rocksdb::Status::SubCode::kLockLimit:
+        return 0x3;
+      case rocksdb::Status::SubCode::kMaxSubCode:
+        return 0xFE;
+      default:
+        return 0xFF;  // undefined
+    }
+  }
+};
+
 // The portal class for org.rocksdb.RocksDBException
 class RocksDBExceptionJni :
     public RocksDBJavaException<RocksDBExceptionJni> {
@@ -115,6 +191,41 @@ class RocksDBExceptionJni :
   static jclass getJClass(JNIEnv* env) {
     return RocksDBJavaException::getJClass(env,
         "org/rocksdb/RocksDBException");
+  }
+
+  static void ThrowNew(JNIEnv* env, const std::string& msg) {
+    RocksDBJavaException::ThrowNew(env, msg);
+  }
+
+  static void ThrowNew(JNIEnv* env, const Status& s) {
+    if (s.ok()) {
+      return;
+    }
+
+    jobject jstatus = StatusJni::construct(env, s);
+
+    // get the constructor id of org.rocksdb.RocksDBException
+    static jmethodID mid =
+        env->GetMethodID(getJClass(env), "<init>", "(Lorg/rocksdb/Status;)V");
+    assert(mid != nullptr);
+
+    env->Throw((jthrowable)env->NewObject(getJClass(env), mid, jstatus));
+  }
+
+  static void ThrowNew(JNIEnv* env, const std::string& msg, const Status& s) {
+    if (s.ok()) {
+      return;
+    }
+
+    jstring jmsg = env->NewStringUTF(msg.c_str());
+    jobject jstatus = StatusJni::construct(env, s);
+
+    // get the constructor id of org.rocksdb.RocksDBException
+    static jmethodID mid = env->GetMethodID(
+        getJClass(env), "<init>", "(Ljava/lang/String;Lorg/rocksdb/Status;)V");
+    assert(mid != nullptr);
+
+    env->Throw((jthrowable)env->NewObject(getJClass(env), mid, jmsg, jstatus));
   }
 };
 
@@ -126,6 +237,24 @@ class IllegalArgumentExceptionJni :
   static jclass getJClass(JNIEnv* env) {
     return RocksDBJavaException::getJClass(env,
         "java/lang/IllegalArgumentException");
+  }
+
+  // Create and throw a IllegalArgumentException by converting the input
+  // Status.
+  //
+  // In case s.ok() is true, then this function will not throw any
+  // exception.
+  static void ThrowNew(JNIEnv* env, const Status& s) {
+    if (s.ok()) {
+      return;
+    }
+    jstring msg = env->NewStringUTF(s.ToString().c_str());
+    // get the constructor id of org.rocksdb.RocksDBException
+    static jmethodID mid =
+        env->GetMethodID(getJClass(env), "<init>", "(Ljava/lang/String;)V");
+    assert(mid != nullptr);
+
+    env->Throw((jthrowable)env->NewObject(getJClass(env), mid, msg));
   }
 };
 
@@ -296,6 +425,15 @@ class BackupableDBOptionsJni : public RocksDBNativeClass<
   }
 };
 
+class BackupEngineJni : public RocksDBNativeClass<
+    rocksdb::BackupEngine*, BackupEngineJni> {
+ public:
+  static jclass getJClass(JNIEnv* env) {
+    return RocksDBNativeClass::getJClass(env,
+        "org/rocksdb/BackupEngine");
+  }
+};
+
 // The portal class for org.rocksdb.RocksIterator
 class IteratorJni : public RocksDBNativeClass<
     rocksdb::Iterator*, IteratorJni> {
@@ -393,7 +531,7 @@ class AbstractComparatorJni : public RocksDBNativeClass<
 };
 
 // The portal class for org.rocksdb.AbstractSlice
-class AbstractSliceJni : public RocksDBNativeClass<
+class AbstractSliceJni : public NativeRocksMutableObject<
     const rocksdb::Slice*, AbstractSliceJni> {
  public:
   static jclass getJClass(JNIEnv* env) {
@@ -635,67 +773,6 @@ class WriteEntryJni {
       assert(jclazz != nullptr);
       return jclazz;
     }
-
-    static void setWriteType(JNIEnv* env, jobject jwrite_entry,
-        WriteType write_type) {
-      jobject jwrite_type;
-      switch (write_type) {
-        case kPutRecord:
-          jwrite_type = WriteTypeJni::PUT(env);
-          break;
-
-        case kMergeRecord:
-          jwrite_type = WriteTypeJni::MERGE(env);
-          break;
-
-        case kDeleteRecord:
-          jwrite_type = WriteTypeJni::DELETE(env);
-          break;
-
-        case kLogDataRecord:
-          jwrite_type = WriteTypeJni::LOG(env);
-          break;
-
-        default:
-          jwrite_type = nullptr;
-      }
-      assert(jwrite_type != nullptr);
-      env->SetObjectField(jwrite_entry, getWriteTypeField(env), jwrite_type);
-    }
-
-    static void setKey(JNIEnv* env, jobject jwrite_entry,
-        const rocksdb::Slice* slice) {
-      jobject jkey = env->GetObjectField(jwrite_entry, getKeyField(env));
-      AbstractSliceJni::setHandle(env, jkey, slice);
-    }
-
-    static void setValue(JNIEnv* env, jobject jwrite_entry,
-        const rocksdb::Slice* slice) {
-      jobject jvalue = env->GetObjectField(jwrite_entry, getValueField(env));
-      AbstractSliceJni::setHandle(env, jvalue, slice);
-    }
-
- private:
-    static jfieldID getWriteTypeField(JNIEnv* env) {
-      static jfieldID fid = env->GetFieldID(
-          getJClass(env), "type", "Lorg/rocksdb/WBWIRocksIterator$WriteType;");
-        assert(fid != nullptr);
-        return fid;
-    }
-
-    static jfieldID getKeyField(JNIEnv* env) {
-      static jfieldID fid = env->GetFieldID(
-          getJClass(env), "key", "Lorg/rocksdb/DirectSlice;");
-      assert(fid != nullptr);
-      return fid;
-    }
-
-    static jfieldID getValueField(JNIEnv* env) {
-      static jfieldID fid = env->GetFieldID(
-          getJClass(env), "value", "Lorg/rocksdb/DirectSlice;");
-      assert(fid != nullptr);
-      return fid;
-    }
 };
 
 class InfoLogLevelJni {
@@ -725,15 +802,20 @@ class InfoLogLevelJni {
       return getEnum(env, "FATAL_LEVEL");
     }
 
+    // Get the HEADER_LEVEL enum field of org.rocksdb.InfoLogLevel
+    static jobject HEADER_LEVEL(JNIEnv* env) {
+      return getEnum(env, "HEADER_LEVEL");
+    }
+
  private:
-    // Get the java class id of org.rocksdb.WBWIRocksIterator.WriteType.
+    // Get the java class id of org.rocksdb.InfoLogLevel
     static jclass getJClass(JNIEnv* env) {
       jclass jclazz = env->FindClass("org/rocksdb/InfoLogLevel");
       assert(jclazz != nullptr);
       return jclazz;
     }
 
-    // Get an enum field of org.rocksdb.WBWIRocksIterator.WriteType
+    // Get an enum field of org.rocksdb.InfoLogLevel
     static jobject getEnum(JNIEnv* env, const char name[]) {
       jclass jclazz = getJClass(env);
       jfieldID jfid =

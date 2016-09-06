@@ -1,9 +1,9 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
 //
-//
+#ifndef ROCKSDB_LITE
 #include "utilities/geodb/geodb_impl.h"
 
 #include <cctype>
@@ -35,7 +35,7 @@ class GeoDBTest : public testing::Test {
   }
 };
 
-const std::string GeoDBTest::kDefaultDbName = "/tmp/geodefault";
+const std::string GeoDBTest::kDefaultDbName = test::TmpDir() + "/geodb_test";
 Options GeoDBTest::options = Options();
 
 // Insert, Get and Remove
@@ -103,17 +103,23 @@ TEST_F(GeoDBTest, Search) {
   // search all objects centered at 46 degree latitude with
   // a radius of 200 kilometers. We should find the one object that
   // we inserted earlier.
-  std::vector<GeoObject> values;
-  status = getdb()->SearchRadial(GeoPosition(46, 46), 200000, &values);
+  GeoIterator* iter1 = getdb()->SearchRadial(GeoPosition(46, 46), 200000);
   ASSERT_TRUE(status.ok());
-  ASSERT_EQ(values.size(), 1U);
+  ASSERT_EQ(iter1->geo_object().value, "midvalue1");
+  uint32_t size = 0;
+  while (iter1->Valid()) {
+    size++;
+    iter1->Next();
+  }
+  ASSERT_EQ(size, 1U);
+  delete iter1;
 
   // search all objects centered at 46 degree latitude with
   // a radius of 2 kilometers. There should be none.
-  values.clear();
-  status = getdb()->SearchRadial(GeoPosition(46, 46), 2, &values);
+  GeoIterator* iter2 = getdb()->SearchRadial(GeoPosition(46, 46), 2);
   ASSERT_TRUE(status.ok());
-  ASSERT_EQ(values.size(), 0U);
+  ASSERT_FALSE(iter2->Valid());
+  delete iter2;
 }
 
 }  // namespace rocksdb
@@ -122,3 +128,13 @@ int main(int argc, char* argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+#else
+
+#include <stdio.h>
+
+int main() {
+  fprintf(stderr, "SKIPPED\n");
+  return 0;
+}
+
+#endif  // !ROCKSDB_LITE

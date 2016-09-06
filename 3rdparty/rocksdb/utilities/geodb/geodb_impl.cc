@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -19,6 +19,7 @@
 #include "util/coding.h"
 #include "util/string_util.h"
 
+
 //
 // There are two types of keys. The first type of key-values
 // maps a geo location to the set of object ids and their values.
@@ -34,6 +35,13 @@
 //   value:  $quadkey
 
 namespace rocksdb {
+
+const double GeoDBImpl::PI = 3.141592653589793;
+const double GeoDBImpl::EarthRadius = 6378137;
+const double GeoDBImpl::MinLatitude = -85.05112878;
+const double GeoDBImpl::MaxLatitude = 85.05112878;
+const double GeoDBImpl::MinLongitude = -180;
+const double GeoDBImpl::MaxLongitude = 180;
 
 GeoDBImpl::GeoDBImpl(DB* db, const GeoDBOptions& options) :
   GeoDB(db, options), db_(db), options_(options) {
@@ -152,15 +160,63 @@ Status GeoDBImpl::Remove(const Slice& id) {
   return db_->Write(woptions_, &batch);
 }
 
-Status GeoDBImpl::SearchRadial(const GeoPosition& pos,
+class GeoIteratorImpl : public GeoIterator {
+ private:
+  std::vector<GeoObject> values_;
+  std::vector<GeoObject>::iterator iter_;
+ public:
+  explicit GeoIteratorImpl(std::vector<GeoObject> values)
+    : values_(std::move(values)) {
+    iter_ = values_.begin();
+  }
+  virtual void Next() override;
+  virtual bool Valid() const override;
+  virtual const GeoObject& geo_object() override;
+  virtual Status status() const override;
+};
+
+class GeoErrorIterator : public GeoIterator {
+ private:
+  Status status_;
+ public:
+  explicit GeoErrorIterator(Status s) : status_(s) {}
+  virtual void Next() override {};
+  virtual bool Valid() const override { return false; }
+  virtual const GeoObject& geo_object() override {
+    GeoObject* g = new GeoObject();
+    return *g;
+  }
+  virtual Status status() const override { return status_; }
+};
+
+void GeoIteratorImpl::Next() {
+  assert(Valid());
+  iter_++;
+}
+
+bool GeoIteratorImpl::Valid() const {
+  return iter_ != values_.end();
+}
+
+const GeoObject& GeoIteratorImpl::geo_object() {
+  assert(Valid());
+  return *iter_;
+}
+
+Status GeoIteratorImpl::status() const {
+  return Status::OK();
+}
+
+GeoIterator* GeoDBImpl::SearchRadial(const GeoPosition& pos,
   double radius,
-  std::vector<GeoObject>* values,
   int number_of_values) {
+  std::vector<GeoObject> values;
+
   // Gather all bounding quadkeys
   std::vector<std::string> qids;
   Status s = searchQuadIds(pos, radius, &qids);
   if (!s.ok()) {
-    return s;
+    return new GeoErrorIterator(s);
   }
 
   // create an iterator
@@ -193,7 +249,7 @@ Status GeoDBImpl::SearchRadial(const GeoPosition& pos,
       if (res.first == qid.end()) {
         GeoPosition obj_pos(atof(parts[3].c_str()), atof(parts[4].c_str()));
         GeoObject obj(obj_pos, parts[4], iter->value().ToString());
-        values->push_back(obj);
+        values.push_back(obj);
         number_of_values--;
       } else {
         break;
@@ -201,7 +257,7 @@ Status GeoDBImpl::SearchRadial(const GeoPosition& pos,
     }
   }
   delete iter;
-  return Status::OK();
+  return new GeoIteratorImpl(std::move(values));
 }
 
 std::string GeoDBImpl::MakeKey1(const GeoPosition& pos, Slice id,
@@ -297,8 +353,8 @@ Status GeoDBImpl::searchQuadIds(const GeoPosition& position,
   Pixel bottomRight =  PositionToPixel(bottomRightPos, Detail);
 
   // how many level of details to look for
-  int numberOfTilesAtMaxDepth = floor((bottomRight.x - topLeft.x) / 256);
-  int zoomLevelsToRise = floor(::log(numberOfTilesAtMaxDepth) / ::log(2));
+  int numberOfTilesAtMaxDepth = static_cast<int>(std::floor((bottomRight.x - topLeft.x) / 256));
+  int zoomLevelsToRise = static_cast<int>(std::floor(std::log(numberOfTilesAtMaxDepth) / std::log(2)));
   zoomLevelsToRise++;
   int levels = std::max(0, Detail - zoomLevelsToRise);
 
@@ -335,10 +391,10 @@ GeoDBImpl::Pixel GeoDBImpl::PositionToPixel(const GeoPosition& pos,
   double latitude = clip(pos.latitude, MinLatitude, MaxLatitude);
   double x = (pos.longitude + 180) / 360;
   double sinLatitude = sin(latitude * PI / 180);
-  double y = 0.5 - ::log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * PI);
+  double y = 0.5 - std::log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * PI);
   double mapSize = MapSize(levelOfDetail);
-  double X = floor(clip(x * mapSize + 0.5, 0, mapSize - 1));
-  double Y = floor(clip(y * mapSize + 0.5, 0, mapSize - 1));
+  double X = std::floor(clip(x * mapSize + 0.5, 0, mapSize - 1));
+  double Y = std::floor(clip(y * mapSize + 0.5, 0, mapSize - 1));
   return Pixel((unsigned int)X, (unsigned int)Y);
 }
 
@@ -353,8 +409,8 @@ GeoPosition GeoDBImpl::PixelToPosition(const Pixel& pixel, int levelOfDetail) {
 
 // Converts a Pixel to a Tile
 GeoDBImpl::Tile GeoDBImpl::PixelToTile(const Pixel& pixel) {
-  unsigned int tileX = floor(pixel.x / 256);
-  unsigned int tileY = floor(pixel.y / 256);
+  unsigned int tileX = static_cast<unsigned int>(std::floor(pixel.x / 256));
+  unsigned int tileY = static_cast<unsigned int>(std::floor(pixel.y / 256));
   return Tile(tileX, tileY);
 }
 

@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -28,6 +28,7 @@
 #include "rocksdb/options.h"
 #include "rocksdb/write_batch.h"
 #include "util/coding.h"
+#include "util/file_reader_writer.h"
 #include "util/logging.h"
 #include "util/mutexlock.h"
 #include "util/sync_point.h"
@@ -58,11 +59,15 @@ Status WalManager::GetSortedWalFiles(VectorLogPtr& files) {
   files.clear();
   // list wal files in archive dir.
   std::string archivedir = ArchivalDirectory(db_options_.wal_dir);
-  if (env_->FileExists(archivedir)) {
+  Status exists = env_->FileExists(archivedir);
+  if (exists.ok()) {
     s = GetSortedWalsOfType(archivedir, files, kArchivedLogFile);
     if (!s.ok()) {
       return s;
     }
+  } else if (!exists.IsNotFound()) {
+    assert(s.IsIOError());
+    return s;
   }
 
   uint64_t latest_archived_log_number = 0;
@@ -312,9 +317,9 @@ Status WalManager::GetSortedWalsOfType(const std::string& path,
       // re-try in case the alive log file has been moved to archive.
       std::string archived_file = ArchivedLogFileName(path, number);
       if (!s.ok() && log_type == kAliveLogFile &&
-          env_->FileExists(archived_file)) {
+          env_->FileExists(archived_file).ok()) {
         s = env_->GetFileSize(archived_file, &size_bytes);
-        if (!s.ok() && !env_->FileExists(archived_file)) {
+        if (!s.ok() && env_->FileExists(archived_file).IsNotFound()) {
           // oops, the file just got deleted from archived dir! move on
           s = Status::OK();
           continue;
@@ -324,8 +329,8 @@ Status WalManager::GetSortedWalsOfType(const std::string& path,
         return s;
       }
 
-      log_files.push_back(std::move(std::unique_ptr<LogFile>(
-          new LogFileImpl(number, log_type, sequence, size_bytes))));
+      log_files.push_back(std::unique_ptr<LogFile>(
+          new LogFileImpl(number, log_type, sequence, size_bytes)));
     }
   }
   CompareLogByPointer compare_log_files;
@@ -379,7 +384,7 @@ Status WalManager::ReadFirstRecord(const WalFileType type,
   if (type == kAliveLogFile) {
     std::string fname = LogFileName(db_options_.wal_dir, number);
     s = ReadFirstLine(fname, sequence);
-    if (env_->FileExists(fname) && !s.ok()) {
+    if (env_->FileExists(fname).ok() && !s.ok()) {
       // return any error that is not caused by non-existing file
       return s;
     }
@@ -393,7 +398,7 @@ Status WalManager::ReadFirstRecord(const WalFileType type,
     // maybe the file was deleted from archive dir. If that's the case, return
     // Status::OK(). The caller with identify this as empty file because
     // *sequence == 0
-    if (!s.ok() && !env_->FileExists(archived_file)) {
+    if (!s.ok() && env_->FileExists(archived_file).IsNotFound()) {
       return Status::OK();
     }
   }
@@ -430,6 +435,8 @@ Status WalManager::ReadFirstLine(const std::string& fname,
 
   std::unique_ptr<SequentialFile> file;
   Status status = env_->NewSequentialFile(fname, &file, env_options_);
+  unique_ptr<SequentialFileReader> file_reader(
+      new SequentialFileReader(std::move(file)));
 
   if (!status.ok()) {
     return status;
@@ -441,14 +448,14 @@ Status WalManager::ReadFirstLine(const std::string& fname,
   reporter.fname = fname.c_str();
   reporter.status = &status;
   reporter.ignore_error = !db_options_.paranoid_checks;
-  log::Reader reader(std::move(file), &reporter, true /*checksum*/,
-                     0 /*initial_offset*/);
+  log::Reader reader(db_options_.info_log, std::move(file_reader), &reporter,
+                     true /*checksum*/, 0 /*initial_offset*/, *sequence);
   std::string scratch;
   Slice record;
 
   if (reader.ReadRecord(&record, &scratch) &&
       (status.ok() || !db_options_.paranoid_checks)) {
-    if (record.size() < 12) {
+    if (record.size() < WriteBatchInternal::kHeader) {
       reporter.Corruption(record.size(),
                           Status::Corruption("log record too small"));
       // TODO read record's till the first no corrupt entry?

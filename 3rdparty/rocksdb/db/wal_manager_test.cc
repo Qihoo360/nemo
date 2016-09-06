@@ -1,19 +1,22 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
+
+#ifndef ROCKSDB_LITE
 
 #include <map>
 #include <string>
 
 #include "rocksdb/cache.h"
 #include "rocksdb/write_batch.h"
+#include "rocksdb/write_buffer_manager.h"
 
 #include "db/wal_manager.h"
 #include "db/log_writer.h"
 #include "db/column_family.h"
 #include "db/version_set.h"
-#include "db/writebuffer.h"
+#include "util/file_reader_writer.h"
 #include "util/mock_env.h"
 #include "util/string_util.h"
 #include "util/testharness.h"
@@ -31,7 +34,7 @@ class WalManagerTest : public testing::Test {
       : env_(new MockEnv(Env::Default())),
         dbname_(test::TmpDir() + "/wal_manager_test"),
         table_cache_(NewLRUCache(50000, 16)),
-        write_buffer_(db_options_.db_write_buffer_size),
+        write_buffer_manager_(db_options_.db_write_buffer_size),
         current_log_number_(0) {
     DestroyDB(dbname_, Options());
   }
@@ -45,7 +48,7 @@ class WalManagerTest : public testing::Test {
     db_options_.env = env_.get();
 
     versions_.reset(new VersionSet(dbname_, &db_options_, env_options_,
-                                   table_cache_.get(), &write_buffer_,
+                                   table_cache_.get(), &write_buffer_manager_,
                                    &write_controller_));
 
     wal_manager_.reset(new WalManager(db_options_, env_options_));
@@ -72,7 +75,9 @@ class WalManagerTest : public testing::Test {
     std::string fname = ArchivedLogFileName(dbname_, current_log_number_);
     unique_ptr<WritableFile> file;
     ASSERT_OK(env_->NewWritableFile(fname, &file, env_options_));
-    current_log_writer_.reset(new log::Writer(std::move(file)));
+    unique_ptr<WritableFileWriter> file_writer(
+        new WritableFileWriter(std::move(file), env_options_));
+    current_log_writer_.reset(new log::Writer(std::move(file_writer), 0, false));
   }
 
   void CreateArchiveLogs(int num_logs, int entries_per_log) {
@@ -90,7 +95,7 @@ class WalManagerTest : public testing::Test {
     Status status = wal_manager_->GetUpdatesSince(
         seq, &iter, TransactionLogIterator::ReadOptions(), versions_.get());
     EXPECT_OK(status);
-    return std::move(iter);
+    return iter;
   }
 
   std::unique_ptr<MockEnv> env_;
@@ -99,7 +104,7 @@ class WalManagerTest : public testing::Test {
   EnvOptions env_options_;
   std::shared_ptr<Cache> table_cache_;
   DBOptions db_options_;
-  WriteBuffer write_buffer_;
+  WriteBufferManager write_buffer_manager_;
   std::unique_ptr<VersionSet> versions_;
   std::unique_ptr<WalManager> wal_manager_;
 
@@ -120,7 +125,10 @@ TEST_F(WalManagerTest, ReadFirstRecordCache) {
   ASSERT_OK(wal_manager_->TEST_ReadFirstRecord(kAliveLogFile, 1, &s));
   ASSERT_EQ(s, 0U);
 
-  log::Writer writer(std::move(file));
+  unique_ptr<WritableFileWriter> file_writer(
+      new WritableFileWriter(std::move(file), EnvOptions()));
+  log::Writer writer(std::move(file_writer), 1,
+                     db_options_.recycle_log_file_num > 0);
   WriteBatch batch;
   batch.Put("foo", "bar");
   WriteBatchInternal::SetSequence(&batch, 10);
@@ -176,7 +184,7 @@ std::vector<std::uint64_t> ListSpecificFiles(
       }
     }
   }
-  return std::move(file_numbers);
+  return file_numbers;
 }
 
 int CountRecords(TransactionLogIterator* iter) {
@@ -287,3 +295,13 @@ int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+
+#else
+#include <stdio.h>
+
+int main(int argc, char** argv) {
+  fprintf(stderr, "SKIPPED as WalManager is not supported in ROCKSDB_LITE\n");
+  return 0;
+}
+
+#endif  // !ROCKSDB_LITE

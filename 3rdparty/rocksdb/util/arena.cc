@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -8,15 +8,25 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include "util/arena.h"
+#ifdef ROCKSDB_MALLOC_USABLE_SIZE
+#include <malloc.h>
+#endif
+#ifndef OS_WIN
 #include <sys/mman.h>
+#endif
+#include "port/port.h"
 #include <algorithm>
 #include "rocksdb/env.h"
 
 namespace rocksdb {
 
+// MSVC complains that it is already defined since it is static in the header.
+#ifndef OS_WIN
 const size_t Arena::kInlineSize;
+#endif
+
 const size_t Arena::kMinBlockSize = 4096;
-const size_t Arena::kMaxBlockSize = 2 << 30;
+const size_t Arena::kMaxBlockSize = 2u << 30;
 static const int kAlignUnit = sizeof(void*);
 
 size_t OptimizeBlockSize(size_t block_size) {
@@ -52,12 +62,15 @@ Arena::~Arena() {
   for (const auto& block : blocks_) {
     delete[] block;
   }
+
+#ifdef MAP_HUGETLB
   for (const auto& mmap_info : huge_blocks_) {
     auto ret = munmap(mmap_info.addr_, mmap_info.length_);
     if (ret != 0) {
       // TODO(sdong): Better handling
     }
   }
+#endif
 }
 
 char* Arena::AllocateFallback(size_t bytes, bool aligned) {
@@ -69,12 +82,14 @@ char* Arena::AllocateFallback(size_t bytes, bool aligned) {
   }
 
   // We waste the remaining space in the current block.
-  size_t size;
+  size_t size = 0;
   char* block_head = nullptr;
+#ifdef MAP_HUGETLB
   if (hugetlb_size_) {
     size = hugetlb_size_;
     block_head = AllocateFromHugePage(size);
   }
+#endif
   if (!block_head) {
     size = kBlockSize;
     block_head = AllocateNewBlock(size);
@@ -97,14 +112,20 @@ char* Arena::AllocateFromHugePage(size_t bytes) {
   if (hugetlb_size_ == 0) {
     return nullptr;
   }
+  // already reserve space in huge_blocks_ before calling mmap().
+  // this way the insertion into the vector below will not throw and we
+  // won't leak the mapping in that case. if reserve() throws, we
+  // won't leak either
+  huge_blocks_.reserve(huge_blocks_.size() + 1);
 
   void* addr = mmap(nullptr, bytes, (PROT_READ | PROT_WRITE),
-                    (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB), 0, 0);
+                    (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB), -1, 0);
 
   if (addr == MAP_FAILED) {
     return nullptr;
   }
-  huge_blocks_.push_back(MmapInfo(addr, bytes));
+  // the following shouldn't throw because of the above reserve()
+  huge_blocks_.emplace_back(MmapInfo(addr, bytes));
   blocks_memory_ += bytes;
   return reinterpret_cast<char*>(addr);
 #else
@@ -146,7 +167,7 @@ char* Arena::AllocateAligned(size_t bytes, size_t huge_page_size,
     aligned_alloc_ptr_ += needed;
     alloc_bytes_remaining_ -= needed;
   } else {
-    // AllocateFallback always returned aligned memory
+    // AllocateFallback always returns aligned memory
     result = AllocateFallback(bytes, true /* aligned */);
   }
   assert((reinterpret_cast<uintptr_t>(result) & (kAlignUnit - 1)) == 0);
@@ -154,8 +175,20 @@ char* Arena::AllocateAligned(size_t bytes, size_t huge_page_size,
 }
 
 char* Arena::AllocateNewBlock(size_t block_bytes) {
+  // already reserve space in blocks_ before allocating memory via new.
+  // this way the insertion into the vector below will not throw and we
+  // won't leak the allocated memory in that case. if reserve() throws,
+  // we won't leak either
+  blocks_.reserve(blocks_.size() + 1);
+
   char* block = new char[block_bytes];
+
+#ifdef ROCKSDB_MALLOC_USABLE_SIZE
+  blocks_memory_ += malloc_usable_size(block);
+#else
   blocks_memory_ += block_bytes;
+#endif  // ROCKSDB_MALLOC_USABLE_SIZE
+  // the following shouldn't throw because of the above reserve()
   blocks_.push_back(block);
   return block;
 }

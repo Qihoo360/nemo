@@ -1,4 +1,4 @@
-// Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "include/rocksdb/thread_status.h"
+#include "rocksdb/thread_status.h"
 
 #include <string>
 
@@ -61,8 +61,6 @@ static OperationStageInfo global_op_stage_table[] = {
       "CompactionJob::Run"},
   {ThreadStatus::STAGE_COMPACTION_PROCESS_KV,
       "CompactionJob::ProcessKeyValueCompaction"},
-  {ThreadStatus::STAGE_COMPACTION_FILTER_V2,
-      "CompactionJob::CallCompactionFilterV2"},
   {ThreadStatus::STAGE_COMPACTION_INSTALL,
       "CompactionJob::Install"},
   {ThreadStatus::STAGE_COMPACTION_SYNC_FILE,

@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -11,7 +11,6 @@
 
 #include "rocksdb/utilities/stackable_db.h"
 #include "rocksdb/db.h"
-//#include "db/db_impl.h"
 
 namespace rocksdb {
 
@@ -61,27 +60,8 @@ class DBWithTTL : public StackableDB {
                      DBWithTTL** dbptr, std::vector<int32_t> ttls,
                      bool read_only = false);
 
-  // add key ttl feature and key version
-  Status SanityCheckVersionAndTimestamp(const Slice &key, const Slice& value);
-  Status GetKeyTTL(const ReadOptions& options, const Slice& key, int32_t *ttl);
-  Status GetVersion(const Slice& key, int32_t *version);
-
-  Status PutWithKeyTTL(const WriteOptions& options, const Slice& key, const Slice& val, int32_t ttl = 0);
-  Status PutWithKeyVersion(const WriteOptions& options, const Slice& key, const Slice& val);
-  Status WriteWithKeyTTL(const WriteOptions& opts, WriteBatch* updates, int32_t ttl = 0);
-  Status WriteWithOldKeyTTL(const WriteOptions& opts, WriteBatch* updates);
-  Status WriteWithKeyVersion(const WriteOptions& opts, WriteBatch* updates, int32_t version = 0);
-  Status PutWithExpiredTime(const WriteOptions& options, const Slice& key, const Slice& val, int32_t expired_time);
-  Status WriteWithExpiredTime(const WriteOptions& opts, WriteBatch* updates, int32_t expired_time);
-
-  static const uint32_t kTSLength = sizeof(int32_t);  // size of timestamp
-  static const uint32_t kVersionLength = sizeof(int32_t);  // size of key version
-
  protected:
-
   explicit DBWithTTL(DB* db) : StackableDB(db) {}
-
-  char meta_prefix_;
 };
 
 }  // namespace rocksdb

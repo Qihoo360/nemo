@@ -1,19 +1,32 @@
-// Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
 
+#include "util/thread_status_updater.h"
 #include <memory>
 #include "rocksdb/env.h"
 #include "port/likely.h"
 #include "util/mutexlock.h"
-#include "util/thread_status_updater.h"
 
 namespace rocksdb {
 
 #if ROCKSDB_USING_THREAD_STATUS
 
 __thread ThreadStatusData* ThreadStatusUpdater::thread_status_data_ = nullptr;
+
+void ThreadStatusUpdater::RegisterThread(
+    ThreadStatus::ThreadType ttype, uint64_t thread_id) {
+  if (UNLIKELY(thread_status_data_ == nullptr)) {
+    thread_status_data_ = new ThreadStatusData();
+    thread_status_data_->thread_type = ttype;
+    thread_status_data_->thread_id = thread_id;
+    std::lock_guard<std::mutex> lck(thread_list_mutex_);
+    thread_data_set_.insert(thread_status_data_);
+  }
+
+  ClearThreadOperationProperties();
+}
 
 void ThreadStatusUpdater::UnregisterThread() {
   if (thread_status_data_ != nullptr) {
@@ -24,13 +37,6 @@ void ThreadStatusUpdater::UnregisterThread() {
   }
 }
 
-void ThreadStatusUpdater::SetThreadType(
-    ThreadStatus::ThreadType ttype) {
-  auto* data = InitAndGet();
-  data->thread_type.store(ttype, std::memory_order_relaxed);
-  ClearThreadOperationProperties();
-}
-
 void ThreadStatusUpdater::ResetThreadStatus() {
   ClearThreadState();
   ClearThreadOperation();
@@ -39,17 +45,20 @@ void ThreadStatusUpdater::ResetThreadStatus() {
 
 void ThreadStatusUpdater::SetColumnFamilyInfoKey(
     const void* cf_key) {
-  auto* data = InitAndGet();
+  auto* data = Get();
+  if (data == nullptr) {
+    return;
+  }
   // set the tracking flag based on whether cf_key is non-null or not.
   // If enable_thread_tracking is set to false, the input cf_key
   // would be nullptr.
   data->enable_tracking = (cf_key != nullptr);
-  data->cf_key.store(cf_key, std::memory_order_relaxed);
+  data->cf_key.store(const_cast<void*>(cf_key), std::memory_order_relaxed);
 }
 
 const void* ThreadStatusUpdater::GetColumnFamilyInfoKey() {
-  auto* data = InitAndGet();
-  if (data->enable_tracking == false) {
+  auto* data = GetLocalThreadStatus();
+  if (data == nullptr) {
     return nullptr;
   }
   return data->cf_key.load(std::memory_order_relaxed);
@@ -57,9 +66,8 @@ const void* ThreadStatusUpdater::GetColumnFamilyInfoKey() {
 
 void ThreadStatusUpdater::SetThreadOperation(
     const ThreadStatus::OperationType type) {
-  auto* data = InitAndGet();
-  if (!data->enable_tracking) {
-    assert(data->cf_key.load(std::memory_order_relaxed) == nullptr);
+  auto* data = GetLocalThreadStatus();
+  if (data == nullptr) {
     return;
   }
   // NOTE: Our practice here is to set all the thread operation properties
@@ -77,9 +85,8 @@ void ThreadStatusUpdater::SetThreadOperation(
 
 void ThreadStatusUpdater::SetThreadOperationProperty(
     int i, uint64_t value) {
-  auto* data = InitAndGet();
-  if (!data->enable_tracking) {
-    assert(data->cf_key.load(std::memory_order_relaxed) == nullptr);
+  auto* data = GetLocalThreadStatus();
+  if (data == nullptr) {
     return;
   }
   data->op_properties[i].store(value, std::memory_order_relaxed);
@@ -87,27 +94,24 @@ void ThreadStatusUpdater::SetThreadOperationProperty(
 
 void ThreadStatusUpdater::IncreaseThreadOperationProperty(
     int i, uint64_t delta) {
-  auto* data = InitAndGet();
-  if (!data->enable_tracking) {
-    assert(data->cf_key.load(std::memory_order_relaxed) == nullptr);
+  auto* data = GetLocalThreadStatus();
+  if (data == nullptr) {
     return;
   }
   data->op_properties[i].fetch_add(delta, std::memory_order_relaxed);
 }
 
 void ThreadStatusUpdater::SetOperationStartTime(const uint64_t start_time) {
-  auto* data = InitAndGet();
-  if (!data->enable_tracking) {
-    assert(data->cf_key.load(std::memory_order_relaxed) == nullptr);
+  auto* data = GetLocalThreadStatus();
+  if (data == nullptr) {
     return;
   }
   data->op_start_time.store(start_time, std::memory_order_relaxed);
 }
 
 void ThreadStatusUpdater::ClearThreadOperation() {
-  auto* data = InitAndGet();
-  if (!data->enable_tracking) {
-    assert(data->cf_key.load(std::memory_order_relaxed) == nullptr);
+  auto* data = GetLocalThreadStatus();
+  if (data == nullptr) {
     return;
   }
   data->operation_stage.store(ThreadStatus::STAGE_UNKNOWN,
@@ -118,9 +122,8 @@ void ThreadStatusUpdater::ClearThreadOperation() {
 }
 
 void ThreadStatusUpdater::ClearThreadOperationProperties() {
-  auto* data = InitAndGet();
-  if (!data->enable_tracking) {
-    assert(data->cf_key.load(std::memory_order_relaxed) == nullptr);
+  auto* data = GetLocalThreadStatus();
+  if (data == nullptr) {
     return;
   }
   for (int i = 0; i < ThreadStatus::kNumOperationProperties; ++i) {
@@ -130,9 +133,8 @@ void ThreadStatusUpdater::ClearThreadOperationProperties() {
 
 ThreadStatus::OperationStage ThreadStatusUpdater::SetThreadOperationStage(
     ThreadStatus::OperationStage stage) {
-  auto* data = InitAndGet();
-  if (!data->enable_tracking) {
-    assert(data->cf_key.load(std::memory_order_relaxed) == nullptr);
+  auto* data = GetLocalThreadStatus();
+  if (data == nullptr) {
     return ThreadStatus::STAGE_UNKNOWN;
   }
   return data->operation_stage.exchange(
@@ -141,18 +143,16 @@ ThreadStatus::OperationStage ThreadStatusUpdater::SetThreadOperationStage(
 
 void ThreadStatusUpdater::SetThreadState(
     const ThreadStatus::StateType type) {
-  auto* data = InitAndGet();
-  if (!data->enable_tracking) {
-    assert(data->cf_key.load(std::memory_order_relaxed) == nullptr);
+  auto* data = GetLocalThreadStatus();
+  if (data == nullptr) {
     return;
   }
   data->state_type.store(type, std::memory_order_relaxed);
 }
 
 void ThreadStatusUpdater::ClearThreadState() {
-  auto* data = InitAndGet();
-  if (!data->enable_tracking) {
-    assert(data->cf_key.load(std::memory_order_relaxed) == nullptr);
+  auto* data = GetLocalThreadStatus();
+  if (data == nullptr) {
     return;
   }
   data->state_type.store(
@@ -168,6 +168,8 @@ Status ThreadStatusUpdater::GetThreadList(
   std::lock_guard<std::mutex> lck(thread_list_mutex_);
   for (auto* thread_data : thread_data_set_) {
     assert(thread_data);
+    auto thread_id = thread_data->thread_id.load(
+        std::memory_order_relaxed);
     auto thread_type = thread_data->thread_type.load(
         std::memory_order_relaxed);
     // Since any change to cf_info_map requires thread_list_mutex,
@@ -176,7 +178,6 @@ Status ThreadStatusUpdater::GetThreadList(
     auto cf_key = thread_data->cf_key.load(
         std::memory_order_relaxed);
     auto iter = cf_info_map_.find(cf_key);
-    assert(cf_key == 0 || iter != cf_info_map_.end());
     auto* cf_info = iter != cf_info_map_.end() ?
         iter->second.get() : nullptr;
     const std::string* db_name = nullptr;
@@ -206,7 +207,7 @@ Status ThreadStatusUpdater::GetThreadList(
       }
     }
     thread_list->emplace_back(
-        thread_data->thread_id, thread_type,
+        thread_id, thread_type,
         db_name ? *db_name : "",
         cf_name ? *cf_name : "",
         op_type, op_elapsed_micros, op_stage, op_props,
@@ -216,13 +217,14 @@ Status ThreadStatusUpdater::GetThreadList(
   return Status::OK();
 }
 
-ThreadStatusData* ThreadStatusUpdater::InitAndGet() {
-  if (UNLIKELY(thread_status_data_ == nullptr)) {
-    thread_status_data_ = new ThreadStatusData();
-    thread_status_data_->thread_id = reinterpret_cast<uint64_t>(
-        thread_status_data_);
-    std::lock_guard<std::mutex> lck(thread_list_mutex_);
-    thread_data_set_.insert(thread_status_data_);
+ThreadStatusData* ThreadStatusUpdater::GetLocalThreadStatus() {
+  if (thread_status_data_ == nullptr) {
+    return nullptr;
+  }
+  if (!thread_status_data_->enable_tracking) {
+    assert(thread_status_data_->cf_key.load(
+        std::memory_order_relaxed) == nullptr);
+    return nullptr;
   }
   return thread_status_data_;
 }
@@ -244,7 +246,9 @@ void ThreadStatusUpdater::EraseColumnFamilyInfo(const void* cf_key) {
   // a consistent view of global column family table (cf_info_map).
   std::lock_guard<std::mutex> lck(thread_list_mutex_);
   auto cf_pair = cf_info_map_.find(cf_key);
-  assert(cf_pair != cf_info_map_.end());
+  if (cf_pair == cf_info_map_.end()) {
+    return;
+  }
 
   auto* cf_info = cf_pair->second.get();
   assert(cf_info);
@@ -276,7 +280,9 @@ void ThreadStatusUpdater::EraseDatabaseInfo(const void* db_key) {
   size_t result __attribute__((unused)) = 0;
   for (auto cf_key : db_pair->second) {
     auto cf_pair = cf_info_map_.find(cf_key);
-    assert(cf_pair != cf_info_map_.end());
+    if (cf_pair == cf_info_map_.end()) {
+      continue;
+    }
     cf_pair->second.reset();
     result = cf_info_map_.erase(cf_key);
     assert(result);
@@ -286,14 +292,14 @@ void ThreadStatusUpdater::EraseDatabaseInfo(const void* db_key) {
 
 #else
 
+void ThreadStatusUpdater::RegisterThread(
+    ThreadStatus::ThreadType ttype, uint64_t thread_id) {
+}
+
 void ThreadStatusUpdater::UnregisterThread() {
 }
 
 void ThreadStatusUpdater::ResetThreadStatus() {
-}
-
-void ThreadStatusUpdater::SetThreadType(
-    ThreadStatus::ThreadType ttype) {
 }
 
 void ThreadStatusUpdater::SetColumnFamilyInfoKey(

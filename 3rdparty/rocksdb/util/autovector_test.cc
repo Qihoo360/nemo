@@ -1,10 +1,11 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
 
 #include <atomic>
 #include <iostream>
+#include <string>
 #include <utility>
 
 #include "rocksdb/env.h"
@@ -13,13 +14,23 @@
 #include "util/testharness.h"
 #include "util/testutil.h"
 
+using std::cout;
+using std::endl;
+
 namespace rocksdb {
 
-using namespace std;
-
 class AutoVectorTest : public testing::Test {};
-
 const unsigned long kSize = 8;
+
+namespace {
+template <class T>
+void AssertAutoVectorOnlyInStack(autovector<T, kSize>* vec, bool result) {
+#ifndef ROCKSDB_LITE
+  ASSERT_EQ(vec->only_in_stack(), result);
+#endif  // !ROCKSDB_LITE
+}
+}  // namespace
+
 TEST_F(AutoVectorTest, PushBackAndPopBack) {
   autovector<size_t, kSize> vec;
   ASSERT_TRUE(vec.empty());
@@ -29,9 +40,9 @@ TEST_F(AutoVectorTest, PushBackAndPopBack) {
     vec.push_back(i);
     ASSERT_TRUE(!vec.empty());
     if (i < kSize) {
-      ASSERT_TRUE(vec.only_in_stack());
+      AssertAutoVectorOnlyInStack(&vec, true);
     } else {
-      ASSERT_TRUE(!vec.only_in_stack());
+      AssertAutoVectorOnlyInStack(&vec, false);
     }
     ASSERT_EQ(i + 1, vec.size());
     ASSERT_EQ(i, vec[i]);
@@ -42,7 +53,7 @@ TEST_F(AutoVectorTest, PushBackAndPopBack) {
   while (size != 0) {
     vec.pop_back();
     // will always be in heap
-    ASSERT_TRUE(!vec.only_in_stack());
+    AssertAutoVectorOnlyInStack(&vec, false);
     ASSERT_EQ(--size, vec.size());
   }
 
@@ -57,9 +68,9 @@ TEST_F(AutoVectorTest, EmplaceBack) {
     vec.emplace_back(i, ToString(i + 123));
     ASSERT_TRUE(!vec.empty());
     if (i < kSize) {
-      ASSERT_TRUE(vec.only_in_stack());
+      AssertAutoVectorOnlyInStack(&vec, true);
     } else {
-      ASSERT_TRUE(!vec.only_in_stack());
+      AssertAutoVectorOnlyInStack(&vec, false);
     }
 
     ASSERT_EQ(i + 1, vec.size());
@@ -69,20 +80,20 @@ TEST_F(AutoVectorTest, EmplaceBack) {
 
   vec.clear();
   ASSERT_TRUE(vec.empty());
-  ASSERT_TRUE(!vec.only_in_stack());
+  AssertAutoVectorOnlyInStack(&vec, false);
 }
 
 TEST_F(AutoVectorTest, Resize) {
   autovector<size_t, kSize> vec;
 
   vec.resize(kSize);
-  ASSERT_TRUE(vec.only_in_stack());
+  AssertAutoVectorOnlyInStack(&vec, true);
   for (size_t i = 0; i < kSize; ++i) {
     vec[i] = i;
   }
 
   vec.resize(kSize * 2);
-  ASSERT_TRUE(!vec.only_in_stack());
+  AssertAutoVectorOnlyInStack(&vec, false);
   for (size_t i = 0; i < kSize; ++i) {
     ASSERT_EQ(vec[i], i);
   }
@@ -99,7 +110,9 @@ void AssertEqual(
     const autovector<size_t, kSize>& a, const autovector<size_t, kSize>& b) {
   ASSERT_EQ(a.size(), b.size());
   ASSERT_EQ(a.empty(), b.empty());
+#ifndef ROCKSDB_LITE
   ASSERT_EQ(a.only_in_stack(), b.only_in_stack());
+#endif  // !ROCKSDB_LITE
   for (size_t i = 0; i < a.size(); ++i) {
     ASSERT_EQ(a[i], b[i]);
   }
@@ -186,8 +199,8 @@ TEST_F(AutoVectorTest, Iterators) {
 }
 
 namespace {
-vector<string> GetTestKeys(size_t size) {
-  vector<string> keys;
+std::vector<std::string> GetTestKeys(size_t size) {
+  std::vector<std::string> keys;
   keys.resize(size);
 
   int index = 0;
@@ -198,9 +211,9 @@ vector<string> GetTestKeys(size_t size) {
 }
 }  // namespace
 
-template<class TVector>
+template <class TVector>
 void BenchmarkVectorCreationAndInsertion(
-    string name, size_t ops, size_t item_size,
+    std::string name, size_t ops, size_t item_size,
     const std::vector<typename TVector::value_type>& items) {
   auto env = Env::Default();
 
@@ -220,7 +233,7 @@ void BenchmarkVectorCreationAndInsertion(
 }
 
 template <class TVector>
-size_t BenchmarkSequenceAccess(string name, size_t ops, size_t elem_size) {
+size_t BenchmarkSequenceAccess(std::string name, size_t ops, size_t elem_size) {
   TVector v;
   for (const auto& item : GetTestKeys(elem_size)) {
     v.push_back(item);
@@ -244,9 +257,9 @@ size_t BenchmarkSequenceAccess(string name, size_t ops, size_t elem_size) {
   return total;
 }
 
-// This test case only reports the performance between std::vector<string>
-// and autovector<string>. We chose string for comparison because in most
-// o our use cases we used std::vector<string>.
+// This test case only reports the performance between std::vector<std::string>
+// and autovector<std::string>. We chose string for comparison because in most
+// of our use cases we used std::vector<std::string>.
 TEST_F(AutoVectorTest, PerfBench) {
   // We run same operations for kOps times in order to get a more fair result.
   size_t kOps = 100000;
@@ -268,12 +281,10 @@ TEST_F(AutoVectorTest, PerfBench) {
   // pre-generated unique keys
   auto string_keys = GetTestKeys(kOps * 2 * kSize);
   for (auto insertions : { 0ul, 1ul, kSize / 2, kSize, 2 * kSize }) {
-    BenchmarkVectorCreationAndInsertion<vector<string>>(
-      "vector<string>", kOps, insertions, string_keys
-    );
-    BenchmarkVectorCreationAndInsertion<autovector<string, kSize>>(
-      "autovector<string>", kOps, insertions, string_keys
-    );
+    BenchmarkVectorCreationAndInsertion<std::vector<std::string>>(
+        "std::vector<std::string>", kOps, insertions, string_keys);
+    BenchmarkVectorCreationAndInsertion<autovector<std::string, kSize>>(
+        "autovector<std::string>", kOps, insertions, string_keys);
     cout << "-----------------------------------" << endl;
   }
 
@@ -282,14 +293,13 @@ TEST_F(AutoVectorTest, PerfBench) {
   cout << "=====================================================" << endl;
 
   // pre-generated unique keys
-  vector<uint64_t> int_keys(kOps * 2 * kSize);
+  std::vector<uint64_t> int_keys(kOps * 2 * kSize);
   for (size_t i = 0; i < kOps * 2 * kSize; ++i) {
     int_keys[i] = i;
   }
   for (auto insertions : { 0ul, 1ul, kSize / 2, kSize, 2 * kSize }) {
-    BenchmarkVectorCreationAndInsertion<vector<uint64_t>>(
-      "vector<uint64_t>", kOps, insertions, int_keys
-    );
+    BenchmarkVectorCreationAndInsertion<std::vector<uint64_t>>(
+        "std::vector<uint64_t>", kOps, insertions, int_keys);
     BenchmarkVectorCreationAndInsertion<autovector<uint64_t, kSize>>(
       "autovector<uint64_t>", kOps, insertions, int_keys
     );
@@ -301,12 +311,10 @@ TEST_F(AutoVectorTest, PerfBench) {
   cout << "Sequence Access Test" << endl;
   cout << "=====================================================" << endl;
   for (auto elem_size : { kSize / 2, kSize, 2 * kSize }) {
-    BenchmarkSequenceAccess<vector<string>>(
-        "vector", kOps, elem_size
-    );
-    BenchmarkSequenceAccess<autovector<string, kSize>>(
-        "autovector", kOps, elem_size
-    );
+    BenchmarkSequenceAccess<std::vector<std::string>>("std::vector", kOps,
+                                                      elem_size);
+    BenchmarkSequenceAccess<autovector<std::string, kSize>>("autovector", kOps,
+                                                            elem_size);
     cout << "-----------------------------------" << endl;
   }
 }

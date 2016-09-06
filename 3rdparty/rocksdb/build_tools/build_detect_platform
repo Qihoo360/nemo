@@ -8,6 +8,7 @@
 #   CXX                         C++ Compiler path
 #   PLATFORM_LDFLAGS            Linker flags
 #   JAVA_LDFLAGS                Linker flags for RocksDBJava
+#   JAVA_STATIC_LDFLAGS         Linker flags for RocksDBJava static build
 #   PLATFORM_SHARED_EXT         Extension for shared libraries
 #   PLATFORM_SHARED_LDFLAGS     Flags for building shared library
 #   PLATFORM_SHARED_CFLAGS      Flags for compiling objects for shared library
@@ -18,21 +19,21 @@
 #
 # The PLATFORM_CCFLAGS and PLATFORM_CXXFLAGS might include the following:
 #
-#       -DLEVELDB_PLATFORM_POSIX if cstdatomic is present
-#       -DLEVELDB_PLATFORM_NOATOMIC if it is not
+#       -DROCKSDB_PLATFORM_POSIX    if posix-platform based
 #       -DSNAPPY                    if the Snappy library is present
 #       -DLZ4                       if the LZ4 library is present
+#       -DZSTD                      if the ZSTD library is present
 #       -DNUMA                      if the NUMA library is present
+#       -DTBB                       if the TBB library is present
 #
 # Using gflags in rocksdb:
 # Our project depends on gflags, which requires users to take some extra steps
 # before they can compile the whole repository:
 #   1. Install gflags. You may download it from here:
-#      https://code.google.com/p/gflags/
-#   2. Once install, add the include path/lib path for gflags to CPATH and
-#      LIBRARY_PATH respectively. If installed with default mode, the
-#      lib and include path will be /usr/local/lib and /usr/local/include
-# Mac user can do this by having brew installed and running brew install gflags
+#      https://gflags.github.io/gflags/ (Mac users can `brew install gflags`)
+#   2. Once installed, add the include path for gflags to your CPATH env var and
+#      the lib path to LIBRARY_PATH. If installed with default settings, the lib
+#      will be /usr/local/lib and the include path will be /usr/local/include
 
 OUTPUT=$1
 if test -z "$OUTPUT"; then
@@ -43,7 +44,7 @@ fi
 # we depend on C++11
 PLATFORM_CXXFLAGS="-std=c++11"
 # we currently depend on POSIX platform
-COMMON_FLAGS="-DROCKSDB_PLATFORM_POSIX"
+COMMON_FLAGS="-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX"
 
 # Default to fbcode gcc on internal fb machines
 if [ -z "$ROCKSDB_NO_FBCODE" -a -d /mnt/gvfs/third-party ]; then
@@ -92,7 +93,7 @@ CROSS_COMPILE=
 PLATFORM_CCFLAGS=
 PLATFORM_LDFLAGS="$PLATFORM_LDFLAGS"
 PLATFORM_SHARED_EXT="so"
-PLATFORM_SHARED_LDFLAGS="-shared -Wl,-soname -Wl,"
+PLATFORM_SHARED_LDFLAGS="-Wl,--no-as-needed -shared -Wl,-soname -Wl,"
 PLATFORM_SHARED_CFLAGS="-fPIC"
 PLATFORM_SHARED_VERSIONED=true
 
@@ -157,6 +158,7 @@ case "$TARGET_OS" in
         ;;
     Cygwin)
         PLATFORM=CYGWIN
+        PLATFORM_SHARED_CFLAGS=""
         PLATFORM_CXXFLAGS="-std=gnu++11"
         COMMON_FLAGS="$COMMON_FLAGS -DCYGWIN"
         if [ -z "$USE_CLANG" ]; then
@@ -167,7 +169,7 @@ case "$TARGET_OS" in
         ;;
     OS_ANDROID_CROSSCOMPILE)
         PLATFORM=OS_ANDROID
-	COMMON_FLAGS="$COMMON_FLAGS -fno-builtin-memcmp -D_REENTRANT -DOS_ANDROID -DLEVELDB_PLATFORM_POSIX"
+	COMMON_FLAGS="$COMMON_FLAGS -fno-builtin-memcmp -D_REENTRANT -DOS_ANDROID -DROCKSDB_PLATFORM_POSIX"
 	PLATFORM_LDFLAGS="$PLATFORM_LDFLAGS "  # All pthread features are in the Android C library
         # PORT_FILES=port/android/android.cc
         CROSS_COMPILE=true
@@ -179,23 +181,26 @@ esac
 
 PLATFORM_CXXFLAGS="$PLATFORM_CXXFLAGS ${CXXFLAGS}"
 JAVA_LDFLAGS="$PLATFORM_LDFLAGS"
+JAVA_STATIC_LDFLAGS="$PLATFORM_LDFLAGS"
 
 if [ "$CROSS_COMPILE" = "true" -o "$FBCODE_BUILD" = "true" ]; then
     # Cross-compiling; do not try any compilation tests.
     # Also don't need any compilation tests if compiling on fbcode
     true
 else
-    # Test whether fallocate is available
-    $CXX $CFLAGS -x c++ - -o /dev/null 2>/dev/null  <<EOF
-      #include <fcntl.h>
-      #include <linux/falloc.h>
-      int main() {
-	int fd = open("/dev/null", 0);
-  fallocate(fd, FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE, 0, 1024);
-      }
+    if ! test $ROCKSDB_DISABLE_FALLOCATE; then
+        # Test whether fallocate is available
+        $CXX $CFLAGS -x c++ - -o /dev/null 2>/dev/null  <<EOF
+          #include <fcntl.h>
+          #include <linux/falloc.h>
+          int main() {
+      int fd = open("/dev/null", 0);
+      fallocate(fd, FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE, 0, 1024);
+          }
 EOF
-    if [ "$?" = 0 ]; then
-        COMMON_FLAGS="$COMMON_FLAGS -DROCKSDB_FALLOCATE_PRESENT"
+        if [ "$?" = 0 ]; then
+            COMMON_FLAGS="$COMMON_FLAGS -DROCKSDB_FALLOCATE_PRESENT"
+        fi
     fi
 
     # Test whether Snappy library is installed
@@ -211,7 +216,7 @@ EOF
     fi
 
     # Test whether gflags library is installed
-    # http://code.google.com/p/gflags/
+    # http://gflags.github.io/gflags/
     # check if the namespace is gflags
     $CXX $CFLAGS -x c++ - -o /dev/null 2>/dev/null << EOF
       #include <gflags/gflags.h>
@@ -268,10 +273,21 @@ EOF
         JAVA_LDFLAGS="$JAVA_LDFLAGS -llz4"
     fi
 
+    # Test whether zstd library is installed
+    $CXX $CFLAGS $COMMON_FLAGS -x c++ - -o /dev/null 2>/dev/null  <<EOF
+      #include <zstd.h>
+      int main() {}
+EOF
+    if [ "$?" = 0 ]; then
+        COMMON_FLAGS="$COMMON_FLAGS -DZSTD"
+        PLATFORM_LDFLAGS="$PLATFORM_LDFLAGS -lzstd"
+        JAVA_LDFLAGS="$JAVA_LDFLAGS -lzstd"
+    fi
+
     # Test whether numa is available
     $CXX $CFLAGS -x c++ - -o /dev/null -lnuma 2>/dev/null  <<EOF
       #include <numa.h>
-      #inlcude <numaif.h>
+      #include <numaif.h>
       int main() {}
 EOF
     if [ "$?" = 0 ]; then
@@ -280,18 +296,91 @@ EOF
         JAVA_LDFLAGS="$JAVA_LDFLAGS -lnuma"
     fi
 
+    # Test whether tbb is available
+    $CXX $CFLAGS $LDFLAGS -x c++ - -o /dev/null -ltbb 2>/dev/null  <<EOF
+      #include <tbb/tbb.h>
+      int main() {}
+EOF
+    if [ "$?" = 0 ]; then
+        COMMON_FLAGS="$COMMON_FLAGS -DTBB"
+        PLATFORM_LDFLAGS="$PLATFORM_LDFLAGS -ltbb"
+        JAVA_LDFLAGS="$JAVA_LDFLAGS -ltbb"
+    fi
+
     # Test whether jemalloc is available
     if echo 'int main() {}' | $CXX $CFLAGS -x c++ - -o /dev/null -ljemalloc \
-      2>/dev/null; then 
+      2>/dev/null; then
         PLATFORM_LDFLAGS="$PLATFORM_LDFLAGS -ljemalloc"
         JAVA_LDFLAGS="$JAVA_LDFLAGS -ljemalloc"
+        JEMALLOC=1
     else
         # jemalloc is not available. Let's try tcmalloc
         if echo 'int main() {}' | $CXX $CFLAGS -x c++ - -o /dev/null \
-          -ltcmalloc 2>/dev/null; then 
+          -ltcmalloc 2>/dev/null; then
             PLATFORM_LDFLAGS="$PLATFORM_LDFLAGS -ltcmalloc"
             JAVA_LDFLAGS="$JAVA_LDFLAGS -ltcmalloc"
         fi
+    fi
+
+    # Test whether malloc_usable_size is available
+    $CXX $CFLAGS -x c++ - -o /dev/null 2>/dev/null  <<EOF
+      #include <malloc.h>
+      int main() {
+        size_t res = malloc_usable_size(0);
+        return 0;
+      }
+EOF
+    if [ "$?" = 0 ]; then
+        COMMON_FLAGS="$COMMON_FLAGS -DROCKSDB_MALLOC_USABLE_SIZE"
+    fi
+
+    # Test whether PTHREAD_MUTEX_ADAPTIVE_NP mutex type is available
+    $CXX $CFLAGS -x c++ - -o /dev/null 2>/dev/null  <<EOF
+      #include <pthread.h>
+      int main() {
+        int x = PTHREAD_MUTEX_ADAPTIVE_NP;
+        return 0;
+      }
+EOF
+    if [ "$?" = 0 ]; then
+        COMMON_FLAGS="$COMMON_FLAGS -DROCKSDB_PTHREAD_ADAPTIVE_MUTEX"
+    fi
+
+    # Test whether backtrace is available
+    $CXX $CFLAGS -x c++ - -o /dev/null 2>/dev/null  <<EOF
+      #include <execinfo.h>>
+      int main() {
+        void* frames[1];
+        backtrace_symbols(frames, backtrace(frames, 1));
+        return 0;
+      }
+EOF
+    if [ "$?" = 0 ]; then
+        COMMON_FLAGS="$COMMON_FLAGS -DROCKSDB_BACKTRACE"
+    else
+        # Test whether execinfo library is installed
+        $CXX $CFLAGS -lexecinfo -x c++ - -o /dev/null 2>/dev/null  <<EOF
+          #include <execinfo.h>
+          int main() {
+            void* frames[1];
+            backtrace_symbols(frames, backtrace(frames, 1));
+          }
+EOF
+        if [ "$?" = 0 ]; then
+            COMMON_FLAGS="$COMMON_FLAGS -DROCKSDB_BACKTRACE"
+            PLATFORM_LDFLAGS="$PLATFORM_LDFLAGS -lexecinfo"
+            JAVA_LDFLAGS="$JAVA_LDFLAGS -lexecinfo"
+        fi
+    fi
+
+    # Test if -pg is supported
+    $CXX $CFLAGS -pg -x c++ - -o /dev/null 2>/dev/null  <<EOF
+      int main() {
+        return 0;
+      }
+EOF
+    if [ "$?" = 0 ]; then
+        PROFILING_FLAGS=-pg
     fi
 fi
 
@@ -332,7 +421,15 @@ if test "$USE_SSE"; then
   # if Intel SSE instruction set is supported, set USE_SSE=1
   COMMON_FLAGS="$COMMON_FLAGS -msse -msse4.2 "
 elif test -z "$PORTABLE"; then
-  COMMON_FLAGS="$COMMON_FLAGS -march=native "
+  if test -n "`echo $TARGET_ARCHITECTURE | grep ^ppc64`"; then
+    # Tune for this POWER processor, treating '+' models as base models
+    POWER=`LD_SHOW_AUXV=1 /bin/true | grep AT_PLATFORM | grep -E -o power[0-9]+`
+    COMMON_FLAGS="$COMMON_FLAGS -mcpu=$POWER -mtune=$POWER "
+  elif test -n "`echo $TARGET_ARCHITECTURE | grep ^s390x`"; then
+    COMMON_FLAGS="$COMMON_FLAGS -march=z10 "
+  else
+    COMMON_FLAGS="$COMMON_FLAGS -march=native "
+  fi
 fi
 
 PLATFORM_CCFLAGS="$PLATFORM_CCFLAGS $COMMON_FLAGS"
@@ -349,6 +446,7 @@ echo "CXX=$CXX" >> "$OUTPUT"
 echo "PLATFORM=$PLATFORM" >> "$OUTPUT"
 echo "PLATFORM_LDFLAGS=$PLATFORM_LDFLAGS" >> "$OUTPUT"
 echo "JAVA_LDFLAGS=$JAVA_LDFLAGS" >> "$OUTPUT"
+echo "JAVA_STATIC_LDFLAGS=$JAVA_STATIC_LDFLAGS" >> "$OUTPUT"
 echo "VALGRIND_VER=$VALGRIND_VER" >> "$OUTPUT"
 echo "PLATFORM_CCFLAGS=$PLATFORM_CCFLAGS" >> "$OUTPUT"
 echo "PLATFORM_CXXFLAGS=$PLATFORM_CXXFLAGS" >> "$OUTPUT"
@@ -364,3 +462,7 @@ echo "ROCKSDB_MINOR=$ROCKSDB_MINOR" >> "$OUTPUT"
 echo "ROCKSDB_PATCH=$ROCKSDB_PATCH" >> "$OUTPUT"
 echo "CLANG_SCAN_BUILD=$CLANG_SCAN_BUILD" >> "$OUTPUT"
 echo "CLANG_ANALYZER=$CLANG_ANALYZER" >> "$OUTPUT"
+echo "PROFILING_FLAGS=$PROFILING_FLAGS" >> "$OUTPUT"
+if test -n "$JEMALLOC"; then
+  echo "JEMALLOC=1" >> "$OUTPUT"
+fi

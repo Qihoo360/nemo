@@ -1,5 +1,8 @@
 <?php
 // Copyright 2004-present Facebook.  All rights reserved.
+// This source code is licensed under the BSD-style license found in the
+// LICENSE file in the root directory of this source tree. An additional grant
+// of patent rights can be found in the PATENTS file in the same directory.
 
 class FacebookFbcodeLintEngine extends ArcanistLintEngine {
 
@@ -39,15 +42,12 @@ class FacebookFbcodeLintEngine extends ArcanistLintEngine {
     $python_linter = new ArcanistPEP8Linter();
     $linters[] = $python_linter;
 
-   // Currently we can't run cpplint in commit hook mode, because it
-    // depends on having access to the working directory.
-    if (!$this->getCommitHookMode()) {
-      $cpp_linters = array();
-      $google_linter = new ArcanistCpplintLinter();
-      $cpp_linters[] = $linters[] = $google_linter;
-      $cpp_linters[] = $linters[] = new FbcodeCppLinter();
-      $cpp_linters[] = $linters[] = new PfffCppLinter();
-    }
+    $cpp_linters = array();
+    $cpp_linters[] = $linters[] = new ArcanistCpplintLinter();
+    $cpp_linters[] = $linters[] = new FbcodeCppLinter();
+
+    $clang_format_linter = new FbcodeClangFormatLinter();
+    $linters[] = $clang_format_linter;
 
     $spelling_linter = new ArcanistSpellingLinter();
     $linters[] = $spelling_linter;
@@ -93,6 +93,11 @@ class FacebookFbcodeLintEngine extends ArcanistLintEngine {
           $linter->addPath($path);
           $linter->addData($path, $this->loadData($path));
         }
+
+        $clang_format_linter->addPath($path);
+        $clang_format_linter->addData($path, $this->loadData($path));
+        $clang_format_linter->setPathChangedLines(
+          $path, $this->getPathChangedLines($path));
       }
 
       // Match *.py and contbuild config files

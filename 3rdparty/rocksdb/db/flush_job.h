@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -16,28 +16,28 @@
 #include <vector>
 #include <string>
 
-#include "db/dbformat.h"
-#include "db/log_writer.h"
-#include "db/snapshot.h"
 #include "db/column_family.h"
-#include "db/version_edit.h"
+#include "db/dbformat.h"
+#include "db/flush_scheduler.h"
+#include "db/internal_stats.h"
+#include "db/job_context.h"
+#include "db/log_writer.h"
 #include "db/memtable_list.h"
+#include "db/snapshot_impl.h"
+#include "db/version_edit.h"
+#include "db/write_controller.h"
+#include "db/write_thread.h"
 #include "port/port.h"
 #include "rocksdb/db.h"
 #include "rocksdb/env.h"
 #include "rocksdb/memtablerep.h"
 #include "rocksdb/transaction_log.h"
+#include "table/scoped_arena_iterator.h"
 #include "util/autovector.h"
 #include "util/event_logger.h"
 #include "util/instrumented_mutex.h"
 #include "util/stop_watch.h"
 #include "util/thread_local.h"
-#include "util/scoped_arena_iterator.h"
-#include "db/internal_stats.h"
-#include "db/write_controller.h"
-#include "db/flush_scheduler.h"
-#include "db/write_thread.h"
-#include "db/job_context.h"
 
 namespace rocksdb {
 
@@ -57,21 +57,25 @@ class FlushJob {
            const MutableCFOptions& mutable_cf_options,
            const EnvOptions& env_options, VersionSet* versions,
            InstrumentedMutex* db_mutex, std::atomic<bool>* shutting_down,
-           SequenceNumber newest_snapshot, JobContext* job_context,
-           LogBuffer* log_buffer, Directory* db_directory,
-           Directory* output_file_directory, CompressionType output_compression,
-           Statistics* stats, EventLogger* event_logger);
+           std::vector<SequenceNumber> existing_snapshots,
+           SequenceNumber earliest_write_conflict_snapshot,
+           JobContext* job_context, LogBuffer* log_buffer,
+           Directory* db_directory, Directory* output_file_directory,
+           CompressionType output_compression, Statistics* stats,
+           EventLogger* event_logger, bool measure_io_stats);
 
   ~FlushJob();
 
-  Status Run(uint64_t* file_number = nullptr);
+  // Require db_mutex held
+  void PickMemTable();
+  Status Run(FileMetaData* file_meta = nullptr);
+  TableProperties GetTableProperties() const { return table_properties_; }
 
  private:
   void ReportStartedFlush();
   void ReportFlushInputSize(const autovector<MemTable*>& mems);
   void RecordFlushIOStats();
-  Status WriteLevel0Table(const autovector<MemTable*>& mems, VersionEdit* edit,
-                          uint64_t* filenumber);
+  Status WriteLevel0Table();
   const std::string& dbname_;
   ColumnFamilyData* cfd_;
   const DBOptions& db_options_;
@@ -80,7 +84,8 @@ class FlushJob {
   VersionSet* versions_;
   InstrumentedMutex* db_mutex_;
   std::atomic<bool>* shutting_down_;
-  SequenceNumber newest_snapshot_;
+  std::vector<SequenceNumber> existing_snapshots_;
+  SequenceNumber earliest_write_conflict_snapshot_;
   JobContext* job_context_;
   LogBuffer* log_buffer_;
   Directory* db_directory_;
@@ -88,6 +93,15 @@ class FlushJob {
   CompressionType output_compression_;
   Statistics* stats_;
   EventLogger* event_logger_;
+  TableProperties table_properties_;
+  bool measure_io_stats_;
+
+  // Variables below are set by PickMemTable():
+  FileMetaData meta_;
+  autovector<MemTable*> mems_;
+  VersionEdit* edit_;
+  Version* base_;
+  bool pick_memtable_called;
 };
 
 }  // namespace rocksdb

@@ -1,4 +1,4 @@
-//  Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -8,6 +8,7 @@
 #include "rocksdb/filter_policy.h"
 #include "port/port.h"
 #include "util/coding.h"
+#include "util/perf_context_imp.h"
 
 namespace rocksdb {
 
@@ -52,20 +53,22 @@ Slice FullFilterBlockBuilder::Finish() {
 }
 
 FullFilterBlockReader::FullFilterBlockReader(
-    const SliceTransform* prefix_extractor, bool whole_key_filtering,
-    const Slice& contents, FilterBitsReader* filter_bits_reader)
-    : prefix_extractor_(prefix_extractor),
-      whole_key_filtering_(whole_key_filtering),
+    const SliceTransform* prefix_extractor, bool _whole_key_filtering,
+    const Slice& contents, FilterBitsReader* filter_bits_reader,
+    Statistics* stats)
+    : FilterBlockReader(contents.size(), stats, _whole_key_filtering),
+      prefix_extractor_(prefix_extractor),
       contents_(contents) {
   assert(filter_bits_reader != nullptr);
   filter_bits_reader_.reset(filter_bits_reader);
 }
 
 FullFilterBlockReader::FullFilterBlockReader(
-    const SliceTransform* prefix_extractor, bool whole_key_filtering,
-    BlockContents&& contents, FilterBitsReader* filter_bits_reader)
-    : FullFilterBlockReader(prefix_extractor, whole_key_filtering,
-                            contents.data, filter_bits_reader) {
+    const SliceTransform* prefix_extractor, bool _whole_key_filtering,
+    BlockContents&& contents, FilterBitsReader* filter_bits_reader,
+    Statistics* stats)
+    : FullFilterBlockReader(prefix_extractor, _whole_key_filtering,
+                            contents.data, filter_bits_reader, stats) {
   block_contents_ = std::move(contents);
 }
 
@@ -89,7 +92,13 @@ bool FullFilterBlockReader::PrefixMayMatch(const Slice& prefix,
 
 bool FullFilterBlockReader::MayMatch(const Slice& entry) {
   if (contents_.size() != 0)  {
-    return filter_bits_reader_->MayMatch(entry);
+    if (filter_bits_reader_->MayMatch(entry)) {
+      PERF_COUNTER_ADD(bloom_sst_hit_count, 1);
+      return true;
+    } else {
+      PERF_COUNTER_ADD(bloom_sst_miss_count, 1);
+      return false;
+    }
   }
   return true;  // remain the same with block_based filter
 }

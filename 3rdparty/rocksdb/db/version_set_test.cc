@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -23,7 +23,7 @@ class GenerateLevelFilesBriefTest : public testing::Test {
   GenerateLevelFilesBriefTest() { }
 
   ~GenerateLevelFilesBriefTest() {
-    for (unsigned int i = 0; i < files_.size(); i++) {
+    for (size_t i = 0; i < files_.size(); i++) {
       delete files_[i];
     }
   }
@@ -232,6 +232,29 @@ TEST_F(VersionStorageInfoTest, MaxBytesForLevelDynamicLargeLevel) {
   ASSERT_EQ(vstorage_.MaxBytesForLevel(2), 3U * kOneGB);
   ASSERT_EQ(vstorage_.base_level(), 2);
   ASSERT_EQ(0, logger_->log_count);
+}
+
+TEST_F(VersionStorageInfoTest, EstimateLiveDataSize) {
+  // Test whether the overlaps are detected as expected
+  Add(1, 1U, "4", "7", 1U);  // Perfect overlap with last level
+  Add(2, 2U, "3", "5", 1U);  // Partial overlap with last level
+  Add(2, 3U, "6", "8", 1U);  // Partial overlap with last level
+  Add(3, 4U, "1", "9", 1U);  // Contains range of last level
+  Add(4, 5U, "4", "5", 1U);  // Inside range of last level
+  Add(4, 5U, "6", "7", 1U);  // Inside range of last level
+  Add(5, 6U, "4", "7", 10U);
+  ASSERT_EQ(10U, vstorage_.EstimateLiveDataSize());
+}
+
+TEST_F(VersionStorageInfoTest, EstimateLiveDataSize2) {
+  Add(0, 1U, "9", "9", 1U);  // Level 0 is not ordered
+  Add(0, 1U, "5", "6", 1U);  // Ignored because of [5,6] in l1
+  Add(1, 1U, "1", "2", 1U);  // Ignored because of [2,3] in l2
+  Add(1, 2U, "3", "4", 1U);  // Ignored because of [2,3] in l2
+  Add(1, 3U, "5", "6", 1U);
+  Add(2, 4U, "2", "3", 1U);
+  Add(3, 5U, "7", "8", 1U);
+  ASSERT_EQ(4U, vstorage_.EstimateLiveDataSize());
 }
 
 class FindLevelFileTest : public testing::Test {

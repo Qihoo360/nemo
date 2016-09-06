@@ -4,6 +4,7 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.rocksdb.util.Environment;
 
 import java.io.IOException;
 
@@ -23,81 +24,52 @@ public class InfoLogLevelTest {
   @Test
   public void testInfoLogLevel() throws RocksDBException,
       IOException {
-    RocksDB db = null;
-    try {
-      db = RocksDB.open(dbFolder.getRoot().getAbsolutePath());
+    try (final RocksDB db =
+             RocksDB.open(dbFolder.getRoot().getAbsolutePath())) {
       db.put("key".getBytes(), "value".getBytes());
-      assertThat(getLogContents()).isNotEmpty();
-    } finally {
-      if (db != null) {
-        db.close();
-      }
+      assertThat(getLogContentsWithoutHeader()).isNotEmpty();
     }
   }
 
   @Test
-     public void testFatalLogLevel() throws RocksDBException,
+  public void testFatalLogLevel() throws RocksDBException,
       IOException {
-    RocksDB db = null;
-    Options options = null;
-    try {
-      options = new Options().
-          setCreateIfMissing(true).
-          setInfoLogLevel(InfoLogLevel.FATAL_LEVEL);
+    try (final Options options = new Options().
+        setCreateIfMissing(true).
+        setInfoLogLevel(InfoLogLevel.FATAL_LEVEL);
+         final RocksDB db = RocksDB.open(options,
+             dbFolder.getRoot().getAbsolutePath())) {
       assertThat(options.infoLogLevel()).
           isEqualTo(InfoLogLevel.FATAL_LEVEL);
-      db = RocksDB.open(options,
-          dbFolder.getRoot().getAbsolutePath());
       db.put("key".getBytes(), "value".getBytes());
       // As InfoLogLevel is set to FATAL_LEVEL, here we expect the log
       // content to be empty.
-      assertThat(getLogContents()).isEmpty();
-    } finally {
-      if (db != null) {
-        db.close();
-      }
-      if (options != null) {
-        options.dispose();
-      }
+      assertThat(getLogContentsWithoutHeader()).isEmpty();
     }
   }
 
   @Test
   public void testFatalLogLevelWithDBOptions()
       throws RocksDBException, IOException {
-    RocksDB db = null;
-    Options options = null;
-    DBOptions dbOptions = null;
-    try {
-      dbOptions = new DBOptions().
-          setInfoLogLevel(InfoLogLevel.FATAL_LEVEL);
-      options = new Options(dbOptions,
-          new ColumnFamilyOptions()).
-          setCreateIfMissing(true);
+    try (final DBOptions dbOptions = new DBOptions().
+        setInfoLogLevel(InfoLogLevel.FATAL_LEVEL);
+         final Options options = new Options(dbOptions,
+             new ColumnFamilyOptions()).
+             setCreateIfMissing(true);
+         final RocksDB db =
+             RocksDB.open(options, dbFolder.getRoot().getAbsolutePath())) {
       assertThat(dbOptions.infoLogLevel()).
           isEqualTo(InfoLogLevel.FATAL_LEVEL);
       assertThat(options.infoLogLevel()).
           isEqualTo(InfoLogLevel.FATAL_LEVEL);
-      db = RocksDB.open(options,
-          dbFolder.getRoot().getAbsolutePath());
       db.put("key".getBytes(), "value".getBytes());
-      assertThat(getLogContents()).isEmpty();
-    } finally {
-      if (db != null) {
-        db.close();
-      }
-      if (options != null) {
-        options.dispose();
-      }
-      if (dbOptions != null) {
-        dbOptions.dispose();
-      }
+      assertThat(getLogContentsWithoutHeader()).isEmpty();
     }
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void failIfIllegalByteValueProvided() {
-    InfoLogLevel.getInfoLogLevel((byte)-1);
+    InfoLogLevel.getInfoLogLevel((byte) -1);
   }
 
   @Test
@@ -112,8 +84,24 @@ public class InfoLogLevelTest {
    * @return LOG file contents as String.
    * @throws IOException if file is not found.
    */
-  private String getLogContents() throws IOException {
-    return new String(readAllBytes(get(
-        dbFolder.getRoot().getAbsolutePath()+ "/LOG")));
+  private String getLogContentsWithoutHeader() throws IOException {
+    final String separator = Environment.isWindows() ?
+        "\n" : System.getProperty("line.separator");
+    final String[] lines = new String(readAllBytes(get(
+        dbFolder.getRoot().getAbsolutePath() + "/LOG"))).split(separator);
+
+    int first_non_header = lines.length;
+    // Identify the last line of the header
+    for (int i = lines.length - 1; i >= 0; --i) {
+      if (lines[i].indexOf("Options.") >= 0 && lines[i].indexOf(':') >= 0) {
+        first_non_header = i + 1;
+        break;
+      }
+    }
+    StringBuilder builder = new StringBuilder();
+    for (int i = first_non_header; i < lines.length; ++i) {
+      builder.append(lines[i]).append(separator);
+    }
+    return builder.toString();
   }
 }

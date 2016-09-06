@@ -1,4 +1,4 @@
-//  Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -23,7 +23,7 @@ class RateLimiter {
 
   // Request for token to write bytes. If this request can not be satisfied,
   // the call is blocked. Caller is responsible to make sure
-  // bytes < GetSingleBurstBytes()
+  // bytes <= GetSingleBurstBytes()
   virtual void Request(const int64_t bytes, const Env::IOPriority pri) = 0;
 
   // Max bytes can be granted in a single burst

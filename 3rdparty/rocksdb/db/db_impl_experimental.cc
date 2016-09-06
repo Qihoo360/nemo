@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -49,8 +49,7 @@ Status DBImpl::SuggestCompactRange(ColumnFamilyHandle* column_family,
     }
     // Since we have some more files to compact, we should also recompute
     // compaction score
-    vstorage->ComputeCompactionScore(*cfd->GetLatestMutableCFOptions(),
-                                     CompactionOptionsFIFO());
+    vstorage->ComputeCompactionScore(*cfd->GetLatestMutableCFOptions());
     SchedulePendingCompaction(cfd);
     MaybeScheduleFlushOrCompaction();
   }
@@ -130,14 +129,15 @@ Status DBImpl::PromoteL0(ColumnFamilyHandle* column_family, int target_level) {
       edit.DeleteFile(0, f->fd.GetNumber());
       edit.AddFile(target_level, f->fd.GetNumber(), f->fd.GetPathId(),
                    f->fd.GetFileSize(), f->smallest, f->largest,
-                   f->smallest_seqno, f->largest_seqno);
+                   f->smallest_seqno, f->largest_seqno,
+                   f->marked_for_compaction);
     }
 
     status = versions_->LogAndApply(cfd, *cfd->GetLatestMutableCFOptions(),
                                     &edit, &mutex_, directories_.GetDbDir());
     if (status.ok()) {
-      InstallSuperVersionBackground(cfd, &job_context,
-                                    *cfd->GetLatestMutableCFOptions());
+      InstallSuperVersionAndScheduleWorkWrapper(
+          cfd, &job_context, *cfd->GetLatestMutableCFOptions());
     }
   }  // lock released here
   LogFlush(db_options_.info_log);

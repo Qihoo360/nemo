@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -8,9 +8,10 @@
 #define __STDC_FORMAT_MACROS
 #endif
 
-#include <inttypes.h>
 #include "db/transaction_log_impl.h"
+#include <inttypes.h>
 #include "db/write_batch_internal.h"
+#include "util/file_reader_writer.h"
 
 namespace rocksdb {
 
@@ -40,23 +41,27 @@ TransactionLogIteratorImpl::TransactionLogIteratorImpl(
 }
 
 Status TransactionLogIteratorImpl::OpenLogFile(
-    const LogFile* logFile,
-    unique_ptr<SequentialFile>* file) {
+    const LogFile* logFile, unique_ptr<SequentialFileReader>* file_reader) {
   Env* env = options_->env;
+  unique_ptr<SequentialFile> file;
+  Status s;
   if (logFile->Type() == kArchivedLogFile) {
     std::string fname = ArchivedLogFileName(dir_, logFile->LogNumber());
-    return env->NewSequentialFile(fname, file, soptions_);
+    s = env->NewSequentialFile(fname, &file, soptions_);
   } else {
     std::string fname = LogFileName(dir_, logFile->LogNumber());
-    Status s = env->NewSequentialFile(fname, file, soptions_);
+    s = env->NewSequentialFile(fname, &file, soptions_);
     if (!s.ok()) {
       //  If cannot open file in DB directory.
       //  Try the archive dir, as it could have moved in the meanwhile.
       fname = ArchivedLogFileName(dir_, logFile->LogNumber());
-      s = env->NewSequentialFile(fname, file, soptions_);
+      s = env->NewSequentialFile(fname, &file, soptions_);
     }
-    return s;
   }
+  if (s.ok()) {
+    file_reader->reset(new SequentialFileReader(std::move(file)));
+  }
+  return s;
 }
 
 BatchResult TransactionLogIteratorImpl::GetBatch()  {
@@ -102,7 +107,7 @@ void TransactionLogIteratorImpl::SeekToStartSequence(
     return;
   }
   while (RestrictedRead(&record, &scratch)) {
-    if (record.size() < 12) {
+    if (record.size() < WriteBatchInternal::kHeader) {
       reporter_.Corruption(
         record.size(), Status::Corruption("very small log record"));
       continue;
@@ -162,7 +167,7 @@ void TransactionLogIteratorImpl::NextImpl(bool internal) {
       currentLogReader_->UnmarkEOF();
     }
     while (RestrictedRead(&record, &scratch)) {
-      if (record.size() < 12) {
+      if (record.size() < WriteBatchInternal::kHeader) {
         reporter_.Corruption(
           record.size(), Status::Corruption("very small log record"));
         continue;
@@ -245,20 +250,21 @@ void TransactionLogIteratorImpl::UpdateCurrentWriteBatch(const Slice& record) {
   // currentBatchSeq_ can only change here
   assert(currentLastSeq_ <= versions_->LastSequence());
 
-  currentBatch_ = move(batch);
+  currentBatch_ = std::move(batch);
   isValid_ = true;
   currentStatus_ = Status::OK();
 }
 
 Status TransactionLogIteratorImpl::OpenLogReader(const LogFile* logFile) {
-  unique_ptr<SequentialFile> file;
+  unique_ptr<SequentialFileReader> file;
   Status s = OpenLogFile(logFile, &file);
   if (!s.ok()) {
     return s;
   }
   assert(file);
-  currentLogReader_.reset(new log::Reader(std::move(file), &reporter_,
-                                          read_options_.verify_checksums_, 0));
+  currentLogReader_.reset(new log::Reader(
+      options_->info_log, std::move(file), &reporter_,
+      read_options_.verify_checksums_, 0, logFile->LogNumber()));
   return Status::OK();
 }
 }  //  namespace rocksdb

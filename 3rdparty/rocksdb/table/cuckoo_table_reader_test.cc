@@ -1,13 +1,15 @@
-// Copyright (c) 2014, Facebook, Inc. All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc. All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
 
+#ifndef ROCKSDB_LITE
+
 #ifndef GFLAGS
 #include <cstdio>
 int main() {
-  fprintf(stderr, "Please install gflags to run this test\n");
-  return 1;
+  fprintf(stderr, "Please install gflags to run this test... Skipping...\n");
+  return 0;
 }
 #else
 
@@ -62,7 +64,6 @@ uint64_t GetSliceHash(const Slice& s, uint32_t index,
     uint64_t max_num_buckets) {
   return hash_map[s.ToString()][index];
 }
-
 }  // namespace
 
 class CuckooReaderTest : public testing::Test {
@@ -94,9 +95,12 @@ class CuckooReaderTest : public testing::Test {
       const Comparator* ucomp = BytewiseComparator()) {
     std::unique_ptr<WritableFile> writable_file;
     ASSERT_OK(env->NewWritableFile(fname, &writable_file, env_options));
+    unique_ptr<WritableFileWriter> file_writer(
+        new WritableFileWriter(std::move(writable_file), env_options));
+
     CuckooTableBuilder builder(
-        writable_file.get(), 0.9, kNumHashFunc, 100, ucomp, 2,
-        false, false, GetSliceHash);
+        file_writer.get(), 0.9, kNumHashFunc, 100, ucomp, 2, false, false,
+        GetSliceHash, 0 /* column_family_id */, kDefaultColumnFamilyName);
     ASSERT_OK(builder.status());
     for (uint32_t key_idx = 0; key_idx < num_items; ++key_idx) {
       builder.Add(Slice(keys[key_idx]), Slice(values[key_idx]));
@@ -106,18 +110,16 @@ class CuckooReaderTest : public testing::Test {
     ASSERT_OK(builder.Finish());
     ASSERT_EQ(num_items, builder.NumEntries());
     file_size = builder.FileSize();
-    ASSERT_OK(writable_file->Close());
+    ASSERT_OK(file_writer->Close());
 
     // Check reader now.
     std::unique_ptr<RandomAccessFile> read_file;
     ASSERT_OK(env->NewRandomAccessFile(fname, &read_file, env_options));
+    unique_ptr<RandomAccessFileReader> file_reader(
+        new RandomAccessFileReader(std::move(read_file)));
     const ImmutableCFOptions ioptions(options);
-    CuckooTableReader reader(
-        ioptions,
-        std::move(read_file),
-        file_size,
-        ucomp,
-        GetSliceHash);
+    CuckooTableReader reader(ioptions, std::move(file_reader), file_size, ucomp,
+                             GetSliceHash);
     ASSERT_OK(reader.status());
     // Assume no merge/deletion
     for (uint32_t i = 0; i < num_items; ++i) {
@@ -141,15 +143,13 @@ class CuckooReaderTest : public testing::Test {
   void CheckIterator(const Comparator* ucomp = BytewiseComparator()) {
     std::unique_ptr<RandomAccessFile> read_file;
     ASSERT_OK(env->NewRandomAccessFile(fname, &read_file, env_options));
+    unique_ptr<RandomAccessFileReader> file_reader(
+        new RandomAccessFileReader(std::move(read_file)));
     const ImmutableCFOptions ioptions(options);
-    CuckooTableReader reader(
-        ioptions,
-        std::move(read_file),
-        file_size,
-        ucomp,
-        GetSliceHash);
+    CuckooTableReader reader(ioptions, std::move(file_reader), file_size, ucomp,
+                             GetSliceHash);
     ASSERT_OK(reader.status());
-    Iterator* it = reader.NewIterator(ReadOptions(), nullptr);
+    InternalIterator* it = reader.NewIterator(ReadOptions(), nullptr);
     ASSERT_OK(it->status());
     ASSERT_TRUE(!it->Valid());
     it->SeekToFirst();
@@ -197,7 +197,7 @@ class CuckooReaderTest : public testing::Test {
     ASSERT_TRUE(keys[num_items/2] == it->key());
     ASSERT_TRUE(values[num_items/2] == it->value());
     ASSERT_OK(it->status());
-    it->~Iterator();
+    it->~InternalIterator();
   }
 
   std::vector<std::string> keys;
@@ -321,13 +321,11 @@ TEST_F(CuckooReaderTest, WhenKeyNotFound) {
   CreateCuckooFileAndCheckReader();
   std::unique_ptr<RandomAccessFile> read_file;
   ASSERT_OK(env->NewRandomAccessFile(fname, &read_file, env_options));
+  unique_ptr<RandomAccessFileReader> file_reader(
+      new RandomAccessFileReader(std::move(read_file)));
   const ImmutableCFOptions ioptions(options);
-  CuckooTableReader reader(
-      ioptions,
-      std::move(read_file),
-      file_size,
-      ucmp,
-      GetSliceHash);
+  CuckooTableReader reader(ioptions, std::move(file_reader), file_size, ucmp,
+                           GetSliceHash);
   ASSERT_OK(reader.status());
   // Search for a key with colliding hash values.
   std::string not_found_user_key = "key" + NumToStr(num_items);
@@ -406,10 +404,12 @@ void WriteFile(const std::vector<std::string>& keys,
 
   std::unique_ptr<WritableFile> writable_file;
   ASSERT_OK(env->NewWritableFile(fname, &writable_file, env_options));
+  unique_ptr<WritableFileWriter> file_writer(
+      new WritableFileWriter(std::move(writable_file), env_options));
   CuckooTableBuilder builder(
-      writable_file.get(), hash_ratio,
-      64, 1000, test::Uint64Comparator(), 5,
-      false, FLAGS_identity_as_first_hash, nullptr);
+      file_writer.get(), hash_ratio, 64, 1000, test::Uint64Comparator(), 5,
+      false, FLAGS_identity_as_first_hash, nullptr, 0 /* column_family_id */,
+      kDefaultColumnFamilyName);
   ASSERT_OK(builder.status());
   for (uint64_t key_idx = 0; key_idx < num; ++key_idx) {
     // Value is just a part of key.
@@ -419,17 +419,18 @@ void WriteFile(const std::vector<std::string>& keys,
   }
   ASSERT_OK(builder.Finish());
   ASSERT_EQ(num, builder.NumEntries());
-  ASSERT_OK(writable_file->Close());
+  ASSERT_OK(file_writer->Close());
 
   uint64_t file_size;
   env->GetFileSize(fname, &file_size);
   std::unique_ptr<RandomAccessFile> read_file;
   ASSERT_OK(env->NewRandomAccessFile(fname, &read_file, env_options));
+  unique_ptr<RandomAccessFileReader> file_reader(
+      new RandomAccessFileReader(std::move(read_file)));
 
   const ImmutableCFOptions ioptions(options);
-  CuckooTableReader reader(
-      ioptions, std::move(read_file), file_size,
-      test::Uint64Comparator(), nullptr);
+  CuckooTableReader reader(ioptions, std::move(file_reader), file_size,
+                           test::Uint64Comparator(), nullptr);
   ASSERT_OK(reader.status());
   ReadOptions r_options;
   std::string value;
@@ -455,11 +456,12 @@ void ReadKeys(uint64_t num, uint32_t batch_size) {
   env->GetFileSize(fname, &file_size);
   std::unique_ptr<RandomAccessFile> read_file;
   ASSERT_OK(env->NewRandomAccessFile(fname, &read_file, env_options));
+  unique_ptr<RandomAccessFileReader> file_reader(
+      new RandomAccessFileReader(std::move(read_file)));
 
   const ImmutableCFOptions ioptions(options);
-  CuckooTableReader reader(
-      ioptions, std::move(read_file), file_size, test::Uint64Comparator(),
-      nullptr);
+  CuckooTableReader reader(ioptions, std::move(file_reader), file_size,
+                           test::Uint64Comparator(), nullptr);
   ASSERT_OK(reader.status());
   const UserCollectedProperties user_props =
     reader.GetTableProperties()->user_collected_properties;
@@ -500,7 +502,7 @@ void ReadKeys(uint64_t num, uint32_t batch_size) {
                  &get_context);
     }
   }
-  float time_per_op = (env->NowMicros() - start_time) * 1.0 / num;
+  float time_per_op = (env->NowMicros() - start_time) * 1.0f / num;
   fprintf(stderr,
       "Time taken per op is %.3fus (%.1f Mqps) with batch size of %u\n",
       time_per_op, 1.0 / time_per_op, batch_size);
@@ -522,7 +524,8 @@ TEST_F(CuckooReaderTest, TestReadPerformance) {
       "WARNING: Not compiled with DNDEBUG. Performance tests may be slow.\n");
 #endif
   for (uint64_t num : nums) {
-    if (FLAGS_write || !Env::Default()->FileExists(GetFileName(num))) {
+    if (FLAGS_write ||
+        Env::Default()->FileExists(GetFileName(num)).IsNotFound()) {
       std::vector<std::string> all_keys;
       GetKeys(num, &all_keys);
       WriteFile(all_keys, num, hash_ratio);
@@ -544,3 +547,13 @@ int main(int argc, char** argv) {
 }
 
 #endif  // GFLAGS.
+
+#else
+#include <stdio.h>
+
+int main(int argc, char** argv) {
+  fprintf(stderr, "SKIPPED as Cuckoo table is not supported in ROCKSDB_LITE\n");
+  return 0;
+}
+
+#endif  // ROCKSDB_LITE

@@ -1,4 +1,4 @@
-// Copyright (c) 2015, Facebook, Inc.  All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
@@ -11,6 +11,7 @@
 namespace rocksdb {
 
 class Slice;
+class Status;
 class ColumnFamilyHandle;
 class WriteBatch;
 struct SliceParts;
@@ -40,6 +41,11 @@ class WriteBatchBase {
                      const Slice& value) = 0;
   virtual void Merge(const Slice& key, const Slice& value) = 0;
 
+  // variant that takes SliceParts
+  virtual void Merge(ColumnFamilyHandle* column_family, const SliceParts& key,
+                     const SliceParts& value);
+  virtual void Merge(const SliceParts& key, const SliceParts& value);
+
   // If the database contains a mapping for "key", erase it.  Else do nothing.
   virtual void Delete(ColumnFamilyHandle* column_family, const Slice& key) = 0;
   virtual void Delete(const Slice& key) = 0;
@@ -47,6 +53,30 @@ class WriteBatchBase {
   // variant that takes SliceParts
   virtual void Delete(ColumnFamilyHandle* column_family, const SliceParts& key);
   virtual void Delete(const SliceParts& key);
+
+  // If the database contains a mapping for "key", erase it. Expects that the
+  // key was not overwritten. Else do nothing.
+  virtual void SingleDelete(ColumnFamilyHandle* column_family,
+                            const Slice& key) = 0;
+  virtual void SingleDelete(const Slice& key) = 0;
+
+  // variant that takes SliceParts
+  virtual void SingleDelete(ColumnFamilyHandle* column_family,
+                            const SliceParts& key);
+  virtual void SingleDelete(const SliceParts& key);
+
+  // If the database contains mappings in the range ["begin_key", "end_key"],
+  // erase them. Else do nothing.
+  virtual void DeleteRange(ColumnFamilyHandle* column_family,
+                           const Slice& begin_key, const Slice& end_key) = 0;
+  virtual void DeleteRange(const Slice& begin_key, const Slice& end_key) = 0;
+
+  // variant that takes SliceParts
+  virtual void DeleteRange(ColumnFamilyHandle* column_family,
+                           const SliceParts& begin_key,
+                           const SliceParts& end_key);
+  virtual void DeleteRange(const SliceParts& begin_key,
+                           const SliceParts& end_key);
 
   // Append a blob of arbitrary size to the records in this batch. The blob will
   // be stored in the transaction log but not in any other file. In particular,
@@ -67,6 +97,16 @@ class WriteBatchBase {
   // converting any WriteBatchBase(eg WriteBatchWithIndex) into a basic
   // WriteBatch.
   virtual WriteBatch* GetWriteBatch() = 0;
+
+  // Records the state of the batch for future calls to RollbackToSavePoint().
+  // May be called multiple times to set multiple save points.
+  virtual void SetSavePoint() = 0;
+
+  // Remove all entries in this batch (Put, Merge, Delete, PutLogData) since the
+  // most recent call to SetSavePoint() and removes the most recent save point.
+  // If there is no previous call to SetSavePoint(), behaves the same as
+  // Clear().
+  virtual Status RollbackToSavePoint() = 0;
 };
 
 }  // namespace rocksdb

@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -12,12 +12,16 @@
 // size, it uses malloc to directly get the requested size.
 
 #pragma once
+#ifndef OS_WIN
+#include <sys/mman.h>
+#endif
 #include <cstddef>
 #include <cerrno>
 #include <vector>
 #include <assert.h>
 #include <stdint.h>
 #include "util/allocator.h"
+#include "util/mutexlock.h"
 
 namespace rocksdb {
 
@@ -73,7 +77,7 @@ class Arena : public Allocator {
   size_t BlockSize() const override { return kBlockSize; }
 
  private:
-  char inline_block_[kInlineSize];
+  char inline_block_[kInlineSize] __attribute__((__aligned__(sizeof(void*))));
   // Number of bytes allocated in one block
   const size_t kBlockSize;
   // Array of new[] allocated memory blocks
@@ -99,7 +103,9 @@ class Arena : public Allocator {
   // How many bytes left in currently active block?
   size_t alloc_bytes_remaining_ = 0;
 
+#ifdef MAP_HUGETLB
   size_t hugetlb_size_ = 0;
+#endif  // MAP_HUGETLB
   char* AllocateFromHugePage(size_t bytes);
   char* AllocateFallback(size_t bytes, bool aligned);
   char* AllocateNewBlock(size_t block_bytes);

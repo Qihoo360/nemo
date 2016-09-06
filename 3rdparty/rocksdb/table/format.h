@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -15,11 +15,16 @@
 #include "rocksdb/options.h"
 #include "rocksdb/table.h"
 
+#include "port/port.h" // noexcept
+#include "table/persistent_cache_helper.h"
+
 namespace rocksdb {
 
 class Block;
 class RandomAccessFile;
 struct ReadOptions;
+
+extern bool ShouldReportDetailedTime(Env* env, Statistics* stats);
 
 // the length of the magic number in bytes.
 const int kMagicNumberLengthByte = 8;
@@ -69,6 +74,7 @@ inline uint32_t GetCompressFormatForVersion(CompressionType compression_type,
                                             uint32_t version) {
   // snappy is not versioned
   assert(compression_type != kSnappyCompression &&
+         compression_type != kXpressCompression &&
          compression_type != kNoCompression);
   // As of version 2, we encode compressed block with
   // compress_format_version == 2. Before that, the version is 1.
@@ -166,7 +172,7 @@ class Footer {
 // Read the footer from file
 // If enforce_table_magic_number != 0, ReadFooterFromFile() will return
 // corruption if table_magic number is not equal to enforce_table_magic_number
-Status ReadFooterFromFile(RandomAccessFile* file, uint64_t file_size,
+Status ReadFooterFromFile(RandomAccessFileReader* file, uint64_t file_size,
                           Footer* footer,
                           uint64_t enforce_table_magic_number = 0);
 
@@ -191,15 +197,26 @@ struct BlockContents {
         cachable(_cachable),
         compression_type(_compression_type),
         allocation(std::move(_data)) {}
+
+  BlockContents(BlockContents&& other) ROCKSDB_NOEXCEPT { *this = std::move(other); }
+
+  BlockContents& operator=(BlockContents&& other) {
+    data = std::move(other.data);
+    cachable = other.cachable;
+    compression_type = other.compression_type;
+    allocation = std::move(other.allocation);
+    return *this;
+  }
 };
 
 // Read the block identified by "handle" from "file".  On failure
 // return non-OK.  On success fill *result and return OK.
-extern Status ReadBlockContents(RandomAccessFile* file, const Footer& footer,
-                                const ReadOptions& options,
-                                const BlockHandle& handle,
-                                BlockContents* contents, Env* env,
-                                bool do_uncompress);
+extern Status ReadBlockContents(
+    RandomAccessFileReader* file, const Footer& footer,
+    const ReadOptions& options, const BlockHandle& handle,
+    BlockContents* contents, const ImmutableCFOptions &ioptions,
+    bool do_uncompress = true, const Slice& compression_dict = Slice(),
+    const PersistentCacheOptions& cache_options = PersistentCacheOptions());
 
 // The 'data' points to the raw block contents read in from file.
 // This method allocates a new heap buffer and the raw block
@@ -210,7 +227,17 @@ extern Status ReadBlockContents(RandomAccessFile* file, const Footer& footer,
 // util/compression.h
 extern Status UncompressBlockContents(const char* data, size_t n,
                                       BlockContents* contents,
-                                      uint32_t compress_format_version);
+                                      uint32_t compress_format_version,
+                                      const Slice& compression_dict,
+                                      const ImmutableCFOptions &ioptions);
+
+// This is an extension to UncompressBlockContents that accepts
+// a specific compression type. This is used by un-wrapped blocks
+// with no compression header.
+extern Status UncompressBlockContentsForCompressionType(
+    const char* data, size_t n, BlockContents* contents,
+    uint32_t compress_format_version, const Slice& compression_dict,
+    CompressionType compression_type, const ImmutableCFOptions &ioptions);
 
 // Implementation details follow.  Clients should ignore,
 

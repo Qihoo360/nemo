@@ -1,4 +1,4 @@
-//  Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -8,7 +8,7 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include "util/mock_env.h"
-#include <sys/time.h>
+#include "port/sys_time.h"
 #include <algorithm>
 #include <chrono>
 #include "util/rate_limiter.h"
@@ -99,10 +99,7 @@ class MemFile {
 
   Status Read(uint64_t offset, size_t n, Slice* result, char* scratch) const {
     MutexLock lock(&mutex_);
-    if (offset > Size()) {
-      return Status::IOError("Offset greater than file size.");
-    }
-    const uint64_t available = Size() - offset;
+    const uint64_t available = Size() - std::min(Size(), offset);
     if (n > available) {
       n = available;
     }
@@ -250,7 +247,9 @@ class MockWritableFile : public WritableFile {
     }
     return Status::OK();
   }
-
+  virtual Status Truncate(uint64_t size) override {
+    return Status::OK();
+  }
   virtual Status Close() override { return file_->Fsync(); }
 
   virtual Status Flush() override { return Status::OK(); }
@@ -456,24 +455,18 @@ Status MockEnv::NewWritableFile(const std::string& fname,
   return Status::OK();
 }
 
-Status MockEnv::NewRandomRWFile(const std::string& fname,
-                                   unique_ptr<RandomRWFile>* result,
-                                   const EnvOptions& options) {
-  return Status::OK();
-}
-
 Status MockEnv::NewDirectory(const std::string& name,
                                 unique_ptr<Directory>* result) {
   result->reset(new MockEnvDirectory());
   return Status::OK();
 }
 
-bool MockEnv::FileExists(const std::string& fname) {
+Status MockEnv::FileExists(const std::string& fname) {
   auto fn = NormalizePath(fname);
   MutexLock lock(&mutex_);
   if (file_map_.find(fn) != file_map_.end()) {
     // File exists
-    return true;
+    return Status::OK();
   }
   // Now also check if fn exists as a dir
   for (const auto& iter : file_map_) {
@@ -481,10 +474,10 @@ bool MockEnv::FileExists(const std::string& fname) {
     if (filename.size() >= fn.size() + 1 &&
         filename[fn.size()] == '/' &&
         Slice(filename).starts_with(Slice(fn))) {
-      return true;
+      return Status::OK();
     }
   }
-  return false;
+  return Status::NotFound();
 }
 
 Status MockEnv::GetChildren(const std::string& dir,

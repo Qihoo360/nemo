@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -239,7 +239,13 @@ class autovector {
     }
   }
 
-  void push_back(const T& item) { push_back(value_type(item)); }
+  void push_back(const T& item) {
+    if (num_stack_items_ < kSize) {
+      values_[num_stack_items_++] = item;
+    } else {
+      vect_.push_back(item);
+    }
+  }
 
   template <class... Args>
   void emplace_back(Args&&... args) {

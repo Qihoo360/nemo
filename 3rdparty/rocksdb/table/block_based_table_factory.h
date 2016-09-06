@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -33,28 +33,15 @@ class BlockBasedTableFactory : public TableFactory {
 
   const char* Name() const override { return "BlockBasedTable"; }
 
-  Status NewTableReader(const ImmutableCFOptions& ioptions,
-                        const EnvOptions& soptions,
-                        const InternalKeyComparator& internal_comparator,
-                        unique_ptr<RandomAccessFile>&& file, uint64_t file_size,
-                        unique_ptr<TableReader>* table_reader) const override {
-    return NewTableReader(ioptions, soptions, internal_comparator,
-                          std::move(file), file_size, table_reader,
-                          /*prefetch_index_and_filter=*/true);
-  }
-
-  // This is a variant of virtual member function NewTableReader function with
-  // added capability to disable pre-fetching of blocks on BlockBasedTable::Open
-  Status NewTableReader(const ImmutableCFOptions& ioptions,
-                        const EnvOptions& soptions,
-                        const InternalKeyComparator& internal_comparator,
-                        unique_ptr<RandomAccessFile>&& file, uint64_t file_size,
-                        unique_ptr<TableReader>* table_reader,
-                        bool prefetch_index_and_filter) const;
+  Status NewTableReader(
+      const TableReaderOptions& table_reader_options,
+      unique_ptr<RandomAccessFileReader>&& file, uint64_t file_size,
+      unique_ptr<TableReader>* table_reader,
+      bool prefetch_index_and_filter_in_cache = true) const override;
 
   TableBuilder* NewTableBuilder(
       const TableBuilderOptions& table_builder_options,
-      WritableFile* file) const override;
+      uint32_t column_family_id, WritableFileWriter* file) const override;
 
   // Sanitizes the specified DB Options.
   Status SanitizeOptions(const DBOptions& db_opts,
@@ -62,7 +49,9 @@ class BlockBasedTableFactory : public TableFactory {
 
   std::string GetPrintableTableOptions() const override;
 
-  const BlockBasedTableOptions& GetTableOptions() const;
+  const BlockBasedTableOptions& table_options() const;
+
+  void* GetOptions() override { return &table_options_; }
 
  private:
   BlockBasedTableOptions table_options_;

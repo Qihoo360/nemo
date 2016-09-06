@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -26,19 +26,27 @@ class BlockHandle;
 class WritableFile;
 struct BlockBasedTableOptions;
 
+extern const uint64_t kBlockBasedTableMagicNumber;
+extern const uint64_t kLegacyBlockBasedTableMagicNumber;
+
 class BlockBasedTableBuilder : public TableBuilder {
  public:
   // Create a builder that will store the contents of the table it is
   // building in *file.  Does not close the file.  It is up to the
   // caller to close the file after calling Finish().
+  // @param compression_dict Data for presetting the compression library's
+  //    dictionary, or nullptr.
   BlockBasedTableBuilder(
       const ImmutableCFOptions& ioptions,
       const BlockBasedTableOptions& table_options,
       const InternalKeyComparator& internal_comparator,
       const std::vector<std::unique_ptr<IntTblPropCollectorFactory>>*
           int_tbl_prop_collector_factories,
-      WritableFile* file, const CompressionType compression_type,
-      const CompressionOptions& compression_opts, const bool skip_filters);
+      uint32_t column_family_id, WritableFileWriter* file,
+      const CompressionType compression_type,
+      const CompressionOptions& compression_opts,
+      const std::string* compression_dict, const bool skip_filters,
+      const std::string& column_family_name);
 
   // REQUIRES: Either Finish() or Abandon() has been called.
   ~BlockBasedTableBuilder();
@@ -70,16 +78,21 @@ class BlockBasedTableBuilder : public TableBuilder {
   // Finish() call, returns the size of the final generated file.
   uint64_t FileSize() const override;
 
+  bool NeedCompact() const override;
+
   // Get table properties
   TableProperties GetTableProperties() const override;
 
  private:
   bool ok() const { return status().ok(); }
+
   // Call block's Finish() method and then write the finalize block contents to
   // file.
-  void WriteBlock(BlockBuilder* block, BlockHandle* handle);
+  void WriteBlock(BlockBuilder* block, BlockHandle* handle, bool is_data_block);
+
   // Directly write block content to the file.
-  void WriteBlock(const Slice& block_contents, BlockHandle* handle);
+  void WriteBlock(const Slice& block_contents, BlockHandle* handle,
+                  bool is_data_block);
   void WriteRawBlock(const Slice& data, CompressionType, BlockHandle* handle);
   Status InsertBlockInCache(const Slice& block_contents,
                             const CompressionType type,
@@ -103,5 +116,11 @@ class BlockBasedTableBuilder : public TableBuilder {
   BlockBasedTableBuilder(const BlockBasedTableBuilder&) = delete;
   void operator=(const BlockBasedTableBuilder&) = delete;
 };
+
+Slice CompressBlock(const Slice& raw,
+                    const CompressionOptions& compression_options,
+                    CompressionType* type, uint32_t format_version,
+                    const Slice& compression_dict,
+                    std::string* compressed_output);
 
 }  // namespace rocksdb

@@ -1,4 +1,4 @@
-// Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
@@ -9,6 +9,7 @@ import org.junit.internal.RealSystem;
 import org.junit.internal.TextListener;
 import org.junit.runner.Description;
 import org.junit.runner.JUnitCore;
+import org.junit.runner.Result;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,8 +57,10 @@ public class RocksJunitRunner {
       for (String arg : args) {
         classes.add(Class.forName(arg));
       }
-      runner.run(classes.toArray(new Class[1]));
-
+      final Result result = runner.run(classes.toArray(new Class[1]));
+      if(!result.wasSuccessful()) {
+        System.exit(-1);
+      }
     } catch (ClassNotFoundException e) {
       e.printStackTrace();
     }

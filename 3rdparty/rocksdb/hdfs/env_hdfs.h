@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -7,9 +7,9 @@
 #pragma once
 #include <algorithm>
 #include <stdio.h>
-#include <sys/time.h>
 #include <time.h>
 #include <iostream>
+#include "port/sys_time.h"
 #include "rocksdb/env.h"
 #include "rocksdb/status.h"
 
@@ -66,14 +66,10 @@ class HdfsEnv : public Env {
                                  std::unique_ptr<WritableFile>* result,
                                  const EnvOptions& options);
 
-  virtual Status NewRandomRWFile(const std::string& fname,
-                                 std::unique_ptr<RandomRWFile>* result,
-                                 const EnvOptions& options);
-
   virtual Status NewDirectory(const std::string& name,
                               std::unique_ptr<Directory>* result);
 
-  virtual bool FileExists(const std::string& fname);
+  virtual Status FileExists(const std::string& fname);
 
   virtual Status GetChildren(const std::string& path,
                              std::vector<std::string>* result);
@@ -93,7 +89,9 @@ class HdfsEnv : public Env {
 
   virtual Status RenameFile(const std::string& src, const std::string& target);
 
-  virtual Status LinkFile(const std::string& src, const std::string& target);
+  virtual Status LinkFile(const std::string& src, const std::string& target) {
+    return Status::NotSupported(); // not supported
+  }
 
   virtual Status LockFile(const std::string& fname, FileLock** lock);
 
@@ -103,8 +101,8 @@ class HdfsEnv : public Env {
                            std::shared_ptr<Logger>* result);
 
   virtual void Schedule(void (*function)(void* arg), void* arg,
-                        Priority pri = LOW, void* tag = nullptr) {
-    posixEnv->Schedule(function, arg, pri, tag);
+                        Priority pri = LOW, void* tag = nullptr, void (*unschedFunction)(void* arg) = 0) {
+    posixEnv->Schedule(function, arg, pri, tag, unschedFunction);
   }
 
   virtual int UnSchedule(void* tag, Priority pri) {
@@ -162,6 +160,10 @@ class HdfsEnv : public Env {
   static uint64_t gettid() {
     assert(sizeof(pthread_t) <= sizeof(uint64_t));
     return (uint64_t)pthread_self();
+  }
+
+  virtual uint64_t GetThreadID() const override {
+    return HdfsEnv::gettid();
   }
 
  private:
@@ -264,18 +266,14 @@ class HdfsEnv : public Env {
     return notsup;
   }
 
-  virtual Status NewRandomRWFile(const std::string& fname,
-                                 unique_ptr<RandomRWFile>* result,
-                                 const EnvOptions& options) override {
-    return notsup;
-  }
-
   virtual Status NewDirectory(const std::string& name,
                               unique_ptr<Directory>* result) override {
     return notsup;
   }
 
-  virtual bool FileExists(const std::string& fname) override { return false; }
+  virtual Status FileExists(const std::string& fname) override {
+    return notsup;
+  }
 
   virtual Status GetChildren(const std::string& path,
                              std::vector<std::string>* result) override {
@@ -326,7 +324,8 @@ class HdfsEnv : public Env {
   }
 
   virtual void Schedule(void (*function)(void* arg), void* arg,
-                        Priority pri = LOW, void* tag = nullptr) override {}
+                        Priority pri = LOW, void* tag = nullptr,
+                        void (*unschedFunction)(void* arg) = 0) override {}
 
   virtual int UnSchedule(void* tag, Priority pri) override { return 0; }
 
@@ -360,6 +359,10 @@ class HdfsEnv : public Env {
   virtual void IncBackgroundThreadsIfNeeded(int number, Priority pri) override {
   }
   virtual std::string TimeToString(uint64_t number) override { return ""; }
+
+  virtual uint64_t GetThreadID() const override {
+    return 0;
+  }
 };
 }
 

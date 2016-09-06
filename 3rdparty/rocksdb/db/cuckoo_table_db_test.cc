@@ -1,7 +1,9 @@
-//  Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
+
+#ifndef ROCKSDB_LITE
 
 #include "db/db_impl.h"
 #include "rocksdb/db.h"
@@ -39,7 +41,6 @@ class CuckooTableDBTest : public testing::Test {
     options.memtable_factory.reset(NewHashLinkListRepFactory(4, 0, 3, true));
     options.allow_mmap_reads = true;
     options.create_if_missing = true;
-    options.max_mem_compaction_level = 0;
     return options;
   }
 
@@ -243,7 +244,8 @@ TEST_F(CuckooTableDBTest, CompactionIntoMultipleFiles) {
   dbfull()->TEST_WaitForFlushMemTable();
   ASSERT_EQ("1", FilesPerLevel());
 
-  dbfull()->TEST_CompactRange(0, nullptr, nullptr);
+  dbfull()->TEST_CompactRange(0, nullptr, nullptr, nullptr,
+                              true /* disallow trivial move */);
   ASSERT_EQ("0,2", FilesPerLevel());
   for (int idx = 0; idx < 28; ++idx) {
     ASSERT_EQ(std::string(10000, 'a' + idx), Get(Key(idx)));
@@ -319,3 +321,13 @@ int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+
+#else
+#include <stdio.h>
+
+int main(int argc, char** argv) {
+  fprintf(stderr, "SKIPPED as Cuckoo table is not supported in ROCKSDB_LITE\n");
+  return 0;
+}
+
+#endif  // ROCKSDB_LITE

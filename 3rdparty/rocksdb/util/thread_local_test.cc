@@ -1,16 +1,19 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
 
+#include <thread>
 #include <atomic>
+#include <string>
 
 #include "rocksdb/env.h"
-#include "port/port_posix.h"
+#include "port/port.h"
 #include "util/autovector.h"
-#include "util/thread_local.h"
+#include "util/sync_point.h"
 #include "util/testharness.h"
 #include "util/testutil.h"
+#include "util/thread_local.h"
 
 namespace rocksdb {
 
@@ -54,6 +57,8 @@ class IDChecker : public ThreadLocalPtr {
 
 }  // anonymous namespace
 
+// Suppress false positive clang analyzer warnings.
+#ifndef __clang_analyzer__
 TEST_F(ThreadLocalTest, UniqueIdTest) {
   port::Mutex mu;
   port::CondVar cv(&mu);
@@ -100,6 +105,7 @@ TEST_F(ThreadLocalTest, UniqueIdTest) {
   // After exit, id sequence in queue:
   // 3, 1, 2, 0
 }
+#endif  // __clang_analyzer__
 
 TEST_F(ThreadLocalTest, SequentialReadWriteTest) {
   // global id list carries over 3, 1, 2, 0
@@ -165,7 +171,9 @@ TEST_F(ThreadLocalTest, ConcurrentReadWriteTest) {
     auto& p = *static_cast<Params*>(ptr);
 
     p.mu->Lock();
-    int own = ++(p.started);
+    // Size_T switches size along with the ptr size
+    // we want to cast to.
+    size_t own = ++(p.started);
     p.cv->SignalAll();
     while (p.started != p.total) {
       p.cv->Wait();
@@ -183,16 +191,16 @@ TEST_F(ThreadLocalTest, ConcurrentReadWriteTest) {
     auto* env = Env::Default();
     auto start = env->NowMicros();
 
-    p.tls1.Reset(reinterpret_cast<int*>(own));
-    p.tls2->Reset(reinterpret_cast<int*>(own + 1));
+    p.tls1.Reset(reinterpret_cast<size_t*>(own));
+    p.tls2->Reset(reinterpret_cast<size_t*>(own + 1));
     // Loop for 1 second
     while (env->NowMicros() - start < 1000 * 1000) {
       for (int iter = 0; iter < 100000; ++iter) {
-        ASSERT_TRUE(p.tls1.Get() == reinterpret_cast<int*>(own));
-        ASSERT_TRUE(p.tls2->Get() == reinterpret_cast<int*>(own + 1));
+        ASSERT_TRUE(p.tls1.Get() == reinterpret_cast<size_t*>(own));
+        ASSERT_TRUE(p.tls2->Get() == reinterpret_cast<size_t*>(own + 1));
         if (p.doWrite) {
-          p.tls1.Reset(reinterpret_cast<int*>(own));
-          p.tls2->Reset(reinterpret_cast<int*>(own + 1));
+          p.tls1.Reset(reinterpret_cast<size_t*>(own));
+          p.tls2->Reset(reinterpret_cast<size_t*>(own + 1));
         }
       }
     }
@@ -449,6 +457,64 @@ TEST_F(ThreadLocalTest, Scrape) {
   }
 }
 
+TEST_F(ThreadLocalTest, Fold) {
+  auto unref = [](void* ptr) {
+    delete static_cast<std::atomic<int64_t>*>(ptr);
+  };
+  static const int kNumThreads = 16;
+  static const int kItersPerThread = 10;
+  port::Mutex mu;
+  port::CondVar cv(&mu);
+  Params params(&mu, &cv, nullptr, kNumThreads, unref);
+  auto func = [](void* ptr) {
+    auto& p = *static_cast<Params*>(ptr);
+    ASSERT_TRUE(p.tls1.Get() == nullptr);
+    p.tls1.Reset(new std::atomic<int64_t>(0));
+
+    for (int i = 0; i < kItersPerThread; ++i) {
+      static_cast<std::atomic<int64_t>*>(p.tls1.Get())->fetch_add(1);
+    }
+
+    p.mu->Lock();
+    ++(p.completed);
+    p.cv->SignalAll();
+
+    // Waiting for instruction to exit thread
+    while (p.completed != 0) {
+      p.cv->Wait();
+    }
+    p.mu->Unlock();
+  };
+
+  for (int th = 0; th < params.total; ++th) {
+    env_->StartThread(func, static_cast<void*>(&params));
+  }
+
+  // Wait for all threads to finish using Params
+  mu.Lock();
+  while (params.completed != params.total) {
+    cv.Wait();
+  }
+  mu.Unlock();
+
+  // Verify Fold() behavior
+  int64_t sum = 0;
+  params.tls1.Fold(
+      [](void* ptr, void* res) {
+        auto sum_ptr = static_cast<int64_t*>(res);
+        *sum_ptr += static_cast<std::atomic<int64_t>*>(ptr)->load();
+      },
+      &sum);
+  ASSERT_EQ(sum, kNumThreads * kItersPerThread);
+
+  // Signal to exit
+  mu.Lock();
+  params.completed = 0;
+  cv.SignalAll();
+  mu.Unlock();
+  env_->WaitForJoin();
+}
+
 TEST_F(ThreadLocalTest, CompareAndSwap) {
   ThreadLocalPtr tls;
   ASSERT_TRUE(tls.Swap(reinterpret_cast<void*>(1)) == nullptr);
@@ -463,6 +529,47 @@ TEST_F(ThreadLocalTest, CompareAndSwap) {
   expected = reinterpret_cast<void*>(2);
   ASSERT_TRUE(tls.CompareAndSwap(reinterpret_cast<void*>(3), expected));
   ASSERT_EQ(tls.Get(), reinterpret_cast<void*>(3));
+}
+
+namespace {
+
+void* AccessThreadLocal(void* arg) {
+  TEST_SYNC_POINT("AccessThreadLocal:Start");
+  ThreadLocalPtr tlp;
+  tlp.Reset(new std::string("hello RocksDB"));
+  TEST_SYNC_POINT("AccessThreadLocal:End");
+  return nullptr;
+}
+
+}  // namespace
+
+// The following test is disabled as it requires manual steps to run it
+// correctly.
+//
+// Currently we have no way to acess SyncPoint w/o ASAN error when the
+// child thread dies after the main thread dies.  So if you manually enable
+// this test and only see an ASAN error on SyncPoint, it means you pass the
+// test.
+TEST_F(ThreadLocalTest, DISABLED_MainThreadDiesFirst) {
+  rocksdb::SyncPoint::GetInstance()->LoadDependency(
+      {{"AccessThreadLocal:Start", "MainThreadDiesFirst:End"},
+       {"PosixEnv::~PosixEnv():End", "AccessThreadLocal:End"}});
+
+  // Triggers the initialization of singletons.
+  Env::Default();
+
+#ifndef ROCKSDB_LITE
+  try {
+#endif  // ROCKSDB_LITE
+    std::thread th(&AccessThreadLocal, nullptr);
+    th.detach();
+    TEST_SYNC_POINT("MainThreadDiesFirst:End");
+#ifndef ROCKSDB_LITE
+  } catch (const std::system_error& ex) {
+    std::cerr << "Start thread: " << ex.code() << std::endl;
+    ASSERT_TRUE(false);
+  }
+#endif  // ROCKSDB_LITE
 }
 
 }  // namespace rocksdb

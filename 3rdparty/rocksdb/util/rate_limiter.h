@@ -1,4 +1,4 @@
-//  Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -9,9 +9,10 @@
 
 #pragma once
 
+#include <algorithm>
 #include <atomic>
 #include <deque>
-#include "port/port_posix.h"
+#include "port/port.h"
 #include "util/mutexlock.h"
 #include "util/random.h"
 #include "rocksdb/env.h"
@@ -31,7 +32,7 @@ class GenericRateLimiter : public RateLimiter {
 
   // Request for token to write bytes. If this request can not be satisfied,
   // the call is blocked. Caller is responsible to make sure
-  // bytes < GetSingleBurstBytes()
+  // bytes <= GetSingleBurstBytes()
   virtual void Request(const int64_t bytes, const Env::IOPriority pri) override;
 
   virtual int64_t GetSingleBurstBytes() const override {
@@ -59,12 +60,12 @@ class GenericRateLimiter : public RateLimiter {
 
  private:
   void Refill();
-  int64_t CalculateRefillBytesPerPeriod(int64_t rate_bytes_per_sec) {
-    return rate_bytes_per_sec * refill_period_us_ / 1000000.0;
-  }
+  int64_t CalculateRefillBytesPerPeriod(int64_t rate_bytes_per_sec);
 
   // This mutex guard all internal states
   mutable port::Mutex request_mutex_;
+
+  const int64_t kMinRefillBytesPerPeriod = 100;
 
   const int64_t refill_period_us_;
   // This variable can be changed dynamically.

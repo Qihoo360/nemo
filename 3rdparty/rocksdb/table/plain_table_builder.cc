@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -26,6 +26,7 @@
 #include "table/meta_blocks.h"
 #include "util/coding.h"
 #include "util/crc32c.h"
+#include "util/file_reader_writer.h"
 #include "util/stop_watch.h"
 
 namespace rocksdb {
@@ -35,11 +36,8 @@ namespace {
 // a utility that helps writing block content to the file
 //   @offset will advance if @block_contents was successfully written.
 //   @block_handle the block handle this particular block.
-Status WriteBlock(
-    const Slice& block_contents,
-    WritableFile* file,
-    uint64_t* offset,
-    BlockHandle* block_handle) {
+Status WriteBlock(const Slice& block_contents, WritableFileWriter* file,
+                  uint64_t* offset, BlockHandle* block_handle) {
   block_handle->set_offset(*offset);
   block_handle->set_size(block_contents.size());
   Status s = file->Append(block_contents);
@@ -62,9 +60,10 @@ PlainTableBuilder::PlainTableBuilder(
     const ImmutableCFOptions& ioptions,
     const std::vector<std::unique_ptr<IntTblPropCollectorFactory>>*
         int_tbl_prop_collector_factories,
-    WritableFile* file, uint32_t user_key_len, EncodingType encoding_type,
-    size_t index_sparseness, uint32_t bloom_bits_per_key, uint32_t num_probes,
-    size_t huge_page_tlb_size, double hash_table_ratio,
+    uint32_t column_family_id, WritableFileWriter* file, uint32_t user_key_len,
+    EncodingType encoding_type, size_t index_sparseness,
+    uint32_t bloom_bits_per_key, const std::string& column_family_name,
+    uint32_t num_probes, size_t huge_page_tlb_size, double hash_table_ratio,
     bool store_index_in_file)
     : ioptions_(ioptions),
       bloom_block_(num_probes),
@@ -96,12 +95,11 @@ PlainTableBuilder::PlainTableBuilder(
   // To support roll-back to previous version, now still use version 0 for
   // plain encoding.
   properties_.format_version = (encoding_type == kPlain) ? 0 : 1;
-
-  if (ioptions_.prefix_extractor) {
-    properties_.user_collected_properties
-        [PlainTablePropertyNames::kPrefixExtractorName] =
-        ioptions_.prefix_extractor->Name();
-  }
+  properties_.column_family_id = column_family_id;
+  properties_.column_family_name = column_family_name;
+  properties_.prefix_extractor_name = ioptions_.prefix_extractor != nullptr
+                                          ? ioptions_.prefix_extractor->Name()
+                                          : "nullptr";
 
   std::string val;
   PutFixed32(&val, static_cast<uint32_t>(encoder_.GetEncodingType()));
@@ -110,7 +108,7 @@ PlainTableBuilder::PlainTableBuilder(
 
   for (auto& collector_factories : *int_tbl_prop_collector_factories) {
     table_properties_collectors_.emplace_back(
-        collector_factories->CreateIntTblPropCollector());
+        collector_factories->CreateIntTblPropCollector(column_family_id));
   }
 }
 
@@ -124,6 +122,10 @@ void PlainTableBuilder::Add(const Slice& key, const Slice& value) {
 
   ParsedInternalKey internal_key;
   ParseInternalKey(key, &internal_key);
+  if (internal_key.type == kTypeRangeDeletion) {
+    status_ = Status::NotSupported("Range deletion unsupported");
+    return;
+  }
 
   // Store key hash
   if (store_index_in_file_) {

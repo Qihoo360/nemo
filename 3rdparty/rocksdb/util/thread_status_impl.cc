@@ -1,4 +1,4 @@
-// Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
@@ -100,7 +100,7 @@ std::map<std::string, uint64_t>
       property_map.insert(
           {"BaseInputLevel", op_properties[i] >> 32});
       property_map.insert(
-          {"OutputLevel", op_properties[i] % (1LU << 32)});
+          {"OutputLevel", op_properties[i] % (uint64_t(1) << 32U)});
     } else if (op_type == OP_COMPACTION &&
                i == COMPACTION_PROP_FLAGS) {
       property_map.insert(

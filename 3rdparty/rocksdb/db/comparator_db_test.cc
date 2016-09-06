@@ -1,15 +1,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
 #include <map>
 #include <string>
 
+#include "memtable/stl_wrappers.h"
 #include "rocksdb/db.h"
 #include "rocksdb/env.h"
 #include "util/hash.h"
+#include "util/kv_map.h"
 #include "util/string_util.h"
 #include "util/testharness.h"
 #include "util/testutil.h"
@@ -22,18 +24,10 @@ namespace {
 
 static const Comparator* comparator;
 
-// A comparator for std::map, using comparator
-struct MapComparator {
-  bool operator()(const std::string& a, const std::string& b) const {
-    return comparator->Compare(a, b) < 0;
-  }
-};
-
-typedef std::map<std::string, std::string, MapComparator> KVMap;
-
 class KVIter : public Iterator {
  public:
-  explicit KVIter(const KVMap* map) : map_(map), iter_(map_->end()) {}
+  explicit KVIter(const stl_wrappers::KVMap* map)
+      : map_(map), iter_(map_->end()) {}
   virtual bool Valid() const override { return iter_ != map_->end(); }
   virtual void SeekToFirst() override { iter_ = map_->begin(); }
   virtual void SeekToLast() override {
@@ -60,8 +54,8 @@ class KVIter : public Iterator {
   virtual Status status() const override { return Status::OK(); }
 
  private:
-  const KVMap* const map_;
-  KVMap::const_iterator iter_;
+  const stl_wrappers::KVMap* const map_;
+  stl_wrappers::KVMap::const_iterator iter_;
 };
 
 void AssertItersEqual(Iterator* iter1, Iterator* iter2) {
@@ -77,7 +71,7 @@ void AssertItersEqual(Iterator* iter1, Iterator* iter2) {
 void DoRandomIteraratorTest(DB* db, std::vector<std::string> source_strings,
                             Random* rnd, int num_writes, int num_iter_ops,
                             int num_trigger_flush) {
-  KVMap map;
+  stl_wrappers::KVMap map((stl_wrappers::LessOfComparator(comparator)));
 
   for (int i = 0; i < num_writes; i++) {
     if (num_trigger_flush > 0 && i != 0 && i % num_trigger_flush == 0) {
@@ -177,8 +171,13 @@ class DoubleComparator : public Comparator {
   virtual const char* Name() const override { return "DoubleComparator"; }
 
   virtual int Compare(const Slice& a, const Slice& b) const override {
+#ifndef CYGWIN
     double da = std::stod(a.ToString());
     double db = std::stod(b.ToString());
+#else
+    double da = std::strtod(a.ToString().c_str(), 0 /* endptr */);
+    double db = std::strtod(a.ToString().c_str(), 0 /* endptr */);
+#endif
     if (da == db) {
       return a.compare(b);
     } else if (da > db) {

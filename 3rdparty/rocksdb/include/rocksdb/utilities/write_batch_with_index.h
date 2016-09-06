@@ -1,4 +1,4 @@
-// Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
@@ -8,8 +8,9 @@
 //
 // A WriteBatchWithIndex with a binary searchable index built for all the keys
 // inserted.
-
 #pragma once
+
+#ifndef ROCKSDB_LITE
 
 #include <string>
 
@@ -28,10 +29,18 @@ class DB;
 struct ReadOptions;
 struct DBOptions;
 
-enum WriteType { kPutRecord, kMergeRecord, kDeleteRecord, kLogDataRecord };
+enum WriteType {
+  kPutRecord,
+  kMergeRecord,
+  kDeleteRecord,
+  kSingleDeleteRecord,
+  kDeleteRangeRecord,
+  kLogDataRecord,
+  kXIDRecord,
+};
 
-// an entry for Put, Merge or Delete entry for write batches. Used in
-// WBWIIterator.
+// an entry for Put, Merge, Delete, or SingleDelete entry for write batches.
+// Used in WBWIIterator.
 struct WriteEntry {
   WriteType type;
   Slice key;
@@ -55,15 +64,17 @@ class WBWIIterator {
 
   virtual void Prev() = 0;
 
-  virtual const WriteEntry& Entry() const = 0;
+  // the return WriteEntry is only valid until the next mutation of
+  // WriteBatchWithIndex
+  virtual WriteEntry Entry() const = 0;
 
   virtual Status status() const = 0;
 };
 
 // A WriteBatchWithIndex with a binary searchable index built for all the keys
 // inserted.
-// In Put(), Merge() or Delete(), the same function of the wrapped will be
-// called. At the same time, indexes will be built.
+// In Put(), Merge() Delete(), or SingleDelete(), the same function of the
+// wrapped will be called. At the same time, indexes will be built.
 // By calling GetWriteBatch(), a user will get the WriteBatch for the data
 // they inserted, which can be used for DB::Write().
 // A user can call NewIterator() to create an iterator.
@@ -98,6 +109,16 @@ class WriteBatchWithIndex : public WriteBatchBase {
   void Delete(ColumnFamilyHandle* column_family, const Slice& key) override;
   void Delete(const Slice& key) override;
 
+  using WriteBatchBase::SingleDelete;
+  void SingleDelete(ColumnFamilyHandle* column_family,
+                    const Slice& key) override;
+  void SingleDelete(const Slice& key) override;
+
+  using WriteBatchBase::DeleteRange;
+  void DeleteRange(ColumnFamilyHandle* column_family, const Slice& begin_key,
+                   const Slice& end_key) override;
+  void DeleteRange(const Slice& begin_key, const Slice& end_key) override;
+
   using WriteBatchBase::PutLogData;
   void PutLogData(const Slice& blob) override;
 
@@ -112,12 +133,21 @@ class WriteBatchWithIndex : public WriteBatchBase {
   // order given by index_comparator. For multiple updates on the same key,
   // each update will be returned as a separate entry, in the order of update
   // time.
+  //
+  // The returned iterator should be deleted by the caller.
   WBWIIterator* NewIterator(ColumnFamilyHandle* column_family);
   // Create an iterator of the default column family.
   WBWIIterator* NewIterator();
 
   // Will create a new Iterator that will use WBWIIterator as a delta and
-  // base_iterator as base
+  // base_iterator as base.
+  //
+  // This function is only supported if the WriteBatchWithIndex was
+  // constructed with overwrite_key=true.
+  //
+  // The returned iterator should be deleted by the caller.
+  // The base_iterator is now 'owned' by the returned iterator. Deleting the
+  // returned iterator will also delete the base_iterator.
   Iterator* NewIteratorWithBase(ColumnFamilyHandle* column_family,
                                 Iterator* base_iterator);
   // default column family
@@ -132,7 +162,7 @@ class WriteBatchWithIndex : public WriteBatchBase {
 
   // Similar to previous function but does not require a column_family.
   // Note:  An InvalidArgument status will be returned if there are any Merge
-  // operators for this key.
+  // operators for this key.  Use previous method instead.
   Status GetFromBatch(const DBOptions& options, const Slice& key,
                       std::string* value) {
     return GetFromBatch(nullptr, options, key, value);
@@ -154,9 +184,28 @@ class WriteBatchWithIndex : public WriteBatchBase {
                            ColumnFamilyHandle* column_family, const Slice& key,
                            std::string* value);
 
+  // Records the state of the batch for future calls to RollbackToSavePoint().
+  // May be called multiple times to set multiple save points.
+  void SetSavePoint() override;
+
+  // Remove all entries in this batch (Put, Merge, Delete, SingleDelete,
+  // PutLogData) since the most recent call to SetSavePoint() and removes the
+  // most recent save point.
+  // If there is no previous call to SetSavePoint(), behaves the same as
+  // Clear().
+  //
+  // Calling RollbackToSavePoint invalidates any open iterators on this batch.
+  //
+  // Returns Status::OK() on success,
+  //         Status::NotFound() if no previous call to SetSavePoint(),
+  //         or other Status on corruption.
+  Status RollbackToSavePoint() override;
+
  private:
   struct Rep;
   Rep* rep;
 };
 
 }  // namespace rocksdb
+
+#endif  // !ROCKSDB_LITE

@@ -1,4 +1,4 @@
-//  Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -15,11 +15,11 @@
 
 namespace rocksdb {
 
-// JSONWritter doesn't support objects in arrays yet. There wasn't a need for
-// that.
-class JSONWritter {
+class JSONWriter {
  public:
-  JSONWritter() : state_(kExpectKey), first_element_(true) { stream_ << "{"; }
+  JSONWriter() : state_(kExpectKey), first_element_(true), in_array_(false) {
+    stream_ << "{";
+  }
 
   void AddKey(const std::string& key) {
     assert(state_ == kExpectKey);
@@ -59,6 +59,7 @@ class JSONWritter {
   void StartArray() {
     assert(state_ == kExpectValue);
     state_ = kInArray;
+    in_array_ = true;
     stream_ << "[";
     first_element_ = true;
   }
@@ -66,6 +67,7 @@ class JSONWritter {
   void EndArray() {
     assert(state_ == kInArray);
     state_ = kExpectKey;
+    in_array_ = false;
     stream_ << "]";
     first_element_ = false;
   }
@@ -83,9 +85,24 @@ class JSONWritter {
     first_element_ = false;
   }
 
+  void StartArrayedObject() {
+    assert(state_ == kInArray && in_array_);
+    state_ = kExpectValue;
+    if (!first_element_) {
+      stream_ << ", ";
+    }
+    StartObject();
+  }
+
+  void EndArrayedObject() {
+    assert(in_array_);
+    EndObject();
+    state_ = kInArray;
+  }
+
   std::string Get() const { return stream_.str(); }
 
-  JSONWritter& operator<<(const char* val) {
+  JSONWriter& operator<<(const char* val) {
     if (state_ == kExpectKey) {
       AddKey(val);
     } else {
@@ -94,25 +111,27 @@ class JSONWritter {
     return *this;
   }
 
-  JSONWritter& operator<<(const std::string& val) {
+  JSONWriter& operator<<(const std::string& val) {
     return *this << val.c_str();
   }
 
   template <typename T>
-  JSONWritter& operator<<(const T& val) {
+  JSONWriter& operator<<(const T& val) {
     assert(state_ != kExpectKey);
     AddValue(val);
     return *this;
   }
 
  private:
-  enum JSONWritterState {
+  enum JSONWriterState {
     kExpectKey,
     kExpectValue,
     kInArray,
+    kInArrayedObject,
   };
-  JSONWritterState state_;
+  JSONWriterState state_;
   bool first_element_;
+  bool in_array_;
   std::ostringstream stream_;
 };
 
@@ -121,21 +140,21 @@ class EventLoggerStream {
   template <typename T>
   EventLoggerStream& operator<<(const T& val) {
     MakeStream();
-    *json_writter_ << val;
+    *json_writer_ << val;
     return *this;
   }
 
-  void StartArray() { json_writter_->StartArray(); }
-  void EndArray() { json_writter_->EndArray(); }
-  void StartObject() { json_writter_->StartObject(); }
-  void EndObject() { json_writter_->EndObject(); }
+  void StartArray() { json_writer_->StartArray(); }
+  void EndArray() { json_writer_->EndArray(); }
+  void StartObject() { json_writer_->StartObject(); }
+  void EndObject() { json_writer_->EndObject(); }
 
   ~EventLoggerStream();
 
  private:
   void MakeStream() {
-    if (!json_writter_) {
-      json_writter_ = new JSONWritter();
+    if (!json_writer_) {
+      json_writer_ = new JSONWriter();
       *this << "time_micros"
             << std::chrono::duration_cast<std::chrono::microseconds>(
                    std::chrono::system_clock::now().time_since_epoch()).count();
@@ -148,7 +167,7 @@ class EventLoggerStream {
   Logger* const logger_;
   LogBuffer* const log_buffer_;
   // ownership
-  JSONWritter* json_writter_;
+  JSONWriter* json_writer_;
 };
 
 // here is an example of the output that will show up in the LOG:
@@ -157,11 +176,18 @@ class EventLoggerStream {
 // "file_size": 1909699}
 class EventLogger {
  public:
+  static const char* Prefix() {
+    return "EVENT_LOG_v1";
+  }
+
   explicit EventLogger(Logger* logger) : logger_(logger) {}
   EventLoggerStream Log() { return EventLoggerStream(logger_); }
   EventLoggerStream LogToBuffer(LogBuffer* log_buffer) {
     return EventLoggerStream(log_buffer);
   }
+  void Log(const JSONWriter& jwriter);
+  static void Log(Logger* logger, const JSONWriter& jwriter);
+  static void LogToBuffer(LogBuffer* log_buffer, const JSONWriter& jwriter);
 
  private:
   Logger* logger_;

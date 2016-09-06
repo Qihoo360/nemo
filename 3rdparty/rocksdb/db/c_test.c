@@ -2,6 +2,8 @@
    Use of this source code is governed by a BSD-style license that can be
    found in the LICENSE file. See the AUTHORS file for names of contributors. */
 
+#ifndef ROCKSDB_LITE  // Lite does not support C API
+
 #include "rocksdb/c.h"
 
 #include <stddef.h>
@@ -9,8 +11,30 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <unistd.h>
+#ifndef OS_WIN
+#  include <unistd.h>
+#endif
 #include <inttypes.h>
+
+// Can not use port/port.h macros as this is a c file
+#ifdef OS_WIN
+
+#include <Windows.h>
+
+# define snprintf _snprintf
+
+// Ok for uniqueness
+int geteuid() {
+
+  int result = 0;
+
+  result = ((int)GetCurrentProcessId() << 16);
+  result |= (int)GetCurrentThreadId();
+
+  return result;
+}
+
+#endif
 
 const char* phase = "";
 static char dbname[200];
@@ -227,79 +251,6 @@ static rocksdb_t* CheckCompaction(rocksdb_t* db, rocksdb_options_t* options,
   return db;
 }
 
-// Custom compaction filter V2.
-static void CompactionFilterV2Destroy(void* arg) { }
-static const char* CompactionFilterV2Name(void* arg) {
-  return "TestCompactionFilterV2";
-}
-static void CompactionFilterV2Filter(
-    void* arg, int level, size_t num_keys,
-    const char* const* keys_list, const size_t* keys_list_sizes,
-    const char* const* existing_values_list, const size_t* existing_values_list_sizes,
-    char** new_values_list, size_t* new_values_list_sizes,
-    unsigned char* to_delete_list) {
-  size_t i;
-  for (i = 0; i < num_keys; i++) {
-    // If any value is "gc", it's removed.
-    if (existing_values_list_sizes[i] == 2 && memcmp(existing_values_list[i], "gc", 2) == 0) {
-      to_delete_list[i] = 1;
-    } else if (existing_values_list_sizes[i] == 6 && memcmp(existing_values_list[i], "gc all", 6) == 0) {
-      // If any value is "gc all", all keys are removed.
-      size_t j;
-      for (j = 0; j < num_keys; j++) {
-        to_delete_list[j] = 1;
-      }
-      return;
-    } else if (existing_values_list_sizes[i] == 6 && memcmp(existing_values_list[i], "change", 6) == 0) {
-      // If value is "change", set changed value to "changed".
-      size_t len;
-      len = strlen("changed");
-      new_values_list[i] = malloc(len);
-      memcpy(new_values_list[i], "changed", len);
-      new_values_list_sizes[i] = len;
-    } else {
-      // Otherwise, no keys are removed.
-    }
-  }
-}
-
-// Custom prefix extractor for compaction filter V2 which extracts first 3 characters.
-static void CFV2PrefixExtractorDestroy(void* arg) { }
-static char* CFV2PrefixExtractorTransform(void* arg, const char* key, size_t length, size_t* dst_length) {
-  // Verify keys are maximum length 4; this verifies fix for a
-  // prior bug which was passing the RocksDB-encoded key with
-  // logical timestamp suffix instead of parsed user key.
-  if (length > 4) {
-    fprintf(stderr, "%s:%d: %s: key %s is not user key\n", __FILE__, __LINE__, phase, key);
-    abort();
-  }
-  *dst_length = length < 3 ? length : 3;
-  return (char*)key;
-}
-static unsigned char CFV2PrefixExtractorInDomain(void* state, const char* key, size_t length) {
-  return 1;
-}
-static unsigned char CFV2PrefixExtractorInRange(void* state, const char* key, size_t length) {
-  return 1;
-}
-static const char* CFV2PrefixExtractorName(void* state) {
-  return "TestCFV2PrefixExtractor";
-}
-
-// Custom compaction filter factory V2.
-static void CompactionFilterFactoryV2Destroy(void* arg) {
-  rocksdb_slicetransform_destroy((rocksdb_slicetransform_t*)arg);
-}
-static const char* CompactionFilterFactoryV2Name(void* arg) {
-  return "TestCompactionFilterFactoryV2";
-}
-static rocksdb_compactionfilterv2_t* CompactionFilterFactoryV2Create(
-    void* state, const rocksdb_compactionfiltercontext_t* context) {
-  return rocksdb_compactionfilterv2_create(state, CompactionFilterV2Destroy,
-                                           CompactionFilterV2Filter,
-                                           CompactionFilterV2Name);
-}
-
 // Custom merge operator
 static void MergeOperatorDestroy(void* arg) { }
 static const char* MergeOperatorName(void* arg) {
@@ -371,7 +322,7 @@ int main(int argc, char** argv) {
   rocksdb_options_set_block_based_table_factory(options, table_options);
 
   rocksdb_options_set_compression(options, rocksdb_no_compression);
-  rocksdb_options_set_compression_options(options, -14, -1, 0);
+  rocksdb_options_set_compression_options(options, -14, -1, 0, 0);
   int compression_levels[] = {rocksdb_no_compression, rocksdb_no_compression,
                               rocksdb_no_compression, rocksdb_no_compression};
   rocksdb_options_set_compression_per_level(options, compression_levels, 4);
@@ -413,6 +364,24 @@ int main(int argc, char** argv) {
 
     rocksdb_backup_engine_create_new_backup(be, db, &err);
     CheckNoError(err);
+
+    // need a change to trigger a new backup
+    rocksdb_delete(db, woptions, "does-not-exist", 14, &err);
+    CheckNoError(err);
+
+    rocksdb_backup_engine_create_new_backup(be, db, &err);
+    CheckNoError(err);
+
+    const rocksdb_backup_engine_info_t* bei = rocksdb_backup_engine_get_backup_info(be);
+    CheckCondition(rocksdb_backup_engine_info_count(bei) > 1);
+    rocksdb_backup_engine_info_destroy(bei);
+
+    rocksdb_backup_engine_purge_old_backups(be, 1, &err);
+    CheckNoError(err);
+
+    bei = rocksdb_backup_engine_get_backup_info(be);
+    CheckCondition(rocksdb_backup_engine_info_count(bei) == 1);
+    rocksdb_backup_engine_info_destroy(bei);
 
     rocksdb_delete(db, woptions, "foo", 3, &err);
     CheckNoError(err);
@@ -465,6 +434,24 @@ int main(int argc, char** argv) {
     rocksdb_writebatch_destroy(wb);
   }
 
+  StartPhase("writebatch_vectors");
+  {
+    rocksdb_writebatch_t* wb = rocksdb_writebatch_create();
+    const char* k_list[2] = { "z", "ap" };
+    const size_t k_sizes[2] = { 1, 2 };
+    const char* v_list[3] = { "x", "y", "z" };
+    const size_t v_sizes[3] = { 1, 1, 1 };
+    rocksdb_writebatch_putv(wb, 2, k_list, k_sizes, 3, v_list, v_sizes);
+    rocksdb_write(db, woptions, wb, &err);
+    CheckNoError(err);
+    CheckGet(db, roptions, "zap", "xyz");
+    rocksdb_writebatch_delete(wb, "zap", 3);
+    rocksdb_write(db, woptions, wb, &err);
+    CheckNoError(err);
+    CheckGet(db, roptions, "zap", NULL);
+    rocksdb_writebatch_destroy(wb);
+  }
+
   StartPhase("writebatch_rep");
   {
     rocksdb_writebatch_t* wb1 = rocksdb_writebatch_create();
@@ -503,6 +490,33 @@ int main(int argc, char** argv) {
     rocksdb_iter_get_error(iter, &err);
     CheckNoError(err);
     rocksdb_iter_destroy(iter);
+  }
+
+  StartPhase("multiget");
+  {
+    const char* keys[3] = { "box", "foo", "notfound" };
+    const size_t keys_sizes[3] = { 3, 3, 8 };
+    char* vals[3];
+    size_t vals_sizes[3];
+    char* errs[3];
+    rocksdb_multi_get(db, roptions, 3, keys, keys_sizes, vals, vals_sizes, errs);
+
+    int i;
+    for (i = 0; i < 3; i++) {
+      CheckEqual(NULL, errs[i], 0);
+      switch (i) {
+      case 0:
+        CheckEqual("c", vals[i], vals_sizes[i]);
+        break;
+      case 1:
+        CheckEqual("hello", vals[i], vals_sizes[i]);
+        break;
+      case 2:
+        CheckEqual(NULL, vals[i], vals_sizes[i]);
+        break;
+      }
+      Free(&vals[i]);
+    }
   }
 
   StartPhase("approximate_sizes");
@@ -653,50 +667,6 @@ int main(int argc, char** argv) {
     rocksdb_options_destroy(options_with_filter_factory);
   }
 
-  StartPhase("compaction_filter_v2");
-  {
-    rocksdb_compactionfilterfactoryv2_t* factory;
-    rocksdb_slicetransform_t* prefix_extractor;
-    prefix_extractor = rocksdb_slicetransform_create(
-        NULL, CFV2PrefixExtractorDestroy, CFV2PrefixExtractorTransform,
-        CFV2PrefixExtractorInDomain, CFV2PrefixExtractorInRange,
-        CFV2PrefixExtractorName);
-    factory = rocksdb_compactionfilterfactoryv2_create(
-        prefix_extractor, prefix_extractor, CompactionFilterFactoryV2Destroy,
-        CompactionFilterFactoryV2Create, CompactionFilterFactoryV2Name);
-    // Create new database
-    rocksdb_close(db);
-    rocksdb_destroy_db(options, dbname, &err);
-    rocksdb_options_set_compaction_filter_factory_v2(options, factory);
-    db = rocksdb_open(options, dbname, &err);
-    CheckNoError(err);
-    // Only foo2 is GC'd, foo3 is changed.
-    rocksdb_put(db, woptions, "foo1", 4, "no gc", 5, &err);
-    CheckNoError(err);
-    rocksdb_put(db, woptions, "foo2", 4, "gc", 2, &err);
-    CheckNoError(err);
-    rocksdb_put(db, woptions, "foo3", 4, "change", 6, &err);
-    CheckNoError(err);
-    // All bars are GC'd.
-    rocksdb_put(db, woptions, "bar1", 4, "no gc", 5, &err);
-    CheckNoError(err);
-    rocksdb_put(db, woptions, "bar2", 4, "gc all", 6, &err);
-    CheckNoError(err);
-    rocksdb_put(db, woptions, "bar3", 4, "no gc", 5, &err);
-    CheckNoError(err);
-    // Compact the DB to garbage collect.
-    rocksdb_compact_range(db, NULL, 0, NULL, 0);
-
-    // Verify foo entries.
-    CheckGet(db, roptions, "foo1", "no gc");
-    CheckGet(db, roptions, "foo2", NULL);
-    CheckGet(db, roptions, "foo3", "changed");
-    // Verify bar entries were all deleted.
-    CheckGet(db, roptions, "bar1", NULL);
-    CheckGet(db, roptions, "bar2", NULL);
-    CheckGet(db, roptions, "bar3", NULL);
-  }
-
   StartPhase("merge_operator");
   {
     rocksdb_mergeoperator_t* merge_operator;
@@ -778,12 +748,60 @@ int main(int argc, char** argv) {
     CheckGetCF(db, roptions, handles[1], "box", "c");
     rocksdb_writebatch_destroy(wb);
 
+    const char* keys[3] = { "box", "box", "barfooxx" };
+    const rocksdb_column_family_handle_t* get_handles[3] = { handles[0], handles[1], handles[1] };
+    const size_t keys_sizes[3] = { 3, 3, 8 };
+    char* vals[3];
+    size_t vals_sizes[3];
+    char* errs[3];
+    rocksdb_multi_get_cf(db, roptions, get_handles, 3, keys, keys_sizes, vals, vals_sizes, errs);
+
+    int i;
+    for (i = 0; i < 3; i++) {
+      CheckEqual(NULL, errs[i], 0);
+      switch (i) {
+      case 0:
+        CheckEqual(NULL, vals[i], vals_sizes[i]); // wrong cf
+        break;
+      case 1:
+        CheckEqual("c", vals[i], vals_sizes[i]); // bingo
+        break;
+      case 2:
+        CheckEqual(NULL, vals[i], vals_sizes[i]); // normal not found
+        break;
+      }
+      Free(&vals[i]);
+    }
+
     rocksdb_iterator_t* iter = rocksdb_create_iterator_cf(db, roptions, handles[1]);
     CheckCondition(!rocksdb_iter_valid(iter));
     rocksdb_iter_seek_to_first(iter);
     CheckCondition(rocksdb_iter_valid(iter));
 
-    int i;
+    for (i = 0; rocksdb_iter_valid(iter) != 0; rocksdb_iter_next(iter)) {
+      i++;
+    }
+    CheckCondition(i == 1);
+    rocksdb_iter_get_error(iter, &err);
+    CheckNoError(err);
+    rocksdb_iter_destroy(iter);
+
+    rocksdb_column_family_handle_t* iters_cf_handles[2] = { handles[0], handles[1] };
+    rocksdb_iterator_t* iters_handles[2];
+    rocksdb_create_iterators(db, roptions, iters_cf_handles, iters_handles, 2, &err);
+    CheckNoError(err);
+
+    iter = iters_handles[0];
+    CheckCondition(!rocksdb_iter_valid(iter));
+    rocksdb_iter_seek_to_first(iter);
+    CheckCondition(!rocksdb_iter_valid(iter));
+    rocksdb_iter_destroy(iter);
+
+    iter = iters_handles[1];
+    CheckCondition(!rocksdb_iter_valid(iter));
+    rocksdb_iter_seek_to_first(iter);
+    CheckCondition(rocksdb_iter_valid(iter));
+
     for (i = 0; rocksdb_iter_valid(iter) != 0; rocksdb_iter_next(iter)) {
       i++;
     }
@@ -938,3 +956,13 @@ int main(int argc, char** argv) {
   fprintf(stderr, "PASS\n");
   return 0;
 }
+
+#else
+#include <stdio.h>
+
+int main() {
+  fprintf(stderr, "SKIPPED\n");
+  return 0;
+}
+
+#endif  // !ROCKSDB_LITE

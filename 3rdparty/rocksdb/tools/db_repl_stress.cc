@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -137,8 +137,10 @@ int main(int argc, const char** argv) {
   replThread.stop.store(true, std::memory_order_release);
   if (replThread.no_read < dataPump.no_records) {
     // no. read should be => than inserted.
-    fprintf(stderr, "No. of Record's written and read not same\nRead : %zu"
-            " Written : %zu\n", replThread.no_read, dataPump.no_records);
+    fprintf(stderr,
+            "No. of Record's written and read not same\nRead : %" ROCKSDB_PRIszt
+            " Written : %" ROCKSDB_PRIszt "\n",
+            replThread.no_read, dataPump.no_records);
     exit(1);
   }
   fprintf(stderr, "Successful!\n");

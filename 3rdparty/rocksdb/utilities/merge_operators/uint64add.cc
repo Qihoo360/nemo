@@ -1,9 +1,10 @@
-// Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
 
 #include <memory>
+
 #include "rocksdb/env.h"
 #include "rocksdb/merge_operator.h"
 #include "rocksdb/slice.h"
@@ -51,7 +52,8 @@ class UInt64AddOperator : public AssociativeMergeOperator {
     } else if (logger != nullptr) {
       // If value is corrupted, treat it as 0
       Log(InfoLogLevel::ERROR_LEVEL, logger,
-          "uint64 value corruption, size: %zu > %zu",
+          "uint64 value corruption, size: %" ROCKSDB_PRIszt
+          " > %" ROCKSDB_PRIszt,
           value.size(), sizeof(uint64_t));
     }
 

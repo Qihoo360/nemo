@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -7,8 +7,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
+#ifndef ROCKSDB_LITE
+
 #include "rocksdb/db.h"
 
+#include <inttypes.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -39,6 +42,7 @@ class CorruptionTest : public testing::Test {
 
   CorruptionTest() {
     tiny_cache_ = NewLRUCache(100);
+    options_.wal_recovery_mode = WALRecoveryMode::kTolerateCorruptedTailRecords;
     options_.env = &env_;
     dbname_ = test::TmpDir() + "/corruption_test";
     DestroyDB(dbname_, options_);
@@ -55,6 +59,11 @@ class CorruptionTest : public testing::Test {
   ~CorruptionTest() {
      delete db_;
      DestroyDB(dbname_, Options());
+  }
+
+  void CloseDb() {
+    delete db_;
+    db_ = nullptr;
   }
 
   Status TryReopen(Options* options = nullptr) {
@@ -80,10 +89,14 @@ class CorruptionTest : public testing::Test {
     ASSERT_OK(::rocksdb::RepairDB(dbname_, options_));
   }
 
-  void Build(int n) {
+  void Build(int n, int flush_every = 0) {
     std::string key_space, value_space;
     WriteBatch batch;
     for (int i = 0; i < n; i++) {
+      if (flush_every != 0 && i != 0 && i % flush_every == 0) {
+        DBImpl* dbi = reinterpret_cast<DBImpl*>(db_);
+        dbi->TEST_FlushMemTable();
+      }
       //if ((i % 100) == 0) fprintf(stderr, "@ %d of %d\n", i, n);
       Slice key = Key(i, &key_space);
       batch.Clear();
@@ -93,8 +106,8 @@ class CorruptionTest : public testing::Test {
   }
 
   void Check(int min_expected, int max_expected) {
-    unsigned int next_expected = 0;
-    int missed = 0;
+    uint64_t next_expected = 0;
+    uint64_t missed = 0;
     int bad_keys = 0;
     int bad_values = 0;
     int correct = 0;
@@ -115,7 +128,7 @@ class CorruptionTest : public testing::Test {
         continue;
       }
       missed += (key - next_expected);
-      next_expected = static_cast<unsigned int>(key + 1);
+      next_expected = key + 1;
       if (iter->value() != Value(static_cast<int>(key), &value_space)) {
         bad_values++;
       } else {
@@ -125,8 +138,9 @@ class CorruptionTest : public testing::Test {
     delete iter;
 
     fprintf(stderr,
-            "expected=%d..%d; got=%d; bad_keys=%d; bad_values=%d; missed=%d\n",
-            min_expected, max_expected, correct, bad_keys, bad_values, missed);
+      "expected=%d..%d; got=%d; bad_keys=%d; bad_values=%d; missed=%llu\n",
+            min_expected, max_expected, correct, bad_keys, bad_values,
+            static_cast<unsigned long long>(missed));
     ASSERT_LE(min_expected, correct);
     ASSERT_GE(max_expected, correct);
   }
@@ -172,7 +186,7 @@ class CorruptionTest : public testing::Test {
     FileType type;
     std::string fname;
     int picked_number = -1;
-    for (unsigned int i = 0; i < filenames.size(); i++) {
+    for (size_t i = 0; i < filenames.size(); i++) {
       if (ParseFileName(filenames[i], &number, &type) &&
           type == filetype &&
           static_cast<int>(number) > picked_number) {  // Pick latest file
@@ -221,14 +235,32 @@ class CorruptionTest : public testing::Test {
 
   // Return the value to associate with the specified key
   Slice Value(int k, std::string* storage) {
-    Random r(k);
-    return test::RandomString(&r, kValueSize, storage);
+    if (k == 0) {
+      // Ugh.  Random seed of 0 used to produce no entropy.  This code
+      // preserves the implementation that was in place when all of the
+      // magic values in this file were picked.
+      *storage = std::string(kValueSize, ' ');
+      return Slice(*storage);
+    } else {
+      Random r(k);
+      return test::RandomString(&r, kValueSize, storage);
+    }
   }
 };
 
 TEST_F(CorruptionTest, Recovery) {
   Build(100);
   Check(100, 100);
+#ifdef OS_WIN
+  // On Wndows OS Disk cache does not behave properly
+  // We do not call FlushBuffers on every Flush. If we do not close
+  // the log file prior to the corruption we end up with the first
+  // block not corrupted but only the second. However, under the debugger
+  // things work just fine but never pass when running normally
+  // For that reason people may want to run with unbuffered I/O. That option
+  // is not available for WAL though.
+  CloseDb();
+#endif
   Corrupt(kLogFile, 19, 1);      // WriteBatch tag for first record
   Corrupt(kLogFile, log::kBlockSize + 1000, 1);  // Somewhere in second block
   ASSERT_TRUE(!TryReopen().ok());
@@ -280,13 +312,21 @@ TEST_F(CorruptionTest, TableFile) {
 }
 
 TEST_F(CorruptionTest, TableFileIndexData) {
-  Build(10000);  // Enough to build multiple Tables
+  Options options;
+  // very big, we'll trigger flushes manually
+  options.write_buffer_size = 100 * 1024 * 1024;
+  Reopen(&options);
+  // build 2 tables, flush at 5000
+  Build(10000, 5000);
   DBImpl* dbi = reinterpret_cast<DBImpl*>(db_);
   dbi->TEST_FlushMemTable();
 
+  // corrupt an index block of an entire file
   Corrupt(kTableFile, -2000, 500);
   Reopen();
-  Check(5000, 9999);
+  // one full file should be readable, since only one was corrupted
+  // the other file should be fully non-readable, since index was corrupted
+  Check(5000, 5000);
 }
 
 TEST_F(CorruptionTest, MissingDescriptor) {
@@ -336,13 +376,13 @@ TEST_F(CorruptionTest, CorruptedDescriptor) {
 
 TEST_F(CorruptionTest, CompactionInputError) {
   Options options;
-  options.max_background_flushes = 0;
   Reopen(&options);
   Build(10);
   DBImpl* dbi = reinterpret_cast<DBImpl*>(db_);
   dbi->TEST_FlushMemTable();
-  const int last = dbi->MaxMemCompactionLevel();
-  ASSERT_EQ(1, Property("rocksdb.num-files-at-level" + NumberToString(last)));
+  dbi->TEST_CompactRange(0, nullptr, nullptr);
+  dbi->TEST_CompactRange(1, nullptr, nullptr);
+  ASSERT_EQ(1, Property("rocksdb.num-files-at-level2"));
 
   Corrupt(kTableFile, 100, 1);
   Check(9, 9);
@@ -357,18 +397,20 @@ TEST_F(CorruptionTest, CompactionInputErrorParanoid) {
   options.paranoid_checks = true;
   options.write_buffer_size = 131072;
   options.max_write_buffer_number = 2;
-  options.max_background_flushes = 0;
   Reopen(&options);
   DBImpl* dbi = reinterpret_cast<DBImpl*>(db_);
 
-  // Fill levels >= 1 so memtable flush outputs to level 0
+  // Fill levels >= 1
   for (int level = 1; level < dbi->NumberLevels(); level++) {
     dbi->Put(WriteOptions(), "", "begin");
     dbi->Put(WriteOptions(), "~", "end");
     dbi->TEST_FlushMemTable();
+    for (int comp_level = 0; comp_level < dbi->NumberLevels() - level;
+         ++comp_level) {
+      dbi->TEST_CompactRange(comp_level, nullptr, nullptr);
+    }
   }
 
-  options.max_mem_compaction_level = 0;
   Reopen(&options);
 
   dbi = reinterpret_cast<DBImpl*>(db_);
@@ -450,3 +492,13 @@ int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
+
+#else
+#include <stdio.h>
+
+int main(int argc, char** argv) {
+  fprintf(stderr, "SKIPPED as RepairDB() is not supported in ROCKSDB_LITE\n");
+  return 0;
+}
+
+#endif  // !ROCKSDB_LITE

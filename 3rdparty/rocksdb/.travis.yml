@@ -1,19 +1,41 @@
+sudo: false
 language: cpp
-compiler: gcc
-before_install:
-# As of this writing (10 May 2014) the Travis build environment is Ubuntu 12.04,
-# which needs the following ugly dependency incantations to build RocksDB:
- - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
- - sudo apt-get update -qq
- - sudo apt-get install -y -qq gcc-4.9 g++-4.9 zlib1g-dev libbz2-dev libsnappy-dev
- - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 50
- - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 50
- - wget https://gflags.googlecode.com/files/libgflags0_2.0-1_amd64.deb
- - sudo dpkg -i libgflags0_2.0-1_amd64.deb
- - wget https://gflags.googlecode.com/files/libgflags-dev_2.0-1_amd64.deb
- - sudo dpkg -i libgflags-dev_2.0-1_amd64.deb
-# Lousy hack to disable use and testing of fallocate, which doesn't behave quite
-# as EnvPosixTest::AllocateTest expects within the Travis OpenVZ environment.
-script: OPT=-DTRAVIS V=1 make unity && make clean && OPT=-DTRAVIS V=1 make db_test && ./db_test
+os:
+  - linux
+  - osx
+compiler:
+  - clang
+
+addons:
+   apt:
+      sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-precise-3.6']
+      packages: ['clang-3.6' , 'zlib1g-dev', 'libbz2-dev', 'libsnappy-dev', 'curl', 'gflags']
+env:
+  # Run all tests before db_block_cache_test (db_test, db_test2)
+  - JOB_NAME=unittests ROCKSDBTESTS_END=db_block_cache_test
+  # Run all tests starting from db_block_cache_test (db_block_cache_test, db_iter_test, ...)
+  - JOB_NAME=unittests ROCKSDBTESTS_START=db_block_cache_test
+  # Run java tests
+  - JOB_NAME=java_test
+  # Build ROCKSDB_LITE
+  - JOB_NAME=lite_build
+
+install:
+  # Build gflags
+  # TODO(noetzli): Remove when gflags available through Travis
+  - pushd /tmp/ && curl -L https://github.com/gflags/gflags/archive/v2.1.2.tar.gz -o gflags.tar.gz && tar xfz gflags.tar.gz && cd gflags-2.1.2 && cmake . && make && popd
+
+before_script:
+  - if [[ "${TRAVIS_OS_NAME}" == 'linux' ]]; then CXX=clang++-3.6; fi
+  # Limit the maximum number of open file descriptors to 8192
+  - ulimit -n 8192 || true
+
+script:
+  - if [[ "${JOB_NAME}" == 'unittests' ]]; then OPT=-DTRAVIS V=1 make -j4 check_some; fi
+  - if [[ "${JOB_NAME}" == 'java_test' ]]; then OPT=-DTRAVIS V=1 make clean jclean rocksdbjava jtest; fi
+  - if [[ "${JOB_NAME}" == 'lite_build' ]]; then OPT="-DTRAVIS -DROCKSDB_LITE" V=1 make -j4 static_lib; fi
 notifications:
-    email: false
+    email:
+      - leveldb@fb.com
+    webhooks:
+      - https://buildtimetrend.herokuapp.com/travis

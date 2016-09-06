@@ -1,4 +1,4 @@
-// Copyright (c) 2014, Facebook, Inc.  All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
@@ -14,7 +14,7 @@
 
 using namespace rocksdb;
 std::string kDBPath = "/tmp/rocksdb_compact_files_example";
-class CompactionTask;
+struct CompactionTask;
 
 // This is an example interface of external-compaction algorithm.
 // Compaction algorithm can be implemented outside the core-RocksDB
@@ -35,19 +35,19 @@ class Compactor : public EventListener {
 // Example structure that describes a compaction task.
 struct CompactionTask {
   CompactionTask(
-      DB* db, Compactor* compactor,
-      const std::string& column_family_name,
-      const std::vector<std::string>& input_file_names,
-      const int output_level,
-      const CompactionOptions& compact_options,
-      bool retry_on_fail)
-          : db(db),
-            compactor(compactor),
-            column_family_name(column_family_name),
-            input_file_names(input_file_names),
-            output_level(output_level),
-            compact_options(compact_options),
-            retry_on_fail(false) {}
+      DB* _db, Compactor* _compactor,
+      const std::string& _column_family_name,
+      const std::vector<std::string>& _input_file_names,
+      const int _output_level,
+      const CompactionOptions& _compact_options,
+      bool _retry_on_fail)
+          : db(_db),
+            compactor(_compactor),
+            column_family_name(_column_family_name),
+            input_file_names(_input_file_names),
+            output_level(_output_level),
+            compact_options(_compact_options),
+            retry_on_fail(_retry_on_fail) {}
   DB* db;
   Compactor* compactor;
   const std::string& column_family_name;
@@ -67,17 +67,14 @@ class FullCompactor : public Compactor {
         options_.target_file_size_base;
   }
 
-  // When flush happens, it determins whether to trigger compaction.
-  // If triggered_writes_stop is true, it will also set the retry
-  // flag of compaction-task to true.
+  // When flush happens, it determines whether to trigger compaction. If
+  // triggered_writes_stop is true, it will also set the retry flag of
+  // compaction-task to true.
   void OnFlushCompleted(
-      DB* db, const std::string& cf_name,
-      const std::string& file_path,
-      bool triggered_writes_slowdown,
-      bool triggered_writes_stop) override {
-    CompactionTask* task = PickCompaction(db, cf_name);
+      DB* db, const FlushJobInfo& info) override {
+    CompactionTask* task = PickCompaction(db, info.cf_name);
     if (task != nullptr) {
-      if (triggered_writes_stop) {
+      if (info.triggered_writes_stop) {
         task->retry_on_fail = true;
       }
       // Schedule compaction in a different thread.
@@ -111,7 +108,8 @@ class FullCompactor : public Compactor {
   }
 
   static void CompactFiles(void* arg) {
-    CompactionTask* task = reinterpret_cast<CompactionTask*>(arg);
+    std::unique_ptr<CompactionTask> task(
+        reinterpret_cast<CompactionTask*>(arg));
     assert(task);
     assert(task->db);
     Status s = task->db->CompactFiles(
@@ -127,8 +125,6 @@ class FullCompactor : public Compactor {
           task->db, task->column_family_name);
       task->compactor->ScheduleCompaction(new_task);
     }
-    // release the task
-    delete task;
   }
 
  private:

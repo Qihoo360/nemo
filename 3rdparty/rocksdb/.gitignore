@@ -21,18 +21,29 @@ make_config.mk
 *.o-*
 *.swp
 *~
+*.vcxproj
+*.vcxproj.filters
+*.sln
+*.cmake
+CMakeCache.txt
+CMakeFiles/
+build/
 
 ldb
 manifest_dump
 sst_dump
+column_aware_encoding_exp
 util/build_version.cc
 build_tools/VALGRIND_LOGS/
 coverage/COVERAGE_REPORT
 .gdbhistory
 package/
 .phutil_module_cache
-unity
+unity.a
 tags
+rocksdb_dump
+rocksdb_undump
+db_test2
 
 java/out
 java/target
@@ -43,6 +54,8 @@ java/include/org_rocksdb_*.h
 .idea/
 *.iml
 
+rocksdb.cc
+rocksdb.h
 unity.cc
 java/crossbuild/.vagrant
 .vagrant/
@@ -52,3 +65,7 @@ java/javadoc
 scan_build_report/
 t
 LOG
+
+db_logs/
+tp2/
+fbcode/

@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -9,7 +9,10 @@
 
 #include "rocksdb/env.h"
 
-#include <sys/time.h>
+#include <thread>
+#include "port/port.h"
+#include "port/sys_time.h"
+
 #include "rocksdb/options.h"
 #include "util/arena.h"
 #include "util/autovector.h"
@@ -17,6 +20,48 @@
 namespace rocksdb {
 
 Env::~Env() {
+}
+
+uint64_t Env::GetThreadID() const {
+  std::hash<std::thread::id> hasher;
+  return hasher(std::this_thread::get_id());
+}
+
+Status Env::ReuseWritableFile(const std::string& fname,
+                              const std::string& old_fname,
+                              unique_ptr<WritableFile>* result,
+                              const EnvOptions& options) {
+  Status s = RenameFile(old_fname, fname);
+  if (!s.ok()) {
+    return s;
+  }
+  return NewWritableFile(fname, result, options);
+}
+
+Status Env::GetChildrenFileAttributes(const std::string& dir,
+                                      std::vector<FileAttributes>* result) {
+  assert(result != nullptr);
+  std::vector<std::string> child_fnames;
+  Status s = GetChildren(dir, &child_fnames);
+  if (!s.ok()) {
+    return s;
+  }
+  result->resize(child_fnames.size());
+  size_t result_size = 0;
+  for (size_t i = 0; i < child_fnames.size(); ++i) {
+    const std::string path = dir + "/" + child_fnames[i];
+    if (!(s = GetFileSize(path, &(*result)[result_size].size_bytes)).ok()) {
+      if (FileExists(path).IsNotFound()) {
+        // The file may have been deleted since we listed the directory
+        continue;
+      }
+      return s;
+    }
+    (*result)[result_size].name = std::move(child_fnames[i]);
+    result_size++;
+  }
+  result->resize(result_size);
+  return Status::OK();
 }
 
 SequentialFile::~SequentialFile() {
@@ -49,12 +94,41 @@ void Log(Logger* info_log, const char* format, ...) {
   }
 }
 
+void Logger::Logv(const InfoLogLevel log_level, const char* format, va_list ap) {
+  static const char* kInfoLogLevelNames[5] = { "DEBUG", "INFO", "WARN",
+    "ERROR", "FATAL" };
+  if (log_level < log_level_) {
+    return;
+  }
+
+  if (log_level == InfoLogLevel::INFO_LEVEL) {
+    // Doesn't print log level if it is INFO level.
+    // This is to avoid unexpected performance regression after we add
+    // the feature of log level. All the logs before we add the feature
+    // are INFO level. We don't want to add extra costs to those existing
+    // logging.
+    Logv(format, ap);
+  } else {
+    char new_format[500];
+    snprintf(new_format, sizeof(new_format) - 1, "[%s] %s",
+      kInfoLogLevelNames[log_level], format);
+    Logv(new_format, ap);
+  }
+}
+
+
 void Log(const InfoLogLevel log_level, Logger* info_log, const char* format,
          ...) {
   if (info_log && info_log->GetInfoLogLevel() <= log_level) {
     va_list ap;
     va_start(ap, format);
-    info_log->Logv(log_level, format, ap);
+
+    if (log_level == InfoLogLevel::HEADER_LEVEL) {
+      info_log->LogHeader(format, ap);
+    } else {
+      info_log->Logv(log_level, format, ap);
+    }
+
     va_end(ap);
   }
 }
@@ -244,7 +318,13 @@ void AssignEnvOptions(EnvOptions* env_options, const DBOptions& options) {
   env_options->use_mmap_writes = options.allow_mmap_writes;
   env_options->set_fd_cloexec = options.is_fd_close_on_exec;
   env_options->bytes_per_sync = options.bytes_per_sync;
+  env_options->compaction_readahead_size = options.compaction_readahead_size;
+  env_options->random_access_max_buffer_size =
+      options.random_access_max_buffer_size;
   env_options->rate_limiter = options.rate_limiter.get();
+  env_options->writable_file_max_buffer_size =
+      options.writable_file_max_buffer_size;
+  env_options->allow_fallocate = options.allow_fallocate;
 }
 
 }

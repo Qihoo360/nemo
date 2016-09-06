@@ -1,11 +1,12 @@
-// Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
 
+#include "util/thread_status_util.h"
+
 #include "rocksdb/env.h"
 #include "util/thread_status_updater.h"
-#include "util/thread_status_util.h"
 
 namespace rocksdb {
 
@@ -15,13 +16,14 @@ __thread ThreadStatusUpdater*
     ThreadStatusUtil::thread_updater_local_cache_ = nullptr;
 __thread bool ThreadStatusUtil::thread_updater_initialized_ = false;
 
-void ThreadStatusUtil::SetThreadType(
+void ThreadStatusUtil::RegisterThread(
     const Env* env, ThreadStatus::ThreadType thread_type) {
   if (!MaybeInitThreadLocalUpdater(env)) {
     return;
   }
   assert(thread_updater_local_cache_);
-  thread_updater_local_cache_->SetThreadType(thread_type);
+  thread_updater_local_cache_->RegisterThread(
+      thread_type, env->GetThreadID());
 }
 
 void ThreadStatusUtil::UnregisterThread() {
@@ -32,12 +34,14 @@ void ThreadStatusUtil::UnregisterThread() {
   }
 }
 
-void ThreadStatusUtil::SetColumnFamily(const ColumnFamilyData* cfd) {
-  if (!MaybeInitThreadLocalUpdater(cfd->ioptions()->env)) {
+void ThreadStatusUtil::SetColumnFamily(const ColumnFamilyData* cfd,
+                                       const Env* env,
+                                       bool enable_thread_tracking) {
+  if (!MaybeInitThreadLocalUpdater(env)) {
     return;
   }
   assert(thread_updater_local_cache_);
-  if (cfd != nullptr && cfd->options()->enable_thread_tracking) {
+  if (cfd != nullptr && enable_thread_tracking) {
     thread_updater_local_cache_->SetColumnFamilyInfoKey(cfd);
   } else {
     // When cfd == nullptr or enable_thread_tracking == false, we set
@@ -117,15 +121,17 @@ void ThreadStatusUtil::ResetThreadStatus() {
   thread_updater_local_cache_->ResetThreadStatus();
 }
 
-void ThreadStatusUtil::NewColumnFamilyInfo(
-    const DB* db, const ColumnFamilyData* cfd) {
-  if (!MaybeInitThreadLocalUpdater(cfd->ioptions()->env)) {
+void ThreadStatusUtil::NewColumnFamilyInfo(const DB* db,
+                                           const ColumnFamilyData* cfd,
+                                           const std::string& cf_name,
+                                           const Env* env) {
+  if (!MaybeInitThreadLocalUpdater(env)) {
     return;
   }
   assert(thread_updater_local_cache_);
   if (thread_updater_local_cache_) {
-    thread_updater_local_cache_->NewColumnFamilyInfo(
-        db, db->GetName(), cfd, cfd->GetName());
+    thread_updater_local_cache_->NewColumnFamilyInfo(db, db->GetName(), cfd,
+                                                     cf_name);
   }
 }
 
@@ -170,8 +176,9 @@ bool ThreadStatusUtil::MaybeInitThreadLocalUpdater(const Env* env) {
   return false;
 }
 
-void ThreadStatusUtil::SetColumnFamily(const ColumnFamilyData* cfd) {
-}
+void ThreadStatusUtil::SetColumnFamily(const ColumnFamilyData* cfd,
+                                       const Env* env,
+                                       bool enable_thread_tracking) {}
 
 void ThreadStatusUtil::SetThreadOperation(ThreadStatus::OperationType op) {
 }
@@ -187,9 +194,10 @@ void ThreadStatusUtil::IncreaseThreadOperationProperty(
 void ThreadStatusUtil::SetThreadState(ThreadStatus::StateType state) {
 }
 
-void ThreadStatusUtil::NewColumnFamilyInfo(
-    const DB* db, const ColumnFamilyData* cfd) {
-}
+void ThreadStatusUtil::NewColumnFamilyInfo(const DB* db,
+                                           const ColumnFamilyData* cfd,
+                                           const std::string& cf_name,
+                                           const Env* env) {}
 
 void ThreadStatusUtil::EraseColumnFamilyInfo(
     const ColumnFamilyData* cfd) {

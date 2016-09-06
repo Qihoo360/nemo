@@ -1,4 +1,4 @@
-//  Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
@@ -8,10 +8,11 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #pragma once
-#include <string>
-#include <memory>
-#include <functional>
+#include <atomic>
 #include <deque>
+#include <functional>
+#include <memory>
+#include <string>
 #include <vector>
 #include "db/dbformat.h"
 #include "db/skiplist.h"
@@ -21,8 +22,9 @@
 #include "rocksdb/memtablerep.h"
 #include "rocksdb/immutable_options.h"
 #include "db/memtable_allocator.h"
-#include "util/arena.h"
+#include "util/concurrent_arena.h"
 #include "util/dynamic_bloom.h"
+#include "util/instrumented_mutex.h"
 #include "util/mutable_cf_options.h"
 
 namespace rocksdb {
@@ -30,7 +32,7 @@ namespace rocksdb {
 class Mutex;
 class MemTableIterator;
 class MergeContext;
-class WriteBuffer;
+class InternalIterator;
 
 struct MemTableOptions {
   explicit MemTableOptions(
@@ -39,8 +41,7 @@ struct MemTableOptions {
   size_t write_buffer_size;
   size_t arena_block_size;
   uint32_t memtable_prefix_bloom_bits;
-  uint32_t memtable_prefix_bloom_probes;
-  size_t memtable_prefix_bloom_huge_page_tlb_size;
+  size_t memtable_huge_page_size;
   bool inplace_update_support;
   size_t inplace_update_num_locks;
   UpdateStatus (*inplace_callback)(char* existing_value,
@@ -48,10 +49,18 @@ struct MemTableOptions {
                                    Slice delta_value,
                                    std::string* merged_value);
   size_t max_successive_merges;
-  bool filter_deletes;
   Statistics* statistics;
   MergeOperator* merge_operator;
   Logger* info_log;
+};
+
+// Batched counters to updated when inserting keys in one write batch.
+// In post process of the write batch, these can be updated together.
+// Only used in concurrent memtable insert case.
+struct MemTablePostProcessInfo {
+  uint64_t data_size = 0;
+  uint64_t num_entries = 0;
+  uint64_t num_deletes = 0;
 };
 
 // Note:  Many of the methods in this class have comments indicating that
@@ -80,10 +89,18 @@ class MemTable {
 
   // MemTables are reference counted.  The initial reference count
   // is zero and the caller must call Ref() at least once.
+  //
+  // earliest_seq should be the current SequenceNumber in the db such that any
+  // key inserted into this memtable will have an equal or larger seq number.
+  // (When a db is first created, the earliest sequence number will be 0).
+  // If the earliest sequence number is not known, kMaxSequenceNumber may be
+  // used, but this may prevent some transactions from succeeding until the
+  // first key is inserted into the memtable.
   explicit MemTable(const InternalKeyComparator& comparator,
                     const ImmutableCFOptions& ioptions,
                     const MutableCFOptions& mutable_cf_options,
-                    WriteBuffer* write_buffer);
+                    WriteBufferManager* write_buffer_manager,
+                    SequenceNumber earliest_seq);
 
   // Do not delete this MemTable unless Unref() indicates it not in use.
   ~MemTable();
@@ -116,10 +133,17 @@ class MemTable {
   // This method heuristically determines if the memtable should continue to
   // host more data.
   bool ShouldScheduleFlush() const {
-    return flush_scheduled_ == false && should_flush_;
+    return flush_state_.load(std::memory_order_relaxed) == FLUSH_REQUESTED;
   }
 
-  void MarkFlushScheduled() { flush_scheduled_ = true; }
+  // Returns true if a flush should be scheduled and the caller should
+  // be the one to schedule it
+  bool MarkFlushScheduled() {
+    auto before = FLUSH_REQUESTED;
+    return flush_state_.compare_exchange_strong(before, FLUSH_SCHEDULED,
+                                                std::memory_order_relaxed,
+                                                std::memory_order_relaxed);
+  }
 
   // Return an iterator that yields the contents of the memtable.
   //
@@ -133,17 +157,17 @@ class MemTable {
   // arena: If not null, the arena needs to be used to allocate the Iterator.
   //        Calling ~Iterator of the iterator will destroy all the states but
   //        those allocated in arena.
-  Iterator* NewIterator(const ReadOptions& read_options, Arena* arena);
+  InternalIterator* NewIterator(const ReadOptions& read_options, Arena* arena);
 
   // Add an entry into memtable that maps key to value at the
   // specified sequence number and with the specified type.
   // Typically value will be empty if type==kTypeDeletion.
   //
-  // REQUIRES: external synchronization to prevent simultaneous
-  // operations on the same MemTable.
-  void Add(SequenceNumber seq, ValueType type,
-           const Slice& key,
-           const Slice& value);
+  // REQUIRES: if allow_concurrent = false, external synchronization to prevent
+  // simultaneous operations on the same MemTable.
+  void Add(SequenceNumber seq, ValueType type, const Slice& key,
+           const Slice& value, bool allow_concurrent = false,
+           MemTablePostProcessInfo* post_process_info = nullptr);
 
   // If memtable contains a value for key, store it in *value and return true.
   // If memtable contains a deletion for key, store a NotFound() error
@@ -153,8 +177,19 @@ class MemTable {
   //   prepend the current merge operand to *operands.
   //   store MergeInProgress in s, and return false.
   // Else, return false.
+  // If any operation was found, its most recent sequence number
+  // will be stored in *seq on success (regardless of whether true/false is
+  // returned).  Otherwise, *seq will be set to kMaxSequenceNumber.
+  // On success, *s may be set to OK, NotFound, or MergeInProgress.  Any other
+  // status returned indicates a corruption or other unexpected error.
   bool Get(const LookupKey& key, std::string* value, Status* s,
-           MergeContext* merge_context);
+           MergeContext* merge_context, SequenceNumber* seq);
+
+  bool Get(const LookupKey& key, std::string* value, Status* s,
+           MergeContext* merge_context) {
+    SequenceNumber seq;
+    return Get(key, value, s, merge_context, &seq);
+  }
 
   // Attempts to update the new_value inplace, else does normal Add
   // Pseudocode
@@ -170,7 +205,7 @@ class MemTable {
               const Slice& key,
               const Slice& value);
 
-  // If prev_value for key exits, attempts to update it inplace.
+  // If prev_value for key exists, attempts to update it inplace.
   // else returns false
   // Pseudocode
   //   if key exists in current memtable && prev_value is of type kTypeValue
@@ -191,15 +226,32 @@ class MemTable {
   // key in the memtable.
   size_t CountSuccessiveMergeEntries(const LookupKey& key);
 
+  // Update counters and flush status after inserting a whole write batch
+  // Used in concurrent memtable inserts.
+  void BatchPostProcess(const MemTablePostProcessInfo& update_counters) {
+    num_entries_.fetch_add(update_counters.num_entries,
+                           std::memory_order_relaxed);
+    data_size_.fetch_add(update_counters.data_size, std::memory_order_relaxed);
+    if (update_counters.num_deletes != 0) {
+      num_deletes_.fetch_add(update_counters.num_deletes,
+                             std::memory_order_relaxed);
+    }
+    UpdateFlushState();
+  }
+
   // Get total number of entries in the mem table.
   // REQUIRES: external synchronization to prevent simultaneous
   // operations on the same MemTable (unless this Memtable is immutable).
-  uint64_t num_entries() const { return num_entries_; }
+  uint64_t num_entries() const {
+    return num_entries_.load(std::memory_order_relaxed);
+  }
 
   // Get total number of deletes in the mem table.
   // REQUIRES: external synchronization to prevent simultaneous
   // operations on the same MemTable (unless this Memtable is immutable).
-  uint64_t num_deletes() const { return num_deletes_; }
+  uint64_t num_deletes() const {
+    return num_deletes_.load(std::memory_order_relaxed);
+  }
 
   // Returns the edits area that is needed for flushing the memtable
   VersionEdit* GetEdits() { return &edit_; }
@@ -213,7 +265,20 @@ class MemTable {
   // into the memtable.
   // REQUIRES: external synchronization to prevent simultaneous
   // operations on the same MemTable (unless this Memtable is immutable).
-  SequenceNumber GetFirstSequenceNumber() { return first_seqno_; }
+  SequenceNumber GetFirstSequenceNumber() {
+    return first_seqno_.load(std::memory_order_relaxed);
+  }
+
+  // Returns the sequence number that is guaranteed to be smaller than or equal
+  // to the sequence number of any key that could be inserted into this
+  // memtable. It can then be assumed that any write with a larger(or equal)
+  // sequence number will be present in this memtable or a later memtable.
+  //
+  // If the earliest sequence number could not be determined,
+  // kMaxSequenceNumber will be returned.
+  SequenceNumber GetEarliestSequenceNumber() {
+    return earliest_seqno_.load(std::memory_order_relaxed);
+  }
 
   // Returns the next active logfile number when this memtable is about to
   // be flushed to storage
@@ -226,6 +291,13 @@ class MemTable {
   // REQUIRES: external synchronization to prevent simultaneous
   // operations on the same MemTable.
   void SetNextLogNumber(uint64_t num) { mem_next_logfile_number_ = num; }
+
+  // if this memtable contains data from a committed
+  // two phase transaction we must take note of the
+  // log which contains that data so we can know
+  // when to relese that log
+  void RefLogContainingPrepSection(uint64_t log);
+  uint64_t GetMinLogContainingPrepSection();
 
   // Notify the underlying storage that no more items will be added.
   // REQUIRES: external synchronization to prevent simultaneous
@@ -248,6 +320,8 @@ class MemTable {
     return table_->IsSnapshotSupported() && !moptions_.inplace_update_support;
   }
 
+  uint64_t ApproximateSize(const Slice& start_ikey, const Slice& end_ikey);
+
   // Get the lock associated for the key
   port::RWMutex* GetLock(const Slice& key);
 
@@ -258,8 +332,7 @@ class MemTable {
   const MemTableOptions* GetMemTableOptions() const { return &moptions_; }
 
  private:
-  // Dynamically check if we can add more incoming entries
-  bool ShouldFlushNow() const;
+  enum FlushStateEnum { FLUSH_NOT_REQUESTED, FLUSH_REQUESTED, FLUSH_SCHEDULED };
 
   friend class MemTableIterator;
   friend class MemTableBackwardIterator;
@@ -269,12 +342,14 @@ class MemTable {
   const MemTableOptions moptions_;
   int refs_;
   const size_t kArenaBlockSize;
-  Arena arena_;
+  ConcurrentArena arena_;
   MemTableAllocator allocator_;
   unique_ptr<MemTableRep> table_;
 
-  uint64_t num_entries_;
-  uint64_t num_deletes_;
+  // Total data size of all data inserted
+  std::atomic<uint64_t> data_size_;
+  std::atomic<uint64_t> num_entries_;
+  std::atomic<uint64_t> num_deletes_;
 
   // These are used to manage memtable flushes to storage
   bool flush_in_progress_; // started the flush
@@ -286,27 +361,38 @@ class MemTable {
   VersionEdit edit_;
 
   // The sequence number of the kv that was inserted first
-  SequenceNumber first_seqno_;
+  std::atomic<SequenceNumber> first_seqno_;
+
+  // The db sequence number at the time of creation or kMaxSequenceNumber
+  // if not set.
+  std::atomic<SequenceNumber> earliest_seqno_;
 
   // The log files earlier than this number can be deleted.
   uint64_t mem_next_logfile_number_;
 
+  // the earliest log containing a prepared section
+  // which has been inserted into this memtable.
+  std::atomic<uint64_t> min_prep_log_referenced_;
+
   // rw locks for inplace updates
   std::vector<port::RWMutex> locks_;
-
-  // No copying allowed
-  MemTable(const MemTable&);
-  void operator=(const MemTable&);
 
   const SliceTransform* const prefix_extractor_;
   std::unique_ptr<DynamicBloom> prefix_bloom_;
 
-  // a flag indicating if a memtable has met the criteria to flush
-  bool should_flush_;
+  std::atomic<FlushStateEnum> flush_state_;
 
-  // a flag indicating if flush has been scheduled
-  bool flush_scheduled_;
   Env* env_;
+
+  // Returns a heuristic flush decision
+  bool ShouldFlushNow() const;
+
+  // Updates flush_state_ using ShouldFlushNow()
+  void UpdateFlushState();
+
+  // No copying allowed
+  MemTable(const MemTable&);
+  MemTable& operator=(const MemTable&);
 };
 
 extern const char* EncodeKey(std::string* scratch, const Slice& target);
