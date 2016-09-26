@@ -85,6 +85,15 @@ class ColumnFamilyHandle {
 static const int kMajorVersion = __ROCKSDB_MAJOR__;
 static const int kMinorVersion = __ROCKSDB_MINOR__;
 
+/*
+ * @ADD by nemo
+ */
+const char kMetaPrefix_KV = '\0';
+const char kMetaPrefix_HASH = 'H';
+const char kMetaPrefix_ZSET = 'Z';
+const char kMetaPrefix_SET = 'S';
+const char kMetaPrefix_LIST = 'L';
+
 // A range of keys
 struct Range {
   Slice start;          // Included in the range
@@ -887,9 +896,15 @@ class DB {
   // Returns default column family handle
   virtual ColumnFamilyHandle* DefaultColumnFamily() const = 0;
 
+  /*
+   * @ADD by nemo
+   */
+  virtual void GetKeyVersionAndTS(const Slice& key, int32_t *version, int32_t *timestamp) { }
+  virtual char GetMetaPrefix() const { return '\0'; };
+  char meta_prefix_;
 #ifndef ROCKSDB_LITE
   virtual Status GetPropertiesOfAllTables(ColumnFamilyHandle* column_family,
-                                          TablePropertiesCollection* props) = 0;
+      TablePropertiesCollection* props) = 0;
   virtual Status GetPropertiesOfAllTables(TablePropertiesCollection* props) {
     return GetPropertiesOfAllTables(DefaultColumnFamily(), props);
   }

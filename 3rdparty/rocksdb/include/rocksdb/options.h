@@ -253,7 +253,12 @@ struct ColumnFamilyOptions {
   // thread-safe.
   //
   // Default: nullptr
-  const CompactionFilter* compaction_filter;
+ 
+  /*
+   * @ADD by nemo
+   */
+  //const CompactionFilter* compaction_filter;
+  CompactionFilter* compaction_filter;
 
   // This is a factory that provides compaction filter objects which allow
   // an application to modify/delete a key-value during background compaction.
@@ -843,6 +848,17 @@ struct DBOptions {
   // If true, the database will be created if it is missing.
   // Default: false
   bool create_if_missing;
+  /* 
+   * @ADD by nemo
+   * kMetaPrefix_KV for kv db,
+   * kMetaPrefix_HASH for hash db,
+   * kMetaPrefix_ZSET) for zset db,
+   * kMetaPrefix_SET) for set db,
+   * kMetaPrefix_LIST) for list db
+   * Default: '\0';
+   */
+  char meta_prefix;
+
 
   // If true, missing column families will be automatically created.
   // Default: false

@@ -58,6 +58,12 @@ class ColumnFamilyHandleImpl : public ColumnFamilyHandle {
 
   virtual uint32_t GetID() const override;
   virtual const std::string& GetName() const override;
+
+  /*
+   * @ADD by nemo
+   */
+  DBImpl* GetDB() { return db_; }
+
   virtual Status GetDescriptor(ColumnFamilyDescriptor* desc) override;
   virtual const Comparator* GetComparator() const override;
 

@@ -150,6 +150,14 @@ class DBIter: public Iterator {
     iter_ = iter;
     iter_->SetPinnedItersMgr(&pinned_iters_mgr_);
   }
+  /*
+   * @ADD by nemo
+   */
+  virtual void SetIter(DBImpl* db) {
+    assert(db == nullptr);
+    db_ = db;
+  }
+
   virtual bool Valid() const override { return valid_; }
   virtual Slice key() const override {
     assert(valid_);
@@ -240,6 +248,11 @@ class DBIter: public Iterator {
       saved_value_.clear();
     }
   }
+
+  /*
+   * @ADD by nemo
+   */
+  DBImple* db_;
 
   const SliceTransform* prefix_extractor_;
   bool arena_mode_;
@@ -382,11 +395,65 @@ void DBIter::FindNextUserEntryInternal(bool skipping, bool prefix_check) {
               PERF_COUNTER_ADD(internal_delete_skipped_count, 1);
               break;
             case kTypeValue:
-              valid_ = true;
-              saved_key_.SetKey(
-                  ikey.user_key,
-                  !iter_->IsKeyPinned() || !pin_thru_lifetime_ /* copy */);
-              return;
+              /*
+               * @ADD by nemo
+               */
+              skipping = true;
+              char meta_prefix = db_->GetMetaPrefix();
+              saved_key_.SetKey(ikey.user_key, !iter_->IsKeyPinned() || !pin_thru_lifetime_ /* copy */);
+              Slice val(iter_->value().data(), iter_->value().size());
+
+              if (meta_prefix == kMetaPrefix_KV) {
+                int32_t timestamp_value = DecodeFixed32(val.data() + val.size() - DBImpl::kTSLength);
+                if (timestamp_value != 0) {
+                  int64_t curtime;
+                  if (env_->GetCurrentTime(&curtime).ok() && timestamp_value < curtime) {
+                    break;
+                  }
+                }
+                valid_ = true;
+                saved_key_.SetKey(ikey.user_key, !iter_->IsKeyPinned() || !pin_thru_lifetime_ /* copy */);
+                return;
+              } else {
+                if (ikey.user_key[0] == meta_prefix) {
+                  int32_t timestamp_value = DecodeFixed32(val.data() + val.size() - DBImpl::kTSLength);
+                  if (timestamp_value != 0) {
+                    int64_t curtime;
+                    if (env_->GetCurrentTime(&curtime).ok() && timestamp_value < curtime) {
+                      break;
+                    }
+                  }
+                  if ( *((int64_t *)val.data()) <= 0) {
+                    break;
+                  }
+                } else if (ikey.user_key.size() > 1) { // treat the separator as valid
+                  int32_t len = *((uint8_t *)(ikey.user_key.data() + 1));
+                  std::string meta_key(1, meta_prefix);
+                  meta_key.append(ikey.user_key.data() + 2, len);
+                  std::string meta_val;
+                  Status st = db_->Get(ReadOptions(), db_->DefaultColumnFamily(), meta_key, &meta_val);
+                  if (!st.ok()) {
+                    break;
+                  }
+                  int32_t timestamp_value = DecodeFixed32(meta_val.data() + meta_val.size() - DBImpl::kTSLength);
+                  if (timestamp_value != 0) {
+                    int64_t curtime;
+                    if (env_->GetCurrentTime(&curtime).ok() && timestamp_value < curtime) {
+                      break;
+                    }
+                  }
+                  int32_t meta_version = DecodeFixed32(meta_val.data() + meta_val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+                  int32_t key_version = DecodeFixed32(val.data() + val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+
+                  if (key_version < meta_version) {
+                    break;
+                  }
+                }
+                valid_ = true;
+                saved_key_.SetKey(ikey.user_key, !iter_->IsKeyPinned() || !pin_thru_lifetime_ /* copy */);
+                return;
+              }
+          }
             case kTypeMerge:
               // By now, we are sure the current ikey is going to yield a value
               saved_key_.SetKey(
@@ -945,6 +1012,13 @@ void ArenaWrappedDBIter::SetDBIter(DBIter* iter) { db_iter_ = iter; }
 
 void ArenaWrappedDBIter::SetIterUnderDBIter(InternalIterator* iter) {
   static_cast<DBIter*>(db_iter_)->SetIter(iter);
+}
+
+/*
+ * @ADD by nemo
+ */
+void ArenaWrappedDBIter::SetDBUnderDBIter(DBImpl* db) {
+    static_cast<DBIter*>(db_iter_)->SetDB(db);
 }
 
 inline bool ArenaWrappedDBIter::Valid() const { return db_iter_->Valid(); }

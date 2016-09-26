@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "db/db_impl.h"
 #include "db/dbformat.h"
 #include "db/merge_context.h"
 #include "rocksdb/compaction_filter.h"
@@ -124,6 +125,7 @@ class MergeHelper {
   uint64_t TotalFilterTime() const { return total_filter_time_; }
   bool HasOperator() const { return user_merge_operator_ != nullptr; }
 
+  DBImpl* db_;
  private:
   Env* env_;
   const Comparator* user_comparator_;

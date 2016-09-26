@@ -11,6 +11,7 @@
 
 #include "rocksdb/db.h"
 #include "rocksdb/env.h"
+#include "rocksdb/options.h"
 #include "rocksdb/compaction_filter.h"
 #include "rocksdb/merge_operator.h"
 #include "rocksdb/utilities/utility_db.h"
@@ -31,6 +32,7 @@ class DBWithTTLImpl : public DBWithTTL {
                               Env* env);
 
   explicit DBWithTTLImpl(DB* db);
+  explicit DBWithTTLImpl(DB* db, int ttl);
 
   virtual ~DBWithTTLImpl();
 
@@ -80,24 +82,38 @@ class DBWithTTLImpl : public DBWithTTL {
   virtual DB* GetBaseDB() override { return db_; }
 
   static bool IsStale(const Slice& value, int32_t ttl, Env* env);
+  static bool IsStale(int32_t timestamp, int32_t ttl, Env* env);
 
   static Status AppendTS(const Slice& val, std::string* val_with_ts, Env* env);
 
   static Status SanityCheckTimestamp(const Slice& str);
 
   static Status StripTS(std::string* str);
+  static Status StripVersionAndTS(std::string* str);
 
   static const uint32_t kTSLength = sizeof(int32_t);  // size of timestamp
 
   static const int32_t kMinTimestamp = 1368146402;  // 05/09/2013:5:40PM GMT-8
 
   static const int32_t kMaxTimestamp = 2147483647;  // 01/18/2038:7:14PM GMT-8
+
+  // add Key TTL and Key version feature
+  static int32_t GetTTLFromNow(const Slice& value, int32_t ttl, Env* env);
+  static Status AppendTSWithKeyTTL(const Slice& val, std::string* val_with_ts, Env* env, int32_t ttl);
+  static Status AppendTSWithExpiredTime(const Slice& val, std::string* val_with_ts, Env* env, int32_t expired_time);
+  int32_t ttl_;
+
+  //Status SanityCheckVersionAndTimestamp(const Slice &key, const Slice& value);
+
+  //int32_t GetKeyVersion(ColumnFamilyHandle* column_family, const Slice& key);
+  static Status AppendVersionAndExpiredTime(const Slice& val, std::string* val_with_ver_ts, Env* env, int32_t version, int32_t expired_time);
+  static Status AppendVersionAndKeyTTL(const Slice& val, std::string* val_with_ver_ts, Env* env, int32_t version, int32_t ttl);
 };
 
 class TtlIterator : public Iterator {
 
  public:
-  explicit TtlIterator(Iterator* iter) : iter_(iter) { assert(iter_); }
+  explicit TtlIterator(Iterator* iter, DB* db) : iter_(iter), db_(reinterpret_cast<DBImpl*>(db)) { assert(iter_); }
 
   ~TtlIterator() { delete iter_; }
 
@@ -124,7 +140,7 @@ class TtlIterator : public Iterator {
     // TODO: handle timestamp corruption like in general iterator semantics
     assert(DBWithTTLImpl::SanityCheckTimestamp(iter_->value()).ok());
     Slice trimmed_value = iter_->value();
-    trimmed_value.size_ -= DBWithTTLImpl::kTSLength;
+    trimmed_value.size_ -= DBImpl::kVersionLength + DBWithTTLImpl::kTSLength;
     return trimmed_value;
   }
 
@@ -132,6 +148,7 @@ class TtlIterator : public Iterator {
 
  private:
   Iterator* iter_;
+  DBImpl* db_;
 };
 
 class TtlCompactionFilter : public CompactionFilter {
@@ -153,28 +170,7 @@ class TtlCompactionFilter : public CompactionFilter {
   }
 
   virtual bool Filter(int level, const Slice& key, const Slice& old_val,
-                      std::string* new_val, bool* value_changed) const
-      override {
-    if (DBWithTTLImpl::IsStale(old_val, ttl_, env_)) {
-      return true;
-    }
-    if (user_comp_filter_ == nullptr) {
-      return false;
-    }
-    assert(old_val.size() >= DBWithTTLImpl::kTSLength);
-    Slice old_val_without_ts(old_val.data(),
-                             old_val.size() - DBWithTTLImpl::kTSLength);
-    if (user_comp_filter_->Filter(level, key, old_val_without_ts, new_val,
-                                  value_changed)) {
-      return true;
-    }
-    if (*value_changed) {
-      new_val->append(
-          old_val.data() + old_val.size() - DBWithTTLImpl::kTSLength,
-          DBWithTTLImpl::kTSLength);
-    }
-    return false;
-  }
+                      std::string* new_val, bool* value_changed) const override;
 
   virtual const char* Name() const override { return "Delete By TTL"; }
 

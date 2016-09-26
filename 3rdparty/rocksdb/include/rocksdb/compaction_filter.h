@@ -17,6 +17,7 @@ namespace rocksdb {
 
 class Slice;
 class SliceTransform;
+class DBImpl;
 
 // Context information of a compaction run
 struct CompactionFilterContext {
@@ -42,6 +43,12 @@ class CompactionFilter {
     // Which column family this compaction is for.
     uint32_t column_family_id;
   };
+  /*
+   * @ADD by nemo
+   */
+  char meta_prefix_;
+  int32_t meta_version_;
+  int32_t meta_timestamp_;
 
   virtual ~CompactionFilter() {}
 

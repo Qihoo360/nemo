@@ -17,6 +17,7 @@ namespace rocksdb {
 
 class Slice;
 class Logger;
+class DBImpl;
 
 // The Merge Operator
 //

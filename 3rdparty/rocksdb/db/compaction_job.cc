@@ -708,6 +708,16 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
         sub_compact->compaction->CreateCompactionFilter();
     compaction_filter = compaction_filter_from_factory.get();
   }
+
+  /*
+   *  @Add be nemo
+   */
+  IterKey current_user_meta_key;
+  bool has_current_user_meta_key = false;
+  auto db_ = versions_->db_;
+  char meta_prefix = db_->GetMetaPrefix();
+  compaction_filter->meta_prefix_ = meta_prefix;
+
   MergeHelper merge(
       env_, cfd->user_comparator(), cfd->ioptions()->merge_operator,
       compaction_filter, db_options_.info_log.get(),

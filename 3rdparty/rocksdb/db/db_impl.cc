@@ -348,6 +348,7 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname)
       bg_compaction_paused_(0),
       refitting_level_(false),
       opened_successfully_(false) {
+  meta_prefix_ = db_options_.meta_prefix;
   env_->GetAbsolutePath(dbname, &db_absolute_path_);
 
   // Reserve ten files or so for other uses and give the rest to TableCache.
@@ -360,6 +361,10 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname)
   versions_.reset(new VersionSet(dbname_, &db_options_, env_options_,
                                  table_cache_.get(), write_buffer_manager_,
                                  &write_controller_));
+  /*
+   * @ADD by nemo
+   */
+  versions_->db_ = this;
   column_family_memtables_.reset(
       new ColumnFamilyMemTablesImpl(versions_->GetColumnFamilySet()));
 
@@ -395,6 +400,39 @@ void DBImpl::CancelAllBackgroundWork(bool wait) {
   // Wait for background work to finish
   while (bg_compaction_scheduled_ || bg_flush_scheduled_) {
     bg_cv_.Wait();
+  }
+}
+
+void DBImpl::GetKeyVersionAndTS(const Slice& key, int32_t *version, int32_t *timestamp) {
+  *version = 0;
+  *timestamp = 0;
+
+  if (meta_prefix_ == kMetaPrefix_KV) {
+    return;
+  }
+
+  std::string value;
+
+  Status st;
+  if (meta_prefix_ == key[0]) {
+    st = this->Get(ReadOptions(), DefaultColumnFamily(), key, &value);
+  } else {
+    // separator of meta and data
+    if (key.size() == 1) {
+      *version = 0;
+      *timestamp = 0;
+      return;
+    }
+
+    std::string meta_key(1, meta_prefix_);
+    int32_t len = *((uint8_t *)(key.data() + 1));
+    meta_key.append(key.data() + 2, len);
+    st = this->Get(ReadOptions(), DefaultColumnFamily(), meta_key, &value);
+  }
+
+  if (st.ok()) {
+    *version = DecodeFixed32(value.data() + value.size() - kVersionLength - kTSLength);
+    *timestamp = DecodeFixed32(value.data() + value.size() - kTSLength);
   }
 }
 
@@ -4268,6 +4306,10 @@ Iterator* DBImpl::NewIterator(const ReadOptions& read_options,
         NewInternalIterator(read_options, cfd, sv, db_iter->GetArena());
     db_iter->SetIterUnderDBIter(internal_iter);
 
+    /*
+     * @ADD by nemo
+     */
+    db_iter->SetDBUnderDBIter(this);
     return db_iter;
   }
   // To stop compiler from complaining
