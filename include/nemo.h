@@ -71,6 +71,7 @@ public:
 
         pthread_mutex_destroy(&(mutex_cursors_));
         pthread_mutex_destroy(&(mutex_dump_));
+        pthread_mutex_destroy(&(mutex_spop_counts_));
         //pthread_mutex_destroy(&(mutex_bgtask_));
     };
 
