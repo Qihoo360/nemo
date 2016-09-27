@@ -25,7 +25,7 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
 
    pthread_mutex_init(&(mutex_cursors_), NULL);
    pthread_mutex_init(&(mutex_dump_), NULL);
-
+   pthread_mutex_init(&(mutex_spop_counts_), NULL);
    if (db_path_[db_path_.length() - 1] != '/') {
      db_path_.append("/");
    }
