@@ -58,6 +58,7 @@ class ArenaWrappedDBIter : public Iterator {
    * @ADD by nemo
    */
   virtual void SetIterUnderDBIter(DBImpl* db);
+  virtual void SetDBUnderDBIter(DBImpl* db);
 
   virtual bool Valid() const override;
   virtual void SeekToFirst() override;

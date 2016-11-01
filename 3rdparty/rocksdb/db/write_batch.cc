@@ -42,6 +42,7 @@
 #include "db/flush_scheduler.h"
 #include "db/memtable.h"
 #include "db/merge_context.h"
+#include "db/merge_helper.h"
 #include "db/snapshot_impl.h"
 #include "db/write_batch_internal.h"
 #include "rocksdb/merge_operator.h"

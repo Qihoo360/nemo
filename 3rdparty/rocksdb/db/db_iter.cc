@@ -153,7 +153,7 @@ class DBIter: public Iterator {
   /*
    * @ADD by nemo
    */
-  virtual void SetIter(DBImpl* db) {
+  virtual void SetDB(DBImpl* db) {
     assert(db == nullptr);
     db_ = db;
   }
@@ -252,7 +252,7 @@ class DBIter: public Iterator {
   /*
    * @ADD by nemo
    */
-  DBImple* db_;
+  DBImpl* db_;
 
   const SliceTransform* prefix_extractor_;
   bool arena_mode_;
@@ -398,6 +398,7 @@ void DBIter::FindNextUserEntryInternal(bool skipping, bool prefix_check) {
               /*
                * @ADD by nemo
                */
+              {
               skipping = true;
               char meta_prefix = db_->GetMetaPrefix();
               saved_key_.SetKey(ikey.user_key, !iter_->IsKeyPinned() || !pin_thru_lifetime_ /* copy */);
@@ -453,7 +454,7 @@ void DBIter::FindNextUserEntryInternal(bool skipping, bool prefix_check) {
                 saved_key_.SetKey(ikey.user_key, !iter_->IsKeyPinned() || !pin_thru_lifetime_ /* copy */);
                 return;
               }
-          }
+              }
             case kTypeMerge:
               // By now, we are sure the current ikey is going to yield a value
               saved_key_.SetKey(

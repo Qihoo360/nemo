@@ -3339,31 +3339,7 @@ Status DBImpl::BackgroundCompaction(bool* made_progress,
   unique_ptr<Compaction> c;
   // InternalKey manual_end_storage;
   // InternalKey* manual_end = &manual_end_storage;
-  if (is_manual) {
-    ManualCompaction* m = manual_compaction;
-    assert(m->in_progress);
-    c.reset(std::move(m->compaction));
-    if (!c) {
-      m->done = true;
-      m->manual_end = nullptr;
-      LogToBuffer(log_buffer,
-                  "[%s] Manual compaction from level-%d from %s .. "
-                  "%s; nothing to do\n",
-                  m->cfd->GetName().c_str(), m->input_level,
-                  (m->begin ? m->begin->DebugString().c_str() : "(begin)"),
-                  (m->end ? m->end->DebugString().c_str() : "(end)"));
-    } else {
-      LogToBuffer(log_buffer,
-                  "[%s] Manual compaction from level-%d to level-%d from %s .. "
-                  "%s; will stop at %s\n",
-                  m->cfd->GetName().c_str(), m->input_level, c->output_level(),
-                  (m->begin ? m->begin->DebugString().c_str() : "(begin)"),
-                  (m->end ? m->end->DebugString().c_str() : "(end)"),
-                  ((m->done || m->manual_end == nullptr)
-                       ? "(end)"
-                       : m->manual_end->DebugString().c_str()));
-    }
-  } else if (!compaction_queue_.empty()) {
+if (!compaction_queue_.empty()) {
     // cfd is referenced here
     auto cfd = PopFirstFromCompactionQueue();
     // We unreference here because the following code will take a Ref() on
@@ -3377,13 +3353,6 @@ Status DBImpl::BackgroundCompaction(bool* made_progress,
       // compact.
       return Status::OK();
     }
-
-    if (HaveManualCompaction(cfd)) {
-      // Can't compact right now, but try again later
-      TEST_SYNC_POINT("DBImpl::BackgroundCompaction()::Conflict");
-      return Status::OK();
-    }
-
     // Pick up latest mutable CF Options and use it throughout the
     // compaction job
     // Compaction makes a copy of the latest MutableCFOptions. It should be used
@@ -3420,6 +3389,30 @@ Status DBImpl::BackgroundCompaction(bool* made_progress,
           MaybeScheduleFlushOrCompaction();
         }
       }
+    }
+  } else if (is_manual) {
+    ManualCompaction* m = manual_compaction;
+    assert(m->in_progress);
+    c.reset(std::move(m->compaction));
+    if (!c) {
+      m->done = true;
+      m->manual_end = nullptr;
+      LogToBuffer(log_buffer,
+                  "[%s] Manual compaction from level-%d from %s .. "
+                  "%s; nothing to do\n",
+                  m->cfd->GetName().c_str(), m->input_level,
+                  (m->begin ? m->begin->DebugString().c_str() : "(begin)"),
+                  (m->end ? m->end->DebugString().c_str() : "(end)"));
+    } else {
+      LogToBuffer(log_buffer,
+                  "[%s] Manual compaction from level-%d to level-%d from %s .. "
+                  "%s; will stop at %s\n",
+                  m->cfd->GetName().c_str(), m->input_level, c->output_level(),
+                  (m->begin ? m->begin->DebugString().c_str() : "(begin)"),
+                  (m->end ? m->end->DebugString().c_str() : "(end)"),
+                  ((m->done || m->manual_end == nullptr)
+                       ? "(end)"
+                       : m->manual_end->DebugString().c_str()));
     }
   }
 

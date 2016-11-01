@@ -28,7 +28,6 @@
 #include <utility>
 #include <vector>
 
-#include "db/db_impl.h"
 #include "db/dbformat.h"
 #include "db/version_builder.h"
 #include "db/version_edit.h"
@@ -330,10 +329,6 @@ class VersionStorageInfo {
     estimated_compaction_needed_bytes_ = v;
   }
 
-  /*
-   * @Add by nemo
-   */
-  DBImpl* db_;
  private:
   const InternalKeyComparator* internal_comparator_;
   const Comparator* user_comparator_;
@@ -728,6 +723,10 @@ class VersionSet {
 
   static uint64_t GetTotalSstFilesSize(Version* dummy_versions);
 
+  /*
+   * @Add by nemo
+   */
+  DBImpl* db_;
  private:
   struct ManifestWriter;
 
