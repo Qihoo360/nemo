@@ -235,6 +235,10 @@ class StackableDB : public DB {
     return db_->Flush(fopts, column_family);
   }
 
+  using DB::GetMetaPrefix;
+  virtual char GetMetaPrefix() const override {
+    return db_->GetMetaPrefix();
+  }
   virtual Status SyncWAL() override {
     return db_->SyncWAL();
   }

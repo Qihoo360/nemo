@@ -21,7 +21,7 @@ class RemoveEmptyValueCompactionFilter : public CompactionFilter {
         const Slice& key,
         const Slice& existing_value,
         std::string* new_value,
-        bool* value_changed) const override;
+        bool* value_changed) override;
 };
 }  // namespace rocksdb
 #endif  // !ROCKSDB_LITE

@@ -1024,7 +1024,7 @@ class KeepFilter : public CompactionFilter {
  public:
   virtual bool Filter(int level, const Slice& key, const Slice& value,
                       std::string* new_value,
-                      bool* value_changed) const override {
+                      bool* value_changed) override {
     return false;
   }
 
@@ -1056,7 +1056,7 @@ class DelayFilter : public CompactionFilter {
   explicit DelayFilter(DBTestBase* d) : db_test(d) {}
   virtual bool Filter(int level, const Slice& key, const Slice& value,
                       std::string* new_value,
-                      bool* value_changed) const override {
+                      bool* value_changed) override {
     db_test->env_->addon_time_.fetch_add(1000);
     return true;
   }

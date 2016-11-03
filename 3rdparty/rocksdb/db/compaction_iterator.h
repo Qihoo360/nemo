@@ -48,7 +48,7 @@ class CompactionIterator {
                      SequenceNumber earliest_write_conflict_snapshot, Env* env,
                      bool expect_valid_internal_key,
                      const Compaction* compaction = nullptr,
-                     const CompactionFilter* compaction_filter = nullptr,
+                     CompactionFilter* compaction_filter = nullptr,
                      LogBuffer* log_buffer = nullptr);
 
   ~CompactionIterator();
@@ -100,7 +100,7 @@ class CompactionIterator {
   Env* env_;
   bool expect_valid_internal_key_;
   const Compaction* compaction_;
-  const CompactionFilter* compaction_filter_;
+  CompactionFilter* compaction_filter_;
   LogBuffer* log_buffer_;
   bool bottommost_level_;
   bool valid_ = false;

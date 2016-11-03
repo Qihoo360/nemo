@@ -20,7 +20,7 @@ bool RemoveEmptyValueCompactionFilter::Filter(int level,
     const Slice& key,
     const Slice& existing_value,
     std::string* new_value,
-    bool* value_changed) const {
+    bool* value_changed) {
 
   // remove kv pairs that have empty values
   return existing_value.empty();

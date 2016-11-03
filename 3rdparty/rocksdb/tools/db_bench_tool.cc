@@ -1947,7 +1947,7 @@ class Benchmark {
         const std::shared_ptr<TimestampEmulator>& timestamp_emulator)
         : timestamp_emulator_(timestamp_emulator) {}
     bool Filter(int level, const Slice& key, const Slice& existing_value,
-                std::string* new_value, bool* value_changed) const override {
+                std::string* new_value, bool* value_changed) override {
       return KeyExpired(timestamp_emulator_.get(), key);
     }
     const char* Name() const override { return "ExpiredTimeFilter"; }

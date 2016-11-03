@@ -12,12 +12,15 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "db/dbformat.h"
 
 namespace rocksdb {
 
 class Slice;
 class SliceTransform;
 class DBImpl;
+class Comparator;
+class IterKey;
 
 // Context information of a compaction run
 struct CompactionFilterContext {
@@ -46,9 +49,13 @@ class CompactionFilter {
   /*
    * @ADD by nemo
    */
+  DBImpl* db_;
+  const Comparator* cmp_;
   char meta_prefix_;
   int32_t meta_version_;
   int32_t meta_timestamp_;
+  IterKey current_user_meta_key_;
+  bool has_current_user_meta_key_ = true;
 
   virtual ~CompactionFilter() {}
 
@@ -95,7 +102,7 @@ class CompactionFilter {
                       const Slice& key,
                       const Slice& existing_value,
                       std::string* new_value,
-                      bool* value_changed) const = 0;
+                      bool* value_changed) = 0;
 
   // The compaction process invokes this method on every merge operand. If this
   // method returns true, the merge operand will be ignored and not written out

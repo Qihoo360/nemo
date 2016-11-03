@@ -131,7 +131,7 @@ struct rocksdb_compactionfilter_t : public CompactionFilter {
 
   virtual bool Filter(int level, const Slice& key, const Slice& existing_value,
                       std::string* new_value,
-                      bool* value_changed) const override {
+                      bool* value_changed) override {
     char* c_new_value = nullptr;
     size_t new_value_length = 0;
     unsigned char c_value_changed = 0;

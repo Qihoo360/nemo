@@ -154,8 +154,8 @@ class TtlIterator : public Iterator {
 class TtlCompactionFilter : public CompactionFilter {
  public:
   TtlCompactionFilter(
-      int32_t ttl, Env* env, const CompactionFilter* user_comp_filter,
-      std::unique_ptr<const CompactionFilter> user_comp_filter_from_factory =
+      int32_t ttl, Env* env, CompactionFilter* user_comp_filter,
+      std::unique_ptr<CompactionFilter> user_comp_filter_from_factory =
           nullptr)
       : ttl_(ttl),
         env_(env),
@@ -170,15 +170,15 @@ class TtlCompactionFilter : public CompactionFilter {
   }
 
   virtual bool Filter(int level, const Slice& key, const Slice& old_val,
-                      std::string* new_val, bool* value_changed) const override;
+                      std::string* new_val, bool* value_changed)  override;
 
   virtual const char* Name() const override { return "Delete By TTL"; }
 
  private:
   int32_t ttl_;
   Env* env_;
-  const CompactionFilter* user_comp_filter_;
-  std::unique_ptr<const CompactionFilter> user_comp_filter_from_factory_;
+  CompactionFilter* user_comp_filter_;
+  std::unique_ptr<CompactionFilter> user_comp_filter_from_factory_;
 };
 
 class TtlCompactionFilterFactory : public CompactionFilterFactory {
@@ -190,7 +190,7 @@ class TtlCompactionFilterFactory : public CompactionFilterFactory {
 
   virtual std::unique_ptr<CompactionFilter> CreateCompactionFilter(
       const CompactionFilter::Context& context) override {
-    std::unique_ptr<const CompactionFilter> user_comp_filter_from_factory =
+    std::unique_ptr<CompactionFilter> user_comp_filter_from_factory =
         nullptr;
     if (user_comp_filter_factory_) {
       user_comp_filter_from_factory =

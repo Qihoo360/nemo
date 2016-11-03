@@ -17,14 +17,15 @@ namespace rocksdb {
 
 void DBWithTTLImpl::SanitizeOptions(int32_t ttl, ColumnFamilyOptions* options,
                                     Env* env) {
-  if (options->compaction_filter) {
-    options->compaction_filter =
-        new TtlCompactionFilter(ttl, env, options->compaction_filter);
-  } else {
-    options->compaction_filter_factory =
-        std::shared_ptr<CompactionFilterFactory>(new TtlCompactionFilterFactory(
-            ttl, env, options->compaction_filter_factory));
-  }
+  /*
+   * @ADD by nemo
+   * Using single ttl-compaction-filter in multithread-compaction causes bug
+   * so we use filter_factory instead of filter.It creates new filter every time.
+   */
+  options->compaction_filter = NULL;
+  options->compaction_filter_factory =
+      std::shared_ptr<CompactionFilterFactory>(new TtlCompactionFilterFactory(
+          ttl, env, options->compaction_filter_factory));
 
   if (options->merge_operator) {
     options->merge_operator.reset(
@@ -785,7 +786,7 @@ Iterator* DBWithTTLImpl::NewIterator(const ReadOptions& opts, ColumnFamilyHandle
 }
 
 bool TtlCompactionFilter::Filter(int level, const Slice& key, const Slice& old_val,
-    std::string* new_val, bool* value_changed) const {
+    std::string* new_val, bool* value_changed) {
   if (meta_prefix_ == kMetaPrefix_KV) {
     if (DBWithTTLImpl::IsStale(old_val, 0, env_)) {
       return true;
@@ -801,10 +802,30 @@ bool TtlCompactionFilter::Filter(int level, const Slice& key, const Slice& old_v
       return false;
     }
 
+
+    //@ADD by nemo
+    int32_t meta_len = *((uint8_t *)(key.data() + 1));
+    Slice meta_part(key.data() + 2, meta_len);
+    if (!has_current_user_meta_key_ || 
+        cmp_->Compare(meta_part, current_user_meta_key_.GetKey()) != 0) {
+      current_user_meta_key_.SetKey(meta_part);
+      has_current_user_meta_key_ = true;
+      std::string meta_key(1, meta_prefix_);
+      meta_key.append(key.data() + 2, meta_len);
+
+      std::string meta_value;
+
+      Status st = db_->Get(ReadOptions(), db_->DefaultColumnFamily(), meta_key, &meta_value);
+      if (st.ok()) {
+        meta_version_ = DecodeFixed32(meta_value.data() + meta_value.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
+        meta_timestamp_ = DecodeFixed32(meta_value.data() + meta_value.size() - DBImpl::kTSLength);
+      }
+    }
+ 
+
     if (DBWithTTLImpl::IsStale(meta_timestamp_, 0, env_)) {
       return true;
     }
-
     int32_t member_version = DecodeFixed32(old_val.data() + old_val.size() - DBImpl::kVersionLength - DBImpl::kTSLength);
     if (member_version < meta_version_) {
       return true;
