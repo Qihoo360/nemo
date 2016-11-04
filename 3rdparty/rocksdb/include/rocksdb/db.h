@@ -614,11 +614,6 @@ class DB {
     options.target_path_id = target_path_id;
     return CompactRange(options, column_family, begin, end);
   }
-#if defined(__GNUC__) || defined(__clang__)
-  __attribute__((__deprecated__))
-#elif _WIN32
-  __declspec(deprecated)
-#endif
   virtual Status
   CompactRange(const Slice* begin, const Slice* end, bool change_level = false,
                int target_level = -1, uint32_t target_path_id = 0) {
