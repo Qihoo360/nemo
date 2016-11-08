@@ -23,7 +23,7 @@ TEST_F(NemoHashTest, TestHSet)
     				n_->HGet(key, field, &getVal);\
 					EXPECT_EQ(val, getVal);\
 					if(s_.ok() && val == getVal)\
-						log_success(TestMessage);\
+						;\
 					else\
 						log_fail(TestMessage)
 	log_message("========TestHSet========");
@@ -103,7 +103,7 @@ TEST_F(NemoHashTest, TestHGet)
 									  CHECK_STATUS(OK);\
 									  EXPECT_EQ(val, getVal);\
 									  if(s_.ok() && val == getVal)\
-										  log_success(TestMessage);\
+										  ;\
 									  else\
 										  log_fail(TestMessage)
 	#define GetLoopNotFoundProcess(TestMessage) getVal = "";\
@@ -111,7 +111,7 @@ TEST_F(NemoHashTest, TestHGet)
 									  CHECK_STATUS(NotFound);\
 									  EXPECT_EQ(true, getVal.empty());\
 									  if(s_.IsNotFound() && getVal.empty())\
-										  log_success(TestMessage);\
+										  ;\
 									  else\
 										  log_fail(TestMessage)
 
@@ -1093,3 +1093,104 @@ TEST_F(NemoHashTest, TestHIncrbyfloat)
 	log_message("============================HASHTEST END===========================");
 	log_message("============================HASHTEST END===========================\n\n");
 }
+TEST_F(NemoHashTest, TestHAUTOCompact)
+{
+	log_message("============================HASHAUTOCOMPACT START===========================");
+	log_message("============================HASHAUTOCOMPACT START===========================");
+	string key, field, val, getVal;
+
+	s_.OK();//测试key存在的情况，field存在的情况
+  for (int i = 0; i <= 10000; i++) {
+    field = GetSequenceField_(i);
+    val = GetSequenceVal_(i);
+    for (int j = 0; j <= 100; j++) {
+      key = GetSequenceKey_(j);
+      s_ = n_->HSet(key, field, val);
+      n_->HGet(key, field, &getVal);
+      EXPECT_EQ(val, getVal);
+    }
+  }
+}
+
+TEST_F(NemoHashTest, TestHGetAfterCompact)
+{
+	log_message("============================HASHGetAfterCOMPACT START===========================");
+	log_message("============================HASHGetAfterCOMPACT START===========================");
+	string key, field, val, getVal;
+
+	s_.OK();
+
+  int64_t res;
+  for (int j = 0; j <= 50; j++) {
+    key = GetSequenceKey_(j);
+    n_->Del(key, &res);
+  }
+  for (int i = 0; i <= 5000; i++) {
+    field = GetSequenceField_(i);
+    for (int j = 51; j <= 100; j++) {
+      key = GetSequenceKey_(j);
+      n_->HDel(key, field);
+    }
+  }
+	s_ = n_->Compact(nemo::kHASH_DB);
+  for (int i = 0; i <= 50; i++) {
+    key = GetSequenceKey_(i);
+    for (int j = 0; j <= 10000; j++) {
+      field = GetSequenceField_(j);
+      GetLoopNotFoundProcess("只删除key,结果能取到");
+    }
+  }
+  for (int i = 51; i <= 100; i++) {
+    key = GetSequenceKey_(i);
+    for (int j = 0; j <= 5000; j++) {
+      field = GetSequenceField_(j);
+      GetLoopNotFoundProcess("只删除field,结果能取到");
+    }
+    for (int j = 5001; j <= 10000; j++) {
+      field = GetSequenceField_(j);
+      val = GetSequenceVal_(j);
+      GetLoopOKProcess("key/field 均不删除");
+    }
+  }
+}
+
+TEST_F(NemoHashTest, TestHCompactWithExpire)
+{
+	log_message("============================HASHCompactWithExpire START===========================");
+	string key, field, val, getVal;
+
+  s_.OK();
+  for (int i = 0; i <= 10000; i++) {
+    field = GetSequenceField_(i);
+    val = GetSequenceVal_(i);
+    for (int j = 0; j <= 100; j++) {
+      key = GetSequenceKey_(j);
+      s_ = n_->HSet(key, field, val);
+    }
+  }
+  
+  int64_t  res;
+  for (int i = 0; i <= 50; i++) {
+    key = GetSequenceKey_(i);
+    n_->Expire(key, 10, &res);
+  }
+
+  sleep(15);
+	s_ = n_->Compact(nemo::kHASH_DB);
+  for (int i = 0; i <= 50; i++) {
+    key = GetSequenceKey_(i);
+    for (int j = 0; j <= 10000; j++) {
+      field = GetSequenceField_(j);
+      GetLoopNotFoundProcess("key过期了");
+    }
+  }
+  for (int i = 51; i <= 100; i++) {
+    key = GetSequenceKey_(i);
+    for (int j = 0; j <= 10000; j++) {
+      field = GetSequenceField_(j);
+      val = GetSequenceVal_(j);
+      GetLoopOKProcess("key没过期");
+    }
+  }
+}
+

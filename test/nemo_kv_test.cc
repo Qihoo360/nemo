@@ -1902,3 +1902,23 @@ TEST_F(NemoKVTest, TestSetWithExpireAt)
 	log_message("============================KVTEST END===========================");
 	log_message("============================KVTEST END===========================\n\n");
 }
+TEST_F(NemoKVTest, TestCompact)
+{
+	log_message("\n========TestCompact========");
+	string key, val;
+	int64_t res, ttl;
+
+	s_.OK();//key´æÔÚ£»seconds>0
+  for (int i = 0; i <= 1000000; i++) {
+    key = GetRandomKey_();
+    val = GetRandomVal_();
+    n_->Set(key, val, 1);
+  }
+	CHECK_STATUS(OK);
+	s_ = n_->Compact(nemo::kKV_DB);
+	CHECK_STATUS(OK);
+	if(s_.ok())
+		log_success("compact ³É¹¦");
+	else
+		log_fail("compact Ê§°Ü");
+}

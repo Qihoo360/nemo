@@ -108,6 +108,20 @@ public:
 	{
 		return GetRandomBytes_(GetRandomUint_(minFieldLen_, maxFieldLen_));
 	}
+	inline string GetSequenceField_(int i)
+	{
+		return string(std::to_string(i)+"seq_field"+std::to_string(i));
+	}
+
+	inline string GetSequenceVal_(int i)
+	{
+		return string(std::to_string(i)+"seq_val"+std::to_string(i));
+	}
+
+	inline string GetSequenceKey_(int i)
+	{
+		return string(std::to_string(i)+"seq_key"+std::to_string(i));
+	}
 	inline string GetRandomVal_()
 	{
 		return GetRandomBytes_(GetRandomUint_(minValLen_, maxValLen_));
