@@ -118,7 +118,7 @@ void ParseThread::ParseLKey(const std::string &key) {
   int64_t pos = 0;
   int64_t len = 512;
 
-  db_->LRange(key, pos, pos + len, ivs);
+  db_->LRange(key, pos, pos + len-1, ivs);
   while (!ivs.empty()) {
     pink::RedisCmdArgsType argv;
     std::string cmd;
@@ -135,7 +135,7 @@ void ParseThread::ParseLKey(const std::string &key) {
 
     pos += len;
     ivs.clear();
-    db_->LRange(key, pos, pos + len, ivs);
+    db_->LRange(key, pos, pos + len-1, ivs);
   }
 }
 
