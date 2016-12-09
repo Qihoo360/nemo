@@ -662,10 +662,17 @@ Status Nemo::CompactKey(const DBType type, const rocksdb::Slice& key) {
 
 Status Nemo::AddBGTask(const BGTask& task) {
   //printf ("AddBGTask task{ type=%d, op=%d argv1= %s}\n", task.type, task.op, task.argv1.c_str());
+#define BG_TASK_THRESHOLD 10000 
   mutex_bgtask_.Lock();
-  bg_tasks_.push(task);
+  if (task.op == kCLEAN_ALL) {
+    bg_tasks_ = {};
+    bg_tasks_.push(task);
+    bg_cv_.Signal();
+  } else if (bg_tasks_.size() <= BG_TASK_THRESHOLD) {
+    bg_tasks_.push(task);
+    bg_cv_.Signal();
+  }
   //printf ("AddBGTask push task{ type=%d, op=%d argv1= %s}, Signal\n", task.type, task.op, task.argv1.c_str());
-  bg_cv_.Signal();
   mutex_bgtask_.Unlock();
   //printf ("AddBGTask push task{ type=%d, op=%d argv1= %s}, after Signal\n", task.type, task.op, task.argv1.c_str());
 

@@ -25,7 +25,7 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
 
    pthread_mutex_init(&(mutex_cursors_), NULL);
    pthread_mutex_init(&(mutex_dump_), NULL);
-
+   pthread_mutex_init(&(mutex_spop_counts_), NULL);
    if (db_path_[db_path_.length() - 1] != '/') {
      db_path_.append("/");
    }
@@ -50,6 +50,7 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
    // Open Options
    open_options_.create_if_missing = true;
    open_options_.write_buffer_size = options.write_buffer_size;
+   open_options_.max_manifest_file_size = 64*1024*1024;
    if (!options.compression) {
      open_options_.compression = rocksdb::CompressionType::kNoCompression;
    }
