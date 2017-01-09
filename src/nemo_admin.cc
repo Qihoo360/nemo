@@ -665,7 +665,8 @@ Status Nemo::AddBGTask(const BGTask& task) {
 #define BG_TASK_THRESHOLD 10000 
   mutex_bgtask_.Lock();
   if (task.op == kCLEAN_ALL) {
-    bg_tasks_ = {};
+    std::queue<BGTask> empty_queue;
+    std::swap(bg_tasks_, empty_queue);
     bg_tasks_.push(task);
     bg_cv_.Signal();
   } else if (bg_tasks_.size() <= BG_TASK_THRESHOLD) {

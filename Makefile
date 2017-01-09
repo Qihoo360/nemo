@@ -82,3 +82,6 @@ clean:
 	rm -rf $(LIBRARY)
 	rm -rf $(OBJECT)
 
+distclean: clean 
+	make clean -C 3rdparty/rocksdb/
+
