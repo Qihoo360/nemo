@@ -40,8 +40,8 @@
 #include <pthread.h>
 
 #include <stdint.h>
-#include <string>
 #include <string.h>
+#include <string>
 #include <unordered_map>
 #include <list>
 
@@ -123,7 +123,7 @@ class RWMutex {
   void AssertHeld() { }
 
  private:
-  pthread_rwlock_t mu_; // the underlying platform mutex
+  pthread_rwlock_t mu_;  // the underlying platform mutex
 
   // No copying allowed
   RWMutex(const RWMutex&);
@@ -156,7 +156,7 @@ class RefMutex {
 };
 
 class RecordMutex {
-public:
+ public:
   RecordMutex() : charge_(0) {}
   ~RecordMutex();
 
@@ -164,8 +164,7 @@ public:
   void Unlock(const std::string &key);
   int64_t GetUsage();
 
-private:
-
+ private:
   Mutex mutex_;
 
   std::unordered_map<std::string, RefMutex *> records_;
@@ -175,34 +174,7 @@ private:
   RecordMutex(const RecordMutex&);
   void operator=(const RecordMutex&);
 };
-
-//const int kMaxRecordMutex = 800000;
-//const int kMaxRecordMutex = 2;
-
-// Need to check wether the mutex is in use!!!!!
-//class RecordMutex {
-//  public:
-//    RecordMutex() : capacity_(kMaxRecordMutex) {}
-//    ~RecordMutex();
-//
-//    void Lock(const std::string &key);
-//    void Unlock(const std::string &key);
-//
-//    //typedef std::list<std::string> 
-//    typedef std::pair<Mutex *, std::list<std::string>::iterator> data_type;
-//
-//  private:
-//    void evict();
-//
-//    int capacity_;
-//    Mutex mutex_;
-//    //RWMutex rw_mutex_;
-//    std::unordered_map<std::string, data_type> records_;
-//    std::list<std::string> lru_;
-//};
-
-
-} // namespace port
-} // namespace nemo
+}  // namespace port
+}  // namespace nemo
 
 #endif

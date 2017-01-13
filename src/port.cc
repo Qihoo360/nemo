@@ -29,13 +29,21 @@ static int PthreadCall(const char* label, int result) {
   return result;
 }
 
-Mutex::Mutex() { PthreadCall("init mutex", pthread_mutex_init(&mu_, nullptr)); }
+Mutex::Mutex() {
+  PthreadCall("init mutex", pthread_mutex_init(&mu_, nullptr));
+}
 
-Mutex::~Mutex() { PthreadCall("destroy mutex", pthread_mutex_destroy(&mu_)); }
+Mutex::~Mutex() {
+  PthreadCall("destroy mutex", pthread_mutex_destroy(&mu_));
+}
 
-void Mutex::Lock() { PthreadCall("lock", pthread_mutex_lock(&mu_)); }
+void Mutex::Lock() {
+  PthreadCall("lock", pthread_mutex_lock(&mu_));
+}
 
-void Mutex::Unlock() { PthreadCall("unlock", pthread_mutex_unlock(&mu_)); }
+void Mutex::Unlock() {
+  PthreadCall("unlock", pthread_mutex_unlock(&mu_));
+}
 
 
 CondVar::CondVar(Mutex* mu)
@@ -43,7 +51,9 @@ CondVar::CondVar(Mutex* mu)
     PthreadCall("init cv", pthread_cond_init(&cv_, NULL));
 }
 
-CondVar::~CondVar() { PthreadCall("destroy cv", pthread_cond_destroy(&cv_)); }
+CondVar::~CondVar() {
+  PthreadCall("destroy cv", pthread_cond_destroy(&cv_));
+}
 
 void CondVar::Wait() {
   PthreadCall("wait", pthread_cond_wait(&cv_, &mu_->mu_));
@@ -58,17 +68,29 @@ void CondVar::SignalAll() {
 }
 
 
-RWMutex::RWMutex() { PthreadCall("init mutex", pthread_rwlock_init(&mu_, nullptr)); }
+RWMutex::RWMutex() {
+  PthreadCall("init mutex", pthread_rwlock_init(&mu_, nullptr));
+}
 
-RWMutex::~RWMutex() { PthreadCall("destroy mutex", pthread_rwlock_destroy(&mu_)); }
+RWMutex::~RWMutex() {
+  PthreadCall("destroy mutex", pthread_rwlock_destroy(&mu_));
+}
 
-void RWMutex::ReadLock() { PthreadCall("read lock", pthread_rwlock_rdlock(&mu_)); }
+void RWMutex::ReadLock() {
+  PthreadCall("read lock", pthread_rwlock_rdlock(&mu_));
+}
 
-void RWMutex::WriteLock() { PthreadCall("write lock", pthread_rwlock_wrlock(&mu_)); }
+void RWMutex::WriteLock() {
+  PthreadCall("write lock", pthread_rwlock_wrlock(&mu_));
+}
 
-void RWMutex::ReadUnlock() { PthreadCall("read unlock", pthread_rwlock_unlock(&mu_)); }
+void RWMutex::ReadUnlock() {
+  PthreadCall("read unlock", pthread_rwlock_unlock(&mu_));
+}
 
-void RWMutex::WriteUnlock() { PthreadCall("write unlock", pthread_rwlock_unlock(&mu_)); }
+void RWMutex::WriteUnlock() {
+  PthreadCall("write unlock", pthread_rwlock_unlock(&mu_));
+}
 
 RefMutex::RefMutex() {
   refs_ = 0;
@@ -99,9 +121,9 @@ void RefMutex::Unlock() {
 
 RecordMutex::~RecordMutex() {
   mutex_.Lock();
-  
-  std::unordered_map<std::string, RefMutex *>::const_iterator it = records_.begin();
-  for (; it != records_.end(); it++) {
+
+  std::unordered_map<std::string, RefMutex *>::const_iterator it;
+  for (it = records_.begin(); it != records_.end(); it++) {
     delete it->second;
   }
   mutex_.Unlock();
@@ -115,22 +137,21 @@ int64_t RecordMutex::GetUsage() {
   return size;
 }
 
-const int64_t kEstimatePairSize = sizeof(std::string) + sizeof(RefMutex) + sizeof(std::pair<std::string, void *>);
+const int64_t kEstimatePairSize = sizeof(std::string) + sizeof(RefMutex)
+  + sizeof(std::pair<std::string, void *>);
 
 void RecordMutex::Lock(const std::string &key) {
   mutex_.Lock();
-  std::unordered_map<std::string, RefMutex *>::const_iterator it = records_.find(key);
+  std::unordered_map<std::string, RefMutex *>::const_iterator it
+    = records_.find(key);
 
   if (it != records_.end()) {
-    //log_info ("tid=(%u) >Lock key=(%s) exist, map_size=%u", pthread_self(), key.c_str(), records_.size());
     RefMutex *ref_mutex = it->second;
     ref_mutex->Ref();
     mutex_.Unlock();
 
     ref_mutex->Lock();
-    //log_info ("tid=(%u) <Lock key=(%s) exist", pthread_self(), key.c_str());
   } else {
-    //log_info ("tid=(%u) >Lock key=(%s) new, map_size=%u ++", pthread_self(), key.c_str(), records_.size());
     RefMutex *ref_mutex = new RefMutex();
 
     records_.insert(std::make_pair(key, ref_mutex));
@@ -139,18 +160,16 @@ void RecordMutex::Lock(const std::string &key) {
     mutex_.Unlock();
 
     ref_mutex->Lock();
-    //log_info ("tid=(%u) <Lock key=(%s) new", pthread_self(), key.c_str());
   }
 }
 
 void RecordMutex::Unlock(const std::string &key) {
   mutex_.Lock();
-  std::unordered_map<std::string, RefMutex *>::const_iterator it = records_.find(key);
+  std::unordered_map<std::string, RefMutex *>::const_iterator it
+    = records_.find(key);
   
-  //log_info ("tid=(%u) >Unlock key=(%s) new, map_size=%u --", pthread_self(), key.c_str(), records_.size());
   if (it != records_.end()) {
     RefMutex *ref_mutex = it->second;
-
     if (ref_mutex->IsLastRef()) {
       charge_ -= kEstimatePairSize + key.size();
       records_.erase(it);
@@ -160,7 +179,6 @@ void RecordMutex::Unlock(const std::string &key) {
   }
 
   mutex_.Unlock();
-  //log_info ("tid=(%u) <Unlock key=(%s) new", pthread_self(), key.c_str());
 }
 
 }  // namespace port
