@@ -13,8 +13,7 @@
 
 namespace nemo {
 
-struct HyperLogLog
-{
+struct HyperLogLog {
 public:
     HyperLogLog(uint8_t precision, std::string origin_register);
     ~HyperLogLog();

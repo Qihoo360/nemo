@@ -63,14 +63,14 @@ double HyperLogLog::FirstEstimate() const {
 
 double HyperLogLog::Alpha() const {
     switch (m_) {
-        case 16:
-            return 0.673;
-        case 32:
-            return 0.697;
-        case 64:
-            return 0.709;
-        default:
-            return 0.7213/(1 + 1.079 / m_);
+      case 16:
+        return 0.673;
+      case 32:
+        return 0.697;
+      case 64:
+        return 0.709;
+      default:
+        return 0.7213/(1 + 1.079 / m_);
     }
 }
 
