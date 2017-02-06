@@ -7,8 +7,7 @@ using namespace nemo;
 
 #define HLL_HASH_SEED 313
 
-HyperLogLog::HyperLogLog(uint8_t precision, std::string origin_register)
-{
+HyperLogLog::HyperLogLog(uint8_t precision, std::string origin_register) {
     b_ = precision;
     m_ = 1 << precision;
     alpha_ = Alpha();
@@ -21,13 +20,11 @@ HyperLogLog::HyperLogLog(uint8_t precision, std::string origin_register)
         }
 }
 
-HyperLogLog::~HyperLogLog()
-{
+HyperLogLog::~HyperLogLog() {
     delete [] register_;
 }
 
-std::string HyperLogLog::Add(const char * str, uint32_t len)
-{
+std::string HyperLogLog::Add(const char * str, uint32_t len) {
     uint32_t hash;
     MurmurHash3_x86_32(str, len, HLL_HASH_SEED, (void*) &hash);
     int index = hash & ((1 << b_) - 1);
@@ -41,26 +38,21 @@ std::string HyperLogLog::Add(const char * str, uint32_t len)
     return result_str;
 }
 
-double HyperLogLog::Estimate() const
-{
+double HyperLogLog::Estimate() const {
     double estimate = FirstEstimate();
     
-    if (estimate <= 2.5* m_)
-    {
+    if (estimate <= 2.5* m_) {
         uint32_t zeros = CountZero();
-        if(zeros != 0)
-        {
+        if(zeros != 0) {
             estimate = m_ * log((double)m_ / zeros);
         }
-    }else if(estimate > pow(2, 32) / 30.0)
-    {
+    } else if(estimate > pow(2, 32) / 30.0) {
         estimate = log1p(estimate * -1 / pow(2, 32)) * pow(2, 32) * -1;
     }
     return estimate;
 }
 
-double HyperLogLog::FirstEstimate() const
-{
+double HyperLogLog::FirstEstimate() const {
     double estimate, sum = 0.0;
     for (uint32_t i = 0; i < m_; i++)
         sum += 1.0 / (1 << register_[i]);
@@ -69,8 +61,7 @@ double HyperLogLog::FirstEstimate() const
     return estimate;
 }
 
-double HyperLogLog::Alpha() const
-{
+double HyperLogLog::Alpha() const {
     switch (m_) {
         case 16:
             return 0.673;
@@ -83,11 +74,9 @@ double HyperLogLog::Alpha() const
     }
 }
 
-int HyperLogLog::CountZero() const
-{
+int HyperLogLog::CountZero() const {
     int count = 0;
-    for(uint32_t i = 0;i < m_; i++)
-    {
+    for(uint32_t i = 0;i < m_; i++) {
         if (register_[i] == 0) {
             count++;
         }
@@ -95,8 +84,7 @@ int HyperLogLog::CountZero() const
     return count;
 }
 
-std::string HyperLogLog::Merge(const HyperLogLog & hll)
-{
+std::string HyperLogLog::Merge(const HyperLogLog & hll) {
     if (m_ != hll.m_) {
         // TODO: ERROR "number of registers doesn't match"
     }
@@ -114,8 +102,7 @@ std::string HyperLogLog::Merge(const HyperLogLog & hll)
 }
 
 //::__builtin_clz(x): 返回左起第一个‘1’之前0的个数
-uint8_t HyperLogLog::Nclz(uint32_t x, int b)
-{
+uint8_t HyperLogLog::Nclz(uint32_t x, int b) {
     return (uint8_t)std::min(b, ::__builtin_clz(x)) + 1;
 }
 
@@ -145,13 +132,13 @@ Status Nemo::PfCount(const std::vector<std::string> &keys, int & result) {
        return Status::InvalidArgument("Invalid key length");
     }
 
-    Status s;
+    Status s, ok;
     std::string value, str_register;
     s = Get(keys[0], &value);
     if (s.ok()) {
     	str_register = std::string(value.data(), value.size());
     } else if (s.IsNotFound()) {
-    	return s;
+    	str_register = "";
     }
 	
     HyperLogLog first_log(10, str_register);
@@ -161,13 +148,13 @@ Status Nemo::PfCount(const std::vector<std::string> &keys, int & result) {
     	if (s.ok()) {
     		str_register = value;
     	} else if (s.IsNotFound()) {
-    		return s;
+    		continue;
     	}
     	HyperLogLog log(10, str_register);
     	first_log.Merge(log);
     }
     result = int(first_log.Estimate());
-    return s;
+    return ok;
 }
 
 Status Nemo::PfMerge(const std::vector<std::string> &keys) {
@@ -181,7 +168,7 @@ Status Nemo::PfMerge(const std::vector<std::string> &keys) {
     if (s.ok()) {
     	str_register = std::string(value.data(), value.size());
     } else if (s.IsNotFound()) {
-    	return s;
+    	str_register = "";
     }
 
     HyperLogLog first_log(10, str_register);
@@ -191,7 +178,7 @@ Status Nemo::PfMerge(const std::vector<std::string> &keys) {
     	if (s.ok()) {
     		str_register = std::string(value.data(), value.size());
     	} else if (s.IsNotFound()) {
-    		return s;
+    		continue;
     	}
     	HyperLogLog log(10, str_register);
     	result = first_log.Merge(log);
