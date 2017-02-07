@@ -178,6 +178,7 @@ Status Nemo::PfMerge(const std::vector<std::string> &keys) {
     str_register = "";
   }
 
+  result = str_register;
   HyperLogLog first_log(10, str_register);
   for (int i = 1; i < keys.size(); ++i) {
     std::string value, str_register;
@@ -193,3 +194,4 @@ Status Nemo::PfMerge(const std::vector<std::string> &keys) {
   s = kv_db_->Put(rocksdb::WriteOptions(), keys[0], result);
   return s;
 }
+
