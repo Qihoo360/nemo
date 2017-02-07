@@ -199,7 +199,7 @@ public:
     Status SMove(const std::string &source, const std::string &destination, const std::string &member, int64_t *res);
     
     // ==============HyperLogLog=====================
-    Status PfAdd(const std::string &key, const std::vector<std::string> &values);
+    Status PfAdd(const std::string &key, const std::vector<std::string> &values, bool & update);
     Status PfCount(const std::vector<std::string> &keys, int & result);
     Status PfMerge(const std::vector<std::string> &keys);
 
