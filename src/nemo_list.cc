@@ -1204,7 +1204,7 @@ Status Nemo::LExpire(const std::string &key, const int32_t seconds, int64_t *res
 
         if (seconds > 0) {
             //MutexLock l(&mutex_list_);
-            s = list_db_->PutWithKeyTTL(rocksdb::WriteOptions(), meta_key, meta_val, seconds);
+            s = list_db_->Put(rocksdb::WriteOptions(), meta_key, meta_val, seconds);
         } else { 
             int64_t count; 
             s = LDelKey(key, &count);

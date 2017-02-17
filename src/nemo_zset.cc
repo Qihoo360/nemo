@@ -1032,7 +1032,7 @@ Status Nemo::ZExpire(const std::string &key, const int32_t seconds, int64_t *res
 
       if (seconds > 0) {
         //MutexLock l(&mutex_zset_);
-        s = zset_db_->PutWithKeyTTL(rocksdb::WriteOptions(), size_key, val, seconds);
+        s = zset_db_->Put(rocksdb::WriteOptions(), size_key, val, seconds);
       } else { 
         int64_t count;
         s = ZDelKey(key, &count);

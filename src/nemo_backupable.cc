@@ -1,7 +1,5 @@
 #include <sys/types.h>
 #include <dirent.h>
-#include <string>
-#include <vector>
 #include <utility>
 
 #include "nemo_backupable.h"
@@ -21,9 +19,9 @@ BackupEngine::~BackupEngine() {
   engines_.clear();
 }
 
-Status BackupEngine::NewCheckpoint(rocksdb::DBWithTTL *tdb, const std::string &type) {
-  rocksdb::Checkpoint* checkpoint;
-  Status s = rocksdb::Checkpoint::Create(tdb, &checkpoint);
+Status BackupEngine::NewCheckpoint(rocksdb::DBNemo *tdb, const std::string &type) {
+  rocksdb::DBNemoCheckpoint* checkpoint;
+  Status s = rocksdb::DBNemoCheckpoint::Create(tdb, &checkpoint);
   if (!s.ok()) {
     log_warn("create checkpoint failed, error %s", s.ToString().c_str());
     return s;
@@ -41,7 +39,7 @@ Status BackupEngine::Open(nemo::Nemo *db,
 
   // Create BackupEngine for each db type
   rocksdb::Status s;
-  rocksdb::DBWithTTL *tdb;
+  rocksdb::DBNemo *tdb;
   std::string types[] = {KV_DB, HASH_DB, LIST_DB, SET_DB, ZSET_DB};
   for (auto& type : types) {
     if ((tdb = db->GetDBByType(type)) == NULL) {
@@ -66,18 +64,19 @@ Status BackupEngine::SetBackupContent() {
     //Get backup content
     BackupContent bcontent;
     s = engine.second->GetCheckpointFiles(bcontent.live_files,
+        bcontent.live_wal_files,
         bcontent.manifest_file_size, bcontent.sequence_number);
     if (!s.ok()) {
       log_warn("get backup files faild for type: %s", engine.first.c_str());
       return s;
     }
-    backup_content_[engine.first] = bcontent;
+    backup_content_[engine.first] = std::move(bcontent);
   }
   return s;
 }
 
 Status BackupEngine::CreateNewBackupSpecify(const std::string &backup_dir, const std::string &type) {
-  std::map<std::string, rocksdb::Checkpoint*>::iterator it_engine = engines_.find(type);
+  std::map<std::string, rocksdb::DBNemoCheckpoint*>::iterator it_engine = engines_.find(type);
   std::map<std::string, BackupContent>::iterator it_content = backup_content_.find(type);
   std::string dir = GetSaveDirByType(backup_dir, type);
   delete_dir(dir.c_str());
@@ -87,6 +86,7 @@ Status BackupEngine::CreateNewBackupSpecify(const std::string &backup_dir, const
     Status s = it_engine->second->CreateCheckpointWithFiles(
         dir,
         it_content->second.live_files, 
+        it_content->second.live_wal_files,
         it_content->second.manifest_file_size,
         it_content->second.sequence_number);
     if (!s.ok()) {
@@ -163,10 +163,7 @@ Status BackupEngine::CreateNewBackup(const std::string &dir) {
 }
 
 void BackupEngine::StopBackup() {
-  for (auto& engine : engines_) {
-    if (engine.second != NULL)
-      engine.second->StopCreate();  
-  }
+  // DEPRECATED
 }
 
 }

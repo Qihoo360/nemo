@@ -74,47 +74,42 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
 
    //open_options_.max_bytes_for_level_base = (128 << 20);
 
-   rocksdb::DBWithTTL *db_ttl;
+   rocksdb::DBNemo *db_ttl;
 
-   open_options_.meta_prefix = rocksdb::kMetaPrefix_KV;
-   rocksdb::Status s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "kv", &db_ttl);
+   rocksdb::Status s = rocksdb::DBNemo::Open(open_options_, db_path_ + "kv", &db_ttl, rocksdb::kMetaPrefixKv);
    if (!s.ok()) {
      fprintf (stderr, "[FATAL] open kv db failed, %s\n", s.ToString().c_str());
      exit(-1);
    }
-   kv_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
+   kv_db_ = std::unique_ptr<rocksdb::DBNemo>(db_ttl);
 
-   open_options_.meta_prefix = rocksdb::kMetaPrefix_HASH;
-   s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "hash", &db_ttl);
+   s = rocksdb::DBNemo::Open(open_options_, db_path_ + "hash", &db_ttl, rocksdb::kMetaPrefixHash);
    if (!s.ok()) {
      fprintf (stderr, "[FATAL] open hash db failed, %s\n", s.ToString().c_str());
      exit(-1);
    }
-   hash_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
+   hash_db_ = std::unique_ptr<rocksdb::DBNemo>(db_ttl);
 
-   open_options_.meta_prefix = rocksdb::kMetaPrefix_LIST;
-   s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "list", &db_ttl);
+   s = rocksdb::DBNemo::Open(open_options_, db_path_ + "list", &db_ttl, rocksdb::kMetaPrefixList);
    if (!s.ok()) {
      fprintf (stderr, "[FATAL] open list db failed, %s\n", s.ToString().c_str());
      exit(-1);
    }
-   list_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
+   list_db_ = std::unique_ptr<rocksdb::DBNemo>(db_ttl);
 
-   open_options_.meta_prefix = rocksdb::kMetaPrefix_ZSET;
-   s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "zset", &db_ttl);
+   s = rocksdb::DBNemo::Open(open_options_, db_path_ + "zset", &db_ttl, rocksdb::kMetaPrefixZset);
    if (!s.ok()) {
      fprintf (stderr, "[FATAL] open zset db failed, %s\n", s.ToString().c_str());
      exit(-1);
    }
-   zset_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
+   zset_db_ = std::unique_ptr<rocksdb::DBNemo>(db_ttl);
 
-   open_options_.meta_prefix = rocksdb::kMetaPrefix_SET;
-   s = rocksdb::DBWithTTL::Open(open_options_, db_path_ + "set", &db_ttl);
+   s = rocksdb::DBNemo::Open(open_options_, db_path_ + "set", &db_ttl, rocksdb::kMetaPrefixSet);
    if (!s.ok()) {
      fprintf (stderr, "[FATAL] open set db failed, %s\n", s.ToString().c_str());
      exit(-1);
    }
-   set_db_ = std::unique_ptr<rocksdb::DBWithTTL>(db_ttl);
+   set_db_ = std::unique_ptr<rocksdb::DBNemo>(db_ttl);
 
    // Add separator of Meta and data
    hash_db_->Put(rocksdb::WriteOptions(), "h", "");

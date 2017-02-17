@@ -126,7 +126,7 @@ Status Nemo::HDel(const std::string &key, const std::string &field) {
         if (IncrHLen(key, -ret, writebatch) == -1) {
             return Status::Corruption("incrlen error");
         }
-        s = hash_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+        s = hash_db_->Write(rocksdb::WriteOptions(), &(writebatch));
         return s;
     } else if (ret == 0) {
         return Status::NotFound(); 
@@ -182,7 +182,7 @@ Status Nemo::HExpire(const std::string &key, const int32_t seconds, int64_t *res
 
       if (seconds > 0) {
         //MutexLock l(&mutex_hash_);
-        s = hash_db_->PutWithKeyTTL(rocksdb::WriteOptions(), size_key, val, seconds);
+        s = hash_db_->Put(rocksdb::WriteOptions(), size_key, val, seconds);
       } else { 
         int64_t count;
         s = HDelKey(key, &count);
@@ -421,7 +421,7 @@ Status Nemo::HSetnx(const std::string &key, const std::string &field, const std:
                 return Status::Corruption("incrhlen error");
             }
         }
-        s = hash_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+        s = hash_db_->Write(rocksdb::WriteOptions(), &(writebatch));
         return s;
     } else if(s.ok()) {
         return Status::Corruption("Already Exist");

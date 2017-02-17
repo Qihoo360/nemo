@@ -1,10 +1,6 @@
 #ifndef NEMO_INCLUDE_NEMO_BACKUPABLE_H_
 #define NEMO_INCLUDE_NEMO_BACKUPABLE_H_
-#include <string>
-#include <map>
-#include <atomic>
-#include "rocksdb/db.h"
-#include "rocksdb/utilities/checkpoint.h"
+#include "db_nemo_checkpoint.h"
 #include "nemo.h"
 #include "nemo_const.h"
 
@@ -29,6 +25,7 @@ namespace nemo {
 
     struct BackupContent {
         std::vector<std::string> live_files;
+        rocksdb::VectorLogPtr live_wal_files;
         uint64_t manifest_file_size = 0;
         uint64_t sequence_number = 0;
     };
@@ -48,11 +45,11 @@ namespace nemo {
         private:
             BackupEngine() {}
 
-            std::map<std::string, rocksdb::Checkpoint*> engines_;
+            std::map<std::string, rocksdb::DBNemoCheckpoint*> engines_;
             std::map<std::string, BackupContent> backup_content_;
             std::map<std::string, pthread_t> backup_pthread_ts_;
             
-            Status NewCheckpoint(rocksdb::DBWithTTL *tdb, const std::string &type);
+            Status NewCheckpoint(rocksdb::DBNemo *tdb, const std::string &type);
             std::string GetSaveDirByType(const std::string _dir, const std::string& _type) const {
                 std::string backup_dir = _dir.empty() ? DEFAULT_BK_PATH : _dir;
                 return backup_dir + ((backup_dir.back() != '/') ? "/" : "") + _type;

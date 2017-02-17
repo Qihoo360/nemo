@@ -21,20 +21,19 @@ using namespace nemo;
 
 const std::string DEFAULT_BG_PATH = "dump";
 
-Status Nemo::SaveDBWithTTL(const std::string &db_path, const std::string &key_type, const char meta_prefix, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot) {
+Status Nemo::SaveDBNemo(const std::string &db_path, const std::string &key_type, const char meta_prefix, std::unique_ptr<rocksdb::DBNemo> &src_db, const rocksdb::Snapshot *snapshot) {
   //printf ("db_path=%s\n", db_path.c_str());
 
-  rocksdb::DBWithTTL *dst_db;
+  rocksdb::DBNemo *dst_db;
   rocksdb::Options option(open_options_);
-  option.meta_prefix = meta_prefix;
 
-  rocksdb::Status s = rocksdb::DBWithTTL::Open(option, db_path, &dst_db);
+  rocksdb::Status s = rocksdb::DBNemo::Open(option, db_path, &dst_db, meta_prefix);
   if (!s.ok()) {
     log_err("save db %s, open error %s", db_path.c_str(), s.ToString().c_str());
     return s;
   }
 
-  //printf ("\nSaveDBWithTTL seqnumber=%d\n", snapshot->GetSequenceNumber());
+  //printf ("\nSaveDBNemo seqnumber=%d\n", snapshot->GetSequenceNumber());
   int64_t ttl;
   rocksdb::ReadOptions iterate_options;
   iterate_options.snapshot = snapshot;
@@ -85,7 +84,7 @@ Status Nemo::SaveDBWithTTL(const std::string &db_path, const std::string &key_ty
       if (ttl == -1) {
         s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString());
       } else if (ttl > 0) {
-        s = dst_db->PutWithKeyTTL(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString(), ttl);
+        s = dst_db->Put(rocksdb::WriteOptions(), it->key().ToString(), it->value().ToString(), ttl);
       }
     }
   }
@@ -233,15 +232,15 @@ Status Nemo::BGSaveSpecify(const std::string key_type, Snapshot* snapshot) {
   Status s;
 
   if (key_type == KV_DB) {
-    s = SaveDBWithTTL(dump_path_ + KV_DB, key_type, '\0', kv_db_, snapshot);
+    s = SaveDBNemo(dump_path_ + KV_DB, key_type, '\0', kv_db_, snapshot);
   } else if (key_type == HASH_DB) {
-    s = SaveDBWithTTL(dump_path_ + HASH_DB, key_type, DataType::kHSize, hash_db_, snapshot);
+    s = SaveDBNemo(dump_path_ + HASH_DB, key_type, DataType::kHSize, hash_db_, snapshot);
   } else if (key_type == ZSET_DB) {
-    s = SaveDBWithTTL(dump_path_ + ZSET_DB, key_type, DataType::kZSize, zset_db_, snapshot);
+    s = SaveDBNemo(dump_path_ + ZSET_DB, key_type, DataType::kZSize, zset_db_, snapshot);
   } else if (key_type == SET_DB) {
-    s = SaveDBWithTTL(dump_path_ + SET_DB, key_type, DataType::kSSize, set_db_, snapshot);
+    s = SaveDBNemo(dump_path_ + SET_DB, key_type, DataType::kSSize, set_db_, snapshot);
   } else if (key_type == LIST_DB) {
-    s = SaveDBWithTTL(dump_path_ + LIST_DB, key_type, DataType::kLMeta, list_db_, snapshot);
+    s = SaveDBNemo(dump_path_ + LIST_DB, key_type, DataType::kLMeta, list_db_, snapshot);
   } else {
     s = Status::InvalidArgument("");
   }
@@ -372,7 +371,7 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
   }
 
   Status s;
-  s = SaveDBWithTTL(path + KV_DB, kv_db_, snapshots[0]);
+  s = SaveDBNemo(path + KV_DB, kv_db_, snapshots[0]);
   if (!s.ok()) return s;
 
   s = SaveDB(path + HASH_DB, hash_db_, snapshots[1]);
@@ -395,7 +394,7 @@ Status Nemo::BGSave(Snapshots &snapshots, const std::string &db_path) {
 }
 #endif
 
-Status Nemo::ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t &num) {
+Status Nemo::ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBNemo> &db, uint64_t &num) {
   rocksdb::ReadOptions iterate_options;
 
   iterate_options.snapshot = db->GetSnapshot();
@@ -421,7 +420,7 @@ Status Nemo::ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t
   return Status::OK();
 }
 
-Status Nemo::ScanKeyNum(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kType, uint64_t &num) {
+Status Nemo::ScanKeyNum(std::unique_ptr<rocksdb::DBNemo> &db, const char kType, uint64_t &num) {
   rocksdb::ReadOptions iterate_options;
 
   iterate_options.snapshot = db->GetSnapshot();
@@ -520,20 +519,22 @@ Status Nemo::DoCompact(DBType type) {
   current_task_type_ = OPERATION::kCLEAN_ALL;
 
   Status s;
+  rocksdb::CompactRangeOptions ops;
+  ops.exclusive_manual_compaction = false;
   if (type == kALL || type == kKV_DB) {
-    s = kv_db_->CompactRange(NULL, NULL);
+    s = kv_db_->CompactRange(ops, NULL, NULL);
   }
   if (type == kALL || type == kHASH_DB) {
-    s = hash_db_->CompactRange(NULL, NULL);
+    s = hash_db_->CompactRange(ops, NULL, NULL);
   }
   if (type == kALL || type == kZSET_DB) {
-    s = zset_db_->CompactRange(NULL, NULL);
+    s = zset_db_->CompactRange(ops, NULL, NULL);
   }
   if (type == kALL || type == kSET_DB) {
-    s = set_db_->CompactRange(NULL, NULL);
+    s = set_db_->CompactRange(ops, NULL, NULL);
   }
   if (type == kALL || type == kLIST_DB) {
-    s = list_db_->CompactRange(NULL, NULL);
+    s = list_db_->CompactRange(ops, NULL, NULL);
   }
 
   current_task_type_ = OPERATION::kNONE_OP;
@@ -566,7 +567,7 @@ std::string Nemo::GetCurrentTaskType() {
 }
 
 // should be replaced by the one with DBType parameter
-rocksdb::DBWithTTL* Nemo::GetDBByType(const std::string& type) {
+rocksdb::DBNemo* Nemo::GetDBByType(const std::string& type) {
   if (type == KV_DB)
     return kv_db_.get();
   else if (type == HASH_DB)
@@ -600,6 +601,8 @@ Status Nemo::CompactKey(const DBType type, const rocksdb::Slice& key) {
   std::string key_end;
 
   current_task_type_ = OPERATION::kDEL_KEY;
+  rocksdb::CompactRangeOptions ops;
+  ops.exclusive_manual_compaction = false;
 
   if (type == DBType::kALL || type == DBType::kHASH_DB) {
     key_begin = EncodeHashKey(key, "");
@@ -608,7 +611,7 @@ Status Nemo::CompactKey(const DBType type, const rocksdb::Slice& key) {
     rocksdb::Slice sb(key_begin);
     rocksdb::Slice se(key_end);
 
-    hash_db_->CompactRange(&sb, &se);
+    hash_db_->CompactRange(ops, &sb, &se);
   }
 
   if (type == DBType::kALL || type == DBType::kLIST_DB) {
@@ -623,7 +626,7 @@ Status Nemo::CompactKey(const DBType type, const rocksdb::Slice& key) {
     //printf ("LIST Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
     //printf (" Slice.compare return %d\n", sb.compare(se));
 
-    list_db_->CompactRange(&sb, &se);
+    list_db_->CompactRange(ops, &sb, &se);
   }
 
   if (type == DBType::kALL || type == DBType::kSET_DB) {
@@ -633,7 +636,7 @@ Status Nemo::CompactKey(const DBType type, const rocksdb::Slice& key) {
     rocksdb::Slice sb(key_begin);
     rocksdb::Slice se(key_end);
 
-    set_db_->CompactRange(&sb, &se);
+    set_db_->CompactRange(ops, &sb, &se);
   }
 
   if (type == DBType::kALL || type == DBType::kZSET_DB) {
@@ -645,14 +648,14 @@ Status Nemo::CompactKey(const DBType type, const rocksdb::Slice& key) {
     //int result = memcmp(sb.data(), se.data(), sb.size());
     //printf ("ZSET Memcmp sb=(%s),%u se=(%s),%u return %d\n", sb.data(), sb.size(), se.data(), se.size(), result);
     //printf (" Slice.compare return %d\n", sb.compare(se));
-    zset_db_->CompactRange(&sb, &se);
+    zset_db_->CompactRange(ops, &sb, &se);
 
     key_begin = EncodeZScoreKey(key, "", ZSET_SCORE_MIN);
     key_end = EncodeZScoreKey(key, "", ZSET_SCORE_MAX);
     rocksdb::Slice zb(key_begin);
     rocksdb::Slice ze(key_end);
 
-    zset_db_->CompactRange(&zb, &ze);
+    zset_db_->CompactRange(ops, &zb, &ze);
   }
 
   current_task_type_ = OPERATION::kNONE_OP;

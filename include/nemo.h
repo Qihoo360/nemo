@@ -7,8 +7,7 @@
 #include <atomic>
 #include <memory>
 
-#include "rocksdb/db.h"
-#include "rocksdb/utilities/db_ttl.h"
+#include "db_nemo_impl.h"
 
 #include "nemo_options.h"
 #include "nemo_const.h"
@@ -214,13 +213,13 @@ public:
     Status GetKeyNum(std::vector<uint64_t> &nums);
     Status GetSpecifyKeyNum(const std::string type, uint64_t &num);
     //Status ScanKeyNum(std::unique_ptr<rocksdb::DB> &db, const char kType, uint64_t &num);
-    Status ScanKeyNum(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kType, uint64_t &num);
-    Status ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, uint64_t &num);
+    Status ScanKeyNum(std::unique_ptr<rocksdb::DBNemo> &db, const char kType, uint64_t &num);
+    Status ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBNemo> &db, uint64_t &num);
     Status StopScanKeyNum();
     
     Status GetUsage(const std::string& type, uint64_t *result);
 
-    rocksdb::DBWithTTL* GetDBByType(const std::string& type); 
+    rocksdb::DBNemo* GetDBByType(const std::string& type); 
     
     /* Meta */
     // Scan all metas of db specified by given type
@@ -239,12 +238,12 @@ private:
 
     std::string db_path_;
     rocksdb::Options open_options_;
-    std::unique_ptr<rocksdb::DBWithTTL> kv_db_;
-    std::unique_ptr<rocksdb::DBWithTTL> hash_db_;
+    std::unique_ptr<rocksdb::DBNemo> kv_db_;
+    std::unique_ptr<rocksdb::DBNemo> hash_db_;
     //std::unique_ptr<rocksdb::DB> hash_db_;
-    std::unique_ptr<rocksdb::DBWithTTL> list_db_;
-    std::unique_ptr<rocksdb::DBWithTTL> zset_db_;
-    std::unique_ptr<rocksdb::DBWithTTL> set_db_;
+    std::unique_ptr<rocksdb::DBNemo> list_db_;
+    std::unique_ptr<rocksdb::DBNemo> zset_db_;
+    std::unique_ptr<rocksdb::DBNemo> set_db_;
 
     port::RecordMutex mutex_hash_record_;
     port::RecordMutex mutex_kv_record_;
@@ -308,11 +307,11 @@ private:
     void ResetSpopCount(const std::string &key);
 
     Status GetSnapshot(Snapshots &snapshots);
-    Status ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys);
-    bool ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, std::string &start_key, const std::string &pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key);
+    Status ScanKeysWithTTL(std::unique_ptr<rocksdb::DBNemo> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys);
+    bool ScanKeysWithTTL(std::unique_ptr<rocksdb::DBNemo> &db, std::string &start_key, const std::string &pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key);
     // Remeber the snapshot will be release inside!!
-    Status ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys);
-    bool ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, const char kType, std::string &start_key, const std::string &pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key);
+    Status ScanKeys(std::unique_ptr<rocksdb::DBNemo> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys);
+    bool ScanKeys(std::unique_ptr<rocksdb::DBNemo> &db, const char kType, std::string &start_key, const std::string &pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key);
     Status GetStartKey(int64_t cursor, std::string* start_key);
     int64_t StoreAndGetCursor(int64_t cursor, const std::string& next_key);
     Status SeekCursor(int64_t cursor, std::string* start_key);
@@ -339,8 +338,8 @@ private:
     Status SAddNoLock(const std::string &key, const std::string &member, int64_t *res);
     Status SRemNoLock(const std::string &key, const std::string &member, int64_t *res);
 
-    Status SaveDBWithTTL(const std::string &db_path, const std::string &key_type, const char meta_prefix, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
-    //Status SaveDBWithTTL(const std::string &db_path, const std::string &key_type, std::unique_ptr<rocksdb::DBWithTTL> &src_db, const rocksdb::Snapshot *snapshot);
+    Status SaveDBNemo(const std::string &db_path, const std::string &key_type, const char meta_prefix, std::unique_ptr<rocksdb::DBNemo> &src_db, const rocksdb::Snapshot *snapshot);
+    //Status SaveDBNemo(const std::string &db_path, const std::string &key_type, std::unique_ptr<rocksdb::DBNemo> &src_db, const rocksdb::Snapshot *snapshot);
     Status SaveDB(const std::string &db_path, std::unique_ptr<rocksdb::DB> &src_db, const rocksdb::Snapshot *snapshot);
 
     /* Meta */
@@ -352,14 +351,14 @@ private:
     uint64_t GetLockUsage();
 
     // Scan metas on given db
-    Status ScanDBMetas(std::unique_ptr<rocksdb::DBWithTTL> &db, DBType type,
+    Status ScanDBMetas(std::unique_ptr<rocksdb::DBNemo> &db, DBType type,
         const std::string &pattern, std::map<std::string, MetaPtr>& metas);
     // Scan metas on given db and given snapshot
-    Status ScanDBMetasOnSnap(std::unique_ptr<rocksdb::DBWithTTL> &db, const rocksdb::Snapshot* psnap,
+    Status ScanDBMetasOnSnap(std::unique_ptr<rocksdb::DBNemo> &db, const rocksdb::Snapshot* psnap,
         DBType type, const std::string &pattern, std::map<std::string, MetaPtr>& metas);
     Status GetByKey(DBType type, const std::string &key, MetaPtr& meta);
     // Check and recover data on spcified db
-    Status CheckDBMeta(std::unique_ptr<rocksdb::DBWithTTL> &db, DBType type, const std::string& pattern);
+    Status CheckDBMeta(std::unique_ptr<rocksdb::DBNemo> &db, DBType type, const std::string& pattern);
     // Get meta by key
     Status HGetMetaByKey(const std::string &key, HashMeta& meta);
     Status LGetMetaByKey(const std::string &key, ListMeta& meta);

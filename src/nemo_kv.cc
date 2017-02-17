@@ -16,7 +16,7 @@ Status Nemo::Set(const std::string &key, const std::string &val, const int32_t t
     if (ttl <= 0) {
         s = kv_db_->Put(rocksdb::WriteOptions(), key, val);
     } else {
-        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, val, ttl);
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, val, ttl);
     }
     return s;
 }
@@ -48,7 +48,7 @@ Status Nemo::MSet(const std::vector<KV> &kvs) {
     for (it = kvs.begin(); it != kvs.end(); it++) {
         batch.Put(it->key, it->val); 
     }
-    s = kv_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(batch), 0);
+    s = kv_db_->Write(rocksdb::WriteOptions(), &(batch), 0);
     return s;
 }
 
@@ -65,7 +65,7 @@ Status Nemo::KMDel(const std::vector<std::string> &keys, int64_t* count) {
             batch.Delete(*it); 
         }
     }
-    s = kv_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(batch));
+    s = kv_db_->Write(rocksdb::WriteOptions(), &(batch));
     return s;
 }
 
@@ -103,7 +103,7 @@ Status Nemo::Incrby(const std::string &key, const int64_t by, std::string &new_v
     int64_t ttl;
     s = KTTL(key, &ttl);
     if (ttl) {
-        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
     } else {
         s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
     }
@@ -133,7 +133,7 @@ Status Nemo::Decrby(const std::string &key, const int64_t by, std::string &new_v
     int64_t ttl;
     s = KTTL(key, &ttl);
     if (ttl) {
-        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
     } else {
         s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
     }
@@ -172,7 +172,7 @@ Status Nemo::Incrbyfloat(const std::string &key, const double by, std::string &n
     int64_t ttl;
     s = KTTL(key, &ttl);
     if (ttl) {
-        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
     } else {
         s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
     }
@@ -213,7 +213,7 @@ Status Nemo::Append(const std::string &key, const std::string &value, int64_t *n
     int64_t ttl;
     s = KTTL(key, &ttl);
     if (ttl) {
-        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
     } else {
         s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
     }
@@ -231,7 +231,7 @@ Status Nemo::Setnx(const std::string &key, const std::string &value, int64_t *re
         if (ttl <= 0) {
             s = kv_db_->Put(rocksdb::WriteOptions(), key, value);
         } else {
-            s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, value, ttl);
+            s = kv_db_->Put(rocksdb::WriteOptions(), key, value, ttl);
         }
         *ret = 1;
     }
@@ -248,7 +248,7 @@ Status Nemo::Setxx(const std::string &key, const std::string &value, int64_t *re
         if (ttl <= 0) {
             s = kv_db_->Put(rocksdb::WriteOptions(), key, value);
         } else {
-            s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, value, ttl);
+            s = kv_db_->Put(rocksdb::WriteOptions(), key, value, ttl);
         }
         *ret = 1;
     }
@@ -270,7 +270,7 @@ Status Nemo::MSetnx(const std::vector<KV> &kvs, int64_t *ret) {
         batch.Put(it->key, it->val); 
     }
     if (*ret == 1) {
-        s = kv_db_->WriteWithKeyTTL(rocksdb::WriteOptions(), &(batch), 0);
+        s = kv_db_->Write(rocksdb::WriteOptions(), &(batch), 0);
     }
     return s;
 }
@@ -333,7 +333,7 @@ Status Nemo::Setrange(const std::string key, const int64_t offset, const std::st
     int64_t ttl;
     s = KTTL(key, &ttl);
     if (ttl) {
-        s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
+        s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val, (int32_t)ttl);
     } else {
         s = kv_db_->Put(rocksdb::WriteOptions(), key, new_val);
     }
@@ -410,7 +410,7 @@ int64_t Nemo::StoreAndGetCursor(int64_t cursor, const std::string& next_key) {
     return cursor;
 }
 
-bool Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL>& db, std::string& start_key, const std::string& pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key) {
+bool Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBNemo>& db, std::string& start_key, const std::string& pattern, std::vector<std::string>& keys, int64_t* count, std::string* next_key) {
     assert(*count > 0);
     rocksdb::ReadOptions iterate_options;
     iterate_options.fill_cache = false;
@@ -446,7 +446,7 @@ bool Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL>& db, std::string&
 }
 
 
-bool Nemo::ScanKeys(std::unique_ptr<rocksdb::DBWithTTL>& db, const char kType, std::string& start_key, const std::string& pattern, std::vector<std::string>& keys, int64_t* count, std::string *next_key) {
+bool Nemo::ScanKeys(std::unique_ptr<rocksdb::DBNemo>& db, const char kType, std::string& start_key, const std::string& pattern, std::vector<std::string>& keys, int64_t* count, std::string *next_key) {
     rocksdb::ReadOptions iterate_options;
     iterate_options.fill_cache = false;
     bool is_over = true;
@@ -570,7 +570,7 @@ Status Nemo::KExpire(const std::string &key, const int32_t seconds, int64_t *res
         *res = 0;
     } else if (s.ok()) {
         if (seconds > 0) {
-            s = kv_db_->PutWithKeyTTL(rocksdb::WriteOptions(), key, val, seconds);
+            s = kv_db_->Put(rocksdb::WriteOptions(), key, val, seconds);
         } else { 
             s = kv_db_->Delete(rocksdb::WriteOptions(), key);
         }
@@ -681,7 +681,7 @@ Status Nemo::GetSnapshot(Snapshots &snapshots) {
     return Status::OK();
 }
 
-Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys) {
+Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBNemo> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys) {
     rocksdb::ReadOptions iterate_options;
 
     iterate_options.snapshot = snapshot;
@@ -705,7 +705,7 @@ Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *
     return Status::OK();
 }
 
-Status Nemo::ScanKeys(std::unique_ptr<rocksdb::DBWithTTL> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys) {
+Status Nemo::ScanKeys(std::unique_ptr<rocksdb::DBNemo> &db, Snapshot *snapshot, const char kType, const std::string &pattern, std::vector<std::string>& keys) {
     rocksdb::ReadOptions iterate_options;
 
     iterate_options.snapshot = snapshot;

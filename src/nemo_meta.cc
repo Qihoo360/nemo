@@ -55,7 +55,7 @@ Status Nemo::ScanMetasSpecify(DBType type, const std::string &pattern,
   }
 }
 
-Status Nemo::ScanDBMetas(std::unique_ptr<rocksdb::DBWithTTL> &db,
+Status Nemo::ScanDBMetas(std::unique_ptr<rocksdb::DBNemo> &db,
     DBType type, const std::string &pattern, std::map<std::string, MetaPtr>& metas) {
   // Get Current Snapshot
   const rocksdb::Snapshot* psnap;
@@ -68,7 +68,7 @@ Status Nemo::ScanDBMetas(std::unique_ptr<rocksdb::DBWithTTL> &db,
   return s;
 }
 
-Status Nemo::ScanDBMetasOnSnap(std::unique_ptr<rocksdb::DBWithTTL> &db, const rocksdb::Snapshot* psnap,
+Status Nemo::ScanDBMetasOnSnap(std::unique_ptr<rocksdb::DBNemo> &db, const rocksdb::Snapshot* psnap,
     DBType type, const std::string &pattern, std::map<std::string, MetaPtr>& metas) {
   // Get meta prefix and db handler
   std::string prefix = std::string(1, GetMetaPrefix(type));
@@ -131,7 +131,7 @@ Status Nemo::ChecknRecover(DBType type, const std::string& key) {
   }
 }
 
-Status Nemo::CheckDBMeta(std::unique_ptr<rocksdb::DBWithTTL> &db, DBType type, const std::string& pattern) {
+Status Nemo::CheckDBMeta(std::unique_ptr<rocksdb::DBNemo> &db, DBType type, const std::string& pattern) {
   // Get Current Snapshot
   const rocksdb::Snapshot* psnap;
   psnap = db->GetSnapshot();
