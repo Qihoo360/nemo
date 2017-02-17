@@ -20,11 +20,11 @@ int main() {
 
   std::string res;
 
-  Status s = n->HSet("tHSetKey", "field1", "value1");
-  s = n->HSet("tHSetKey", "field2", "value2");
+  Status s = n->HSet("Key", "field1", "val1");
+  s = n->HSet("Key", "field2", "val2");
   std::cout << "HSet return: " << s.ToString() << std::endl;
 
-  int l = n->HLen("tHSetKey");
+  int64_t l = n->HLen("Key");
   std::cout << "HLen return: " << l << std::endl;
   delete n;
 
