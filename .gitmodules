@@ -1,0 +1,3 @@
+[submodule "3rdparty/nemo-rocksdb"]
+	path = 3rdparty/nemo-rocksdb
+	url = https://github.com/KernelMaker/nemo-rocksdb
