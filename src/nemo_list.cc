@@ -867,6 +867,7 @@ Status Nemo::RPopLPushInternal(const std::string &src, const std::string &dest, 
         return Status::Corruption("get listmeta error");
     }
 
+    rocksdb::WriteBatch batch_d;
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key_l, &meta_l);
     if (s.ok()) {
         if (meta.DecodeFrom(meta_l)) {
@@ -880,12 +881,12 @@ Status Nemo::RPopLPushInternal(const std::string &src, const std::string &dest, 
                 s = list_db_->Get(rocksdb::ReadOptions(), db_key_l, &en_val);
                 DecodeListVal(en_val, &priv, &next, raw_val);
                 EncodeListVal(raw_val, meta.cur_seq, next, en_val);
-                batch.Put(db_key_l, en_val);
+                batch_d.Put(db_key_l, en_val);
             }
 
             db_key_l = EncodeListKey(dest, meta.cur_seq);
             EncodeListVal(val, 0, meta.left, en_val);
-            batch.Put(db_key_l, en_val);
+            batch_d.Put(db_key_l, en_val);
             meta.len++;
             meta.left = meta.cur_seq;
             if (meta.right == 0) {
@@ -897,8 +898,8 @@ Status Nemo::RPopLPushInternal(const std::string &src, const std::string &dest, 
 
             std::string meta_val;
             meta.EncodeTo(meta_val);
-            batch.Put(meta_key_l, meta_val); 
-            s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
+            batch_d.Put(meta_key_l, meta_val); 
+            s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch_d);
             return s;
         } else {
             return Status::Corruption("parse listmeta error");
@@ -913,11 +914,11 @@ Status Nemo::RPopLPushInternal(const std::string &src, const std::string &dest, 
 
         std::string meta_val;
         meta.EncodeTo(meta_val);
-        batch.Put(meta_key_l, meta_val);
+        batch_d.Put(meta_key_l, meta_val);
 
         EncodeListVal(val, 0, 0, en_val);
-        batch.Put(EncodeListKey(dest, 1), en_val);
-        s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch);
+        batch_d.Put(EncodeListKey(dest, 1), en_val);
+        s = list_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &batch_d);
         return s;
     } else {
         return Status::Corruption("get listmeta error");

@@ -16,17 +16,19 @@ struct Options {
     bool compression;
     int max_background_flushes;
     int max_background_compactions;
+    int max_bytes_for_level_multiplier;
 
 	Options() : create_if_missing(true),
-        write_buffer_size(4 * 1024 * 1024),
+        write_buffer_size(64 * 1024 * 1024),
         max_open_files(5000),
         use_bloomfilter(true),
         write_threads(71),
-        target_file_size_base(2 * 1024 * 1024),
+        target_file_size_base(64 * 1024 * 1024),
         target_file_size_multiplier(1),
         compression(true),
         max_background_flushes(1),
-        max_background_compactions(1) {}
+        max_background_compactions(1),
+        max_bytes_for_level_multiplier(10) {}
 };
 
 }; // end namespace nemo

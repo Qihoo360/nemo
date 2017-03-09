@@ -71,6 +71,12 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
    if (options.max_background_compactions > 0 && options.max_background_compactions <= 4) {
       open_options_.max_background_compactions = options.max_background_compactions;
    }
+   if (options.max_bytes_for_level_multiplier < 10) {
+      open_options_.max_bytes_for_level_multiplier = 5;
+   }
+   if (options.max_bytes_for_level_multiplier >= 10) {
+      open_options_.max_bytes_for_level_multiplier = 10;
+   }
 
    //open_options_.max_bytes_for_level_base = (128 << 20);
 

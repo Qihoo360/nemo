@@ -643,7 +643,8 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
     }
 
     //MutexLock l(&mutex_set_);
-    rocksdb::WriteBatch writebatch;
+    rocksdb::WriteBatch writebatch_s;
+    rocksdb::WriteBatch writebatch_d;
     std::string source_key = EncodeSetKey(source, member);
     std::string destination_key = EncodeSetKey(destination, member);
 
@@ -655,20 +656,24 @@ Status Nemo::SMove(const std::string &source, const std::string &destination, co
     if (s.ok()) {
         *res = 1;
         if (source != destination) {
-          if (IncrSSize(source, -1, writebatch) < 0) {
+          if (IncrSSize(source, -1, writebatch_s) < 0) {
             return Status::Corruption("incrSSize error");
           }
-          writebatch.Delete(source_key);
+          writebatch_s.Delete(source_key);
 
           s = set_db_->Get(rocksdb::ReadOptions(), destination_key, &val);
           if (s.IsNotFound()) {
-            if (IncrSSize(destination, 1, writebatch) < 0) {
+            if (IncrSSize(destination, 1, writebatch_d) < 0) {
               return Status::Corruption("incrSSize error");
             }
           }
-          writebatch.Put(destination_key, rocksdb::Slice());
+          writebatch_d.Put(destination_key, rocksdb::Slice());
 
-          s = set_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch));
+          s = set_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch_s));
+          if (!s.ok()) {
+            return s;
+          }
+          s = set_db_->WriteWithOldKeyTTL(rocksdb::WriteOptions(), &(writebatch_d));
         }
     } else if (s.IsNotFound()) {
         *res = 0;
