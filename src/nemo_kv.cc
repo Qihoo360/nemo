@@ -425,10 +425,6 @@ bool Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBNemo>& db, std::string& st
     it->Seek(start_key);
     while (it->Valid() && (*count) > 0) {
         key = it->key().ToString();
-        s = TTL(key, &ttl);
-        if (!s.ok() || ttl == 0 || ttl == -2) {
-            continue;
-        }
         if (stringmatchlen(pattern.data(), pattern.size(), key.data(), key.size(), 0) && key.substr(0, scan_keys_store_pre.size()) != scan_keys_store_pre) {
             keys.push_back(key);
             (*count)--;
