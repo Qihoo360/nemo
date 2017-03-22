@@ -113,7 +113,7 @@ Status Nemo::PfAdd(const std::string &key, const std::vector<std::string> &value
   }
 
   Status s;
-  std::string val, str_register="", result="";
+  std::string val, str_register = "", result = "";
   s = Get(key, &val);
   if (s.ok()) {
     str_register = val;
