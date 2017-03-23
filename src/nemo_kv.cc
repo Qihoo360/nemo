@@ -156,7 +156,7 @@ Status Nemo::Incrbyfloat(const std::string &key, const double by, std::string &n
         } 
 
         dval += by;
-        if (isnan(dval) || isinf(dval)) {
+        if (std::isnan(dval) || std::isinf(dval)) {
             return Status::InvalidArgument("Overflow");
         }
         res = std::to_string(dval);

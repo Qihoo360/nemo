@@ -108,12 +108,12 @@ uint8_t HyperLogLog::Nclz(uint32_t x, int b) {
 }
 
 Status Nemo::PfAdd(const std::string &key, const std::vector<std::string> &values, bool & update) {
-  if (values.size() >= KEY_MAX_LENGTH || values.size() <= 0) {
+  if (values.size() >= KEY_MAX_LENGTH) {
     return Status::InvalidArgument("Invalid value length");
   }
 
   Status s;
-  std::string val, str_register="", result;
+  std::string val, str_register = "", result = "";
   s = Get(key, &val);
   if (s.ok()) {
     str_register = val;
@@ -127,7 +127,7 @@ Status Nemo::PfAdd(const std::string &key, const std::vector<std::string> &value
   }
   HyperLogLog update_log(10,result);
   int now= int(update_log.Estimate());
-  if (previous != now) {
+  if (previous != now || (s.IsNotFound() && values.size()==0)) {
     update = true;
   }
   s = kv_db_->Put(rocksdb::WriteOptions(), key, result);
