@@ -120,12 +120,12 @@ Status Nemo::PfAdd(const std::string &key, const std::vector<std::string> &value
   } else if (s.IsNotFound()) {
     str_register = "";
   }
-  HyperLogLog log(10, str_register);
+  HyperLogLog log(17, str_register);
   int previous = int(log.Estimate());
   for (int i = 0; i < values.size(); ++i) {
     result = log.Add(values[i].data(), values[i].size());
   }
-  HyperLogLog update_log(10,result);
+  HyperLogLog update_log(17, result);
   int now= int(update_log.Estimate());
   if (previous != now || (s.IsNotFound() && values.size()==0)) {
     update = true;
@@ -148,7 +148,7 @@ Status Nemo::PfCount(const std::vector<std::string> &keys, int & result) {
     str_register = "";
   }
 	
-  HyperLogLog first_log(10, str_register);
+  HyperLogLog first_log(17, str_register);
   for (int i = 1; i < keys.size(); ++i) {
     std::string value, str_register;
     s = Get(keys[i], &value);
@@ -157,7 +157,7 @@ Status Nemo::PfCount(const std::vector<std::string> &keys, int & result) {
     } else if (s.IsNotFound()) {
       continue;
     }
-    HyperLogLog log(10, str_register);
+    HyperLogLog log(17, str_register);
     first_log.Merge(log);
   }
   result = int(first_log.Estimate());
@@ -179,7 +179,7 @@ Status Nemo::PfMerge(const std::vector<std::string> &keys) {
   }
 
   result = str_register;
-  HyperLogLog first_log(10, str_register);
+  HyperLogLog first_log(17, str_register);
   for (int i = 1; i < keys.size(); ++i) {
     std::string value, str_register;
     s = Get(keys[i], &value);
@@ -188,7 +188,7 @@ Status Nemo::PfMerge(const std::vector<std::string> &keys) {
     } else if (s.IsNotFound()) {
       continue;
     }
-    HyperLogLog log(10, str_register);
+    HyperLogLog log(17, str_register);
     result = first_log.Merge(log); 
   }
   s = kv_db_->Put(rocksdb::WriteOptions(), keys[0], result);
