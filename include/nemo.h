@@ -50,8 +50,16 @@ class Nemo {
 public:
     Nemo(const std::string &db_path, const Options &options);
     ~Nemo() {
+
         bgtask_flag_ = false;
         bg_cv_.Signal();
+
+        kv_db_->StopAllBackgroundWork(true);
+        hash_db_->StopAllBackgroundWork(true);
+        list_db_->StopAllBackgroundWork(true);
+        zset_db_->StopAllBackgroundWork(true);
+        set_db_->StopAllBackgroundWork(true);
+
         int ret = 0;
         if ((ret = pthread_join(bg_tid_, NULL)) != 0) {
           log_warn("pthread_join failed with bgtask thread error %d", ret);
@@ -62,11 +70,6 @@ public:
         list_db_.reset();
         zset_db_.reset();
         set_db_.reset();
-        //delete kv_db_.get();
-        //delete hash_db_.get();
-        //delete list_db_.get();
-        //delete zset_db_.get();
-        //delete set_db_.get();
 
         pthread_mutex_destroy(&(mutex_cursors_));
         pthread_mutex_destroy(&(mutex_dump_));
