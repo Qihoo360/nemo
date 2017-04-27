@@ -19,16 +19,22 @@ Status Nemo::BitSet(const std::string &key, const std::int64_t offset, const int
         size_t bit = 7 - (offset & 0x7);
         char byte_val;
         size_t value_lenth = value.length();
-        if (byte > value_lenth) {
+        if (byte + 1 > value_lenth) {
             *res = 0;
             byte_val = 0;
         } else {
             *res = (value[byte] & 1<<bit) >> bit;
             byte_val = value[byte];
         }
+        
+        //bit does not chang, return
+        if (*res == on) {
+            return Status::OK();
+        }
+        
         byte_val &= (char) ~(1 << bit);
         byte_val |= (char) ((on & 0x1) << bit);
-        if (byte <= value_lenth) {
+        if (byte + 1 <= value_lenth) {
             value.replace(byte, 1, &byte_val, 1);
         } else {
             value.append(byte - value_lenth -1, 0);
@@ -52,7 +58,7 @@ Status Nemo::BitGet(const std::string &key, const std::int64_t offset, std::int6
     if (s.ok() || s.IsNotFound()) {
         size_t byte = offset >> 3;
         size_t bit = 7 - (offset & 0x7);
-        if (byte > value.length()) {
+        if (byte + 1 > value.length()) {
             *res = 0;
         } else {
             *res = (value[byte] & 1<<bit) >> bit;
@@ -108,10 +114,7 @@ Status Nemo::BitCount(const std::string &key, std::int64_t start_offset, std::in
         if (end_offset < 0) {
             end_offset = 0;
         }
-        // start_offset_ bigger than length returns 0
-        if (start_offset > value_length) {
-            start_offset = value_length;
-        }
+        
         // end_offset_ bigger than length returns bits from start_offset to end of the string
         if (end_offset >= value_length) {
             end_offset = value_length - 1;
