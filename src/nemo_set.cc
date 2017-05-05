@@ -749,16 +749,20 @@ Status Nemo::STTL(const std::string &key, int64_t *res) {
     std::string val;
     RecordLock l(&mutex_set_record_, key);
 
-    std::string size_key = EncodeSSizeKey(key);
-    s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
-    if (s.IsNotFound()) {
-        *res = -2;
-    } else if (s.ok()) {
-        int32_t ttl;
-        s = set_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
-        *res = ttl;
+  std::string size_key = EncodeSSizeKey(key);
+  s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
+  if (s.IsNotFound()) {
+    *res = -2;
+  } else if (s.ok()) {
+    if (val.size() != sizeof(uint64_t) || *(int64_t *)val.data() <= 0) {
+      *res = -2;
+      return Status::NotFound("not found key");
     }
-    return s;
+    int32_t ttl;
+    s = set_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
+    *res = ttl;
+  }
+  return s;
 }
 
 Status Nemo::SPersist(const std::string &key, int64_t *res) {
@@ -775,16 +779,19 @@ Status Nemo::SPersist(const std::string &key, int64_t *res) {
     std::string size_key = EncodeSSizeKey(key);
     s = set_db_->Get(rocksdb::ReadOptions(), size_key, &val);
 
-    if (s.ok()) {
-        int32_t ttl;
-        s = set_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
-        if (s.ok() && ttl >= 0) {
-            //MutexLock l(&mutex_set_);
-            s = set_db_->Put(rocksdb::WriteOptions(), size_key, val);
-            *res = 1;
-        }
+  if (s.ok()) {
+    if (val.size() != sizeof(uint64_t) || *(int64_t *)val.data() <= 0) {
+      return Status::NotFound("not found key");
     }
-    return s;
+    int32_t ttl;
+    s = set_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
+    if (s.ok() && ttl >= 0) {
+      //MutexLock l(&mutex_set_);
+      s = set_db_->Put(rocksdb::WriteOptions(), size_key, val);
+      *res = 1;
+    }
+  }
+  return s;
 }
 
 Status Nemo::SExpireat(const std::string &key, const int32_t timestamp, int64_t *res) {
