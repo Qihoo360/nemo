@@ -205,6 +205,11 @@ Status Nemo::HTTL(const std::string &key, int64_t *res) {
     if (s.IsNotFound()) {
         *res = -2;
     } else if (s.ok()) {
+        if (val.size() != sizeof(uint64_t) || *(int64_t *)val.data() <= 0) {
+            *res = -2;
+            return Status::NotFound("not found key");
+        }
+
         int32_t ttl;
         s = hash_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
         *res = ttl;
@@ -239,6 +244,9 @@ Status Nemo::HPersist(const std::string &key, int64_t *res) {
     s = hash_db_->Get(rocksdb::ReadOptions(), size_key, &val);
 
     if (s.ok()) {
+        if (val.size() != sizeof(uint64_t) || *(int64_t *)val.data() <= 0) {
+          return Status::NotFound("not found key");
+        }
         int32_t ttl;
         s = hash_db_->GetKeyTTL(rocksdb::ReadOptions(), size_key, &ttl);
         if (s.ok() && ttl >= 0) {

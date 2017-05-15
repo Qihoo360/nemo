@@ -1231,10 +1231,8 @@ Status Nemo::LTTL(const std::string &key, int64_t *res) {
     if (s.IsNotFound()) {
         *res = -2;
     } else if (s.ok()) {
-        if (!meta.DecodeFrom(meta_val)) {
-            return Status::NotFound("not found key");
-        }
-        if (meta.len <= 0) {
+        if (!meta.DecodeFrom(meta_val) || meta.len <= 0) {
+            *res = -2;
             return Status::NotFound("not found key");
         }
         int32_t ttl;
@@ -1257,13 +1255,11 @@ Status Nemo::LPersist(const std::string &key, int64_t *res) {
 
     RecordLock l(&mutex_list_record_, key);
 
+    *res = 0;
     s = list_db_->Get(rocksdb::ReadOptions(), meta_key, &meta_val);
 
     if (s.ok()) {
-        if (!meta.DecodeFrom(meta_val)) {
-            return Status::NotFound("not found key");
-        }
-        if (meta.len <= 0) {
+        if (!meta.DecodeFrom(meta_val) || meta.len <= 0) {
             return Status::NotFound("not found key");
         }
 
