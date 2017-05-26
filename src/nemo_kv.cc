@@ -416,7 +416,6 @@ bool Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBNemo>& db, std::string& st
     iterate_options.fill_cache = false;
     bool is_over = true;
     std::string scan_keys_store_pre = std::string(100, '\0');;
-    int64_t ttl;
     Status s;
 
     rocksdb::Iterator *it = db->NewIterator(iterate_options);

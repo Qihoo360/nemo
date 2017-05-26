@@ -122,7 +122,7 @@ Status Nemo::PfAdd(const std::string &key, const std::vector<std::string> &value
   }
   HyperLogLog log(17, str_register);
   int previous = int(log.Estimate());
-  for (int i = 0; i < values.size(); ++i) {
+  for (int i = 0; i < (int)values.size(); ++i) {
     result = log.Add(values[i].data(), values[i].size());
   }
   HyperLogLog update_log(17, result);
@@ -149,7 +149,7 @@ Status Nemo::PfCount(const std::vector<std::string> &keys, int & result) {
   }
 	
   HyperLogLog first_log(17, str_register);
-  for (int i = 1; i < keys.size(); ++i) {
+  for (int i = 1; i < (int)keys.size(); ++i) {
     std::string value, str_register;
     s = Get(keys[i], &value);
     if (s.ok()) {
@@ -180,7 +180,7 @@ Status Nemo::PfMerge(const std::vector<std::string> &keys) {
 
   result = str_register;
   HyperLogLog first_log(17, str_register);
-  for (int i = 1; i < keys.size(); ++i) {
+  for (int i = 1; i < (int)keys.size(); ++i) {
     std::string value, str_register;
     s = Get(keys[i], &value);
     if (s.ok()) {
