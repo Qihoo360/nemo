@@ -37,7 +37,7 @@ Status Nemo::BitSet(const std::string &key, const std::int64_t offset, const int
         if (byte + 1 <= value_lenth) {
             value.replace(byte, 1, &byte_val, 1);
         } else {
-            value.append(byte - value_lenth -1, 0);
+            value.append(byte + 1 - value_lenth -1, 0);
             value.append(1, byte_val);
         }
         s = kv_db_->Put(rocksdb::WriteOptions(), key, value);
