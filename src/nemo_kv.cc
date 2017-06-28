@@ -1,7 +1,7 @@
 #include <ctime>
 #include <climits>
 #include <list>
-#include <climits>
+#include <cmath>
 
 #include "nemo.h"
 #include "nemo_mutex.h"

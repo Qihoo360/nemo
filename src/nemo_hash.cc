@@ -3,6 +3,7 @@
 #include <climits>
 #include <ctime>
 #include <unistd.h>
+#include <cmath>
 #include "nemo.h"
 #include "nemo_iterator.h"
 #include "nemo_mutex.h"

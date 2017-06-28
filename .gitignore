@@ -38,5 +38,7 @@ example/kv*
 example/set*
 example/list*
 example/ttl*
+example/bench_hash
+example/simple_test
 tmp/
 test_rocksdb

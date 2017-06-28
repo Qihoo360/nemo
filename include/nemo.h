@@ -7,7 +7,7 @@
 #include <atomic>
 #include <memory>
 
-#include "db_nemo_impl.h"
+#include "db_nemo.h"
 
 #include "nemo_options.h"
 #include "nemo_const.h"
