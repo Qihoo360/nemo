@@ -426,8 +426,8 @@ bool Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBNemo>& db, std::string& st
         key = it->key().ToString();
         if (stringmatchlen(pattern.data(), pattern.size(), key.data(), key.size(), 0) && key.substr(0, scan_keys_store_pre.size()) != scan_keys_store_pre) {
             keys.push_back(key);
-            (*count)--;
         }
+        (*count)--;
         it->Next();
     }
     if (it->Valid()) {//the scan is over in the kv_db_
@@ -461,8 +461,8 @@ bool Nemo::ScanKeys(std::unique_ptr<rocksdb::DBNemo>& db, const char kType, std:
         if (stringmatchlen(pattern.data(), pattern.size(), key.data() + 1, key.size() - 1, 0)) {
             key.erase(key.begin());//erase the first marked letter
             keys.push_back(key);
-            (*count)--;
         }
+        (*count)--;
         it->Next();
     }
     if (it->Valid() && it->key().ToString().at(0) == kType) {
