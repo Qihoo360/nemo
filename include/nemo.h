@@ -115,6 +115,8 @@ public:
 
     Status Keys(const std::string &pattern, std::vector<std::string>& keys);
 
+    Status Scanbytype(const char kType, const std::string &pattern, std::vector<std::string>& keys);
+
     // ==============BITMAP=====================
     //TODO INT* instead of int&
     Status BitSet(const std::string &key, const std::int64_t offset, const std::int64_t on, std::int64_t* res);
@@ -145,7 +147,7 @@ public:
     Status HVals(const std::string &key, std::vector<std::string> &vals);
     Status HIncrby(const std::string &key, const std::string &field, int64_t by, std::string &new_val);
     Status HIncrbyfloat(const std::string &key, const std::string &field, double by, std::string &new_val);
-    
+
     // ==============List=====================
     Status LIndex(const std::string &key, const int64_t index, std::string *val);
     Status LLen(const std::string &key, int64_t *llen);
@@ -199,14 +201,14 @@ public:
     Status SPop(const std::string &key, std::string &member);
     Status SRandMember(const std::string &key, std::vector<std::string> &members, const int count = 1);
     Status SMove(const std::string &source, const std::string &destination, const std::string &member, int64_t *res);
-    
+
     // ==============HyperLogLog=====================
     Status PfAdd(const std::string &key, const std::vector<std::string> &values, bool & update);
     Status PfCount(const std::vector<std::string> &keys, int & result);
     Status PfMerge(const std::vector<std::string> &keys);
 
     // ==============Server=====================
-    Status BGSave(Snapshots &snapshots, const std::string &db_path = ""); 
+    Status BGSave(Snapshots &snapshots, const std::string &db_path = "");
     Status BGSaveGetSnapshot(Snapshots &snapshots);
     Status BGSaveSpecify(const std::string key_type, Snapshot* snapshot);
     Status BGSaveGetSpecifySnapshot(const std::string key_type, Snapshot *&snapshot);
@@ -219,11 +221,11 @@ public:
     Status ScanKeyNum(std::unique_ptr<rocksdb::DBNemo> &db, const char kType, uint64_t &num);
     Status ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBNemo> &db, uint64_t &num);
     Status StopScanKeyNum();
-    
+
     Status GetUsage(const std::string& type, uint64_t *result);
 
-    rocksdb::DBNemo* GetDBByType(const std::string& type); 
-    
+    rocksdb::DBNemo* GetDBByType(const std::string& type);
+
     /* Meta */
     // Scan all metas of db specified by given type
     Status ScanMetasSpecify(DBType type, const std::string &pattern,
@@ -304,8 +306,8 @@ private:
     ItemListMap<int64_t, std::string> cursors_store_;
 
     pthread_mutex_t mutex_spop_counts_;
-    ItemListMap<std::string, int64_t> spop_counts_store_; 
-    
+    ItemListMap<std::string, int64_t> spop_counts_store_;
+
     int64_t AddAndGetSpopCount(const std::string &key);
     void ResetSpopCount(const std::string &key);
 
