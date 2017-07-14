@@ -686,15 +686,16 @@ Status Nemo::Scanbytype(const char kType, const std::string &pattern, std::vecto
           ScanKeys(hash_db_, snapshots[1], DataType::kHSize, pattern, keys);
           break;
       case 'z':
-          ScanKeys(zset_db_, snapshots[3], DataType::kZSize, pattern, keys);
+          ScanKeys(zset_db_, snapshots[2], DataType::kZSize, pattern, keys);
           break;
       case 's':
-          ScanKeys(set_db_, snapshots[4], DataType::kSSize, pattern, keys);
+          ScanKeys(set_db_, snapshots[3], DataType::kSSize, pattern, keys);
           break;
       case 'l':
-          ScanKeys(list_db_, snapshots[2], DataType::kLMeta, pattern, keys);
+          ScanKeys(list_db_, snapshots[4], DataType::kLMeta, pattern, keys);
           break;
     }
+    return s;
 }
 
 Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBNemo> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys) {
@@ -712,7 +713,7 @@ Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBNemo> &db, Snapshot *sna
           keys.push_back(key);
       }
   //     printf ("ScanDB key=(%s) value=(%s) val_size=%u\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
-   //           it->value().ToString().size());
+  //           it->value().ToString().size());
     }
 
     db->ReleaseSnapshot(iterate_options.snapshot);
