@@ -85,6 +85,7 @@ public:
 
     // =================String=====================
     Status Del(const std::string &key, int64_t *count);
+    Status DelSingleType(const std::string &key, int64_t *count, const char key_type);
     Status MDel(const std::vector<std::string> &keys, int64_t* count);
     Status Expire(const std::string &key, const int32_t seconds, int64_t *res);
     Status TTL(const std::string &key, int64_t *res);
