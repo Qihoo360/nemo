@@ -676,26 +676,42 @@ Status Nemo::GetSnapshot(Snapshots &snapshots) {
     return Status::OK();
 }
 
+rocksdb::Iterator * Nemo::Scanbytype(const char kType) {
+    std::vector<const rocksdb::Snapshot*> snapshots;
+    Status s = GetSnapshot(snapshots);
 
-Status Nemo::Scanbytype(const char kType, const std::string &pattern, std::vector<std::string>& keys) {
-  std::vector<const rocksdb::Snapshot*> snapshots;
-  Status s = GetSnapshot(snapshots);
-
-  switch (kType) {
-      case 'h':
-          ScanKeys(hash_db_, snapshots[1], DataType::kHSize, pattern, keys);
-          break;
-      case 'z':
-          ScanKeys(zset_db_, snapshots[2], DataType::kZSize, pattern, keys);
-          break;
-      case 's':
-          ScanKeys(set_db_, snapshots[3], DataType::kSSize, pattern, keys);
-          break;
-      case 'l':
-          ScanKeys(list_db_, snapshots[4], DataType::kLMeta, pattern, keys);
-          break;
+    rocksdb::Iterator *it = NULL;
+    switch (kType) {
+      case 'h': {
+        rocksdb::ReadOptions iterate_options;
+        iterate_options.snapshot = snapshots[1];
+        iterate_options.fill_cache = false;
+        it = hash_db_->NewIterator(iterate_options);
+        break;
+      }
+      case 'z': {
+        rocksdb::ReadOptions iterate_options;
+        iterate_options.snapshot = snapshots[2];
+        iterate_options.fill_cache = false;
+        it = zset_db_->NewIterator(iterate_options);
+        break;
+      }
+      case 's': {
+        rocksdb::ReadOptions iterate_options;
+        iterate_options.snapshot = snapshots[3];
+        iterate_options.fill_cache = false;
+        it = set_db_->NewIterator(iterate_options);
+        break;
+      }
+      case 'l': {
+        rocksdb::ReadOptions iterate_options;
+        iterate_options.snapshot = snapshots[4];
+        iterate_options.fill_cache = false;
+        it = list_db_->NewIterator(iterate_options);
+        break;
+      }
     }
-    return s;
+    return it;
 }
 
 Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBNemo> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys) {
