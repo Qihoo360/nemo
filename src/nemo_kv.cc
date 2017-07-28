@@ -46,7 +46,7 @@ Status Nemo::MSet(const std::vector<KV> &kvs) {
     std::vector<KV>::const_iterator it;
     rocksdb::WriteBatch batch;
     for (it = kvs.begin(); it != kvs.end(); it++) {
-        batch.Put(it->key, it->val); 
+        batch.Put(it->key, it->val);
     }
     s = kv_db_->Write(rocksdb::WriteOptions(), &(batch), 0);
     return s;
@@ -62,7 +62,7 @@ Status Nemo::KMDel(const std::vector<std::string> &keys, int64_t* count) {
         s = kv_db_->Get(rocksdb::ReadOptions(), *it, &val);
         if (s.ok()) {
             (*count)++;
-            batch.Delete(*it); 
+            batch.Delete(*it);
         }
     }
     s = kv_db_->Write(rocksdb::WriteOptions(), &(batch));
@@ -87,7 +87,7 @@ Status Nemo::Incrby(const std::string &key, const int64_t by, std::string &new_v
     //MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
-        new_val = std::to_string(by);        
+        new_val = std::to_string(by);
     } else if (s.ok()) {
         int64_t ival;
         if (!StrToInt64(val.data(), val.size(), &ival)) {
@@ -117,7 +117,7 @@ Status Nemo::Decrby(const std::string &key, const int64_t by, std::string &new_v
     //MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
-        new_val = std::to_string(-by);        
+        new_val = std::to_string(-by);
     } else if (s.ok()) {
         int64_t ival;
         if (!StrToInt64(val.data(), val.size(), &ival)) {
@@ -148,12 +148,12 @@ Status Nemo::Incrbyfloat(const std::string &key, const double by, std::string &n
     //MutexLock l(&mutex_kv_);
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.IsNotFound()) {
-        res = std::to_string(by);        
+        res = std::to_string(by);
     } else if (s.ok()) {
         double dval;
         if (!StrToDouble(val.data(), val.size(), &dval)) {
             return Status::Corruption("value is not a float");
-        } 
+        }
 
         dval += by;
         if (std::isnan(dval) || std::isinf(dval)) {
@@ -165,7 +165,7 @@ Status Nemo::Incrbyfloat(const std::string &key, const double by, std::string &n
     }
     size_t pos = res.find_last_not_of("0", res.size());
     pos = pos == std::string::npos ? pos : pos+1;
-    new_val = res.substr(0, pos); 
+    new_val = res.substr(0, pos);
     if (new_val[new_val.size()-1] == '.') {
         new_val = new_val.substr(0, new_val.size()-1);
     }
@@ -267,7 +267,7 @@ Status Nemo::MSetnx(const std::vector<KV> &kvs, int64_t *ret) {
             *ret = 0;
             break;
         }
-        batch.Put(it->key, it->val); 
+        batch.Put(it->key, it->val);
     }
     if (*ret == 1) {
         s = kv_db_->Write(rocksdb::WriteOptions(), &(batch), 0);
@@ -370,7 +370,7 @@ KIterator* Nemo::KScan(const std::string &start, const std::string &end, uint64_
     rocksdb::Iterator *it = kv_db_->NewIterator(read_options);
     it->Seek(start);
 
-    return new KIterator(it, iter_options); 
+    return new KIterator(it, iter_options);
 }
 
 Status Nemo::GetStartKey(int64_t cursor, std::string* start_key) {
@@ -566,7 +566,7 @@ Status Nemo::KExpire(const std::string &key, const int32_t seconds, int64_t *res
     } else if (s.ok()) {
         if (seconds > 0) {
             s = kv_db_->Put(rocksdb::WriteOptions(), key, val, seconds);
-        } else { 
+        } else {
             s = kv_db_->Delete(rocksdb::WriteOptions(), key);
         }
         *res = 1;
@@ -593,7 +593,7 @@ Status Nemo::KTTL(const std::string &key, int64_t *res) {
 Status Nemo::KPersist(const std::string &key, int64_t *res) {
     Status s;
     std::string val;
- 
+
     RecordLock l(&mutex_kv_record_, key);
     *res = 0;
     s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
@@ -676,6 +676,44 @@ Status Nemo::GetSnapshot(Snapshots &snapshots) {
     return Status::OK();
 }
 
+rocksdb::Iterator * Nemo::Scanbytype(const char kType) {
+    std::vector<const rocksdb::Snapshot*> snapshots;
+    Status s = GetSnapshot(snapshots);
+
+    rocksdb::Iterator *it = NULL;
+    switch (kType) {
+      case 'h': {
+        rocksdb::ReadOptions iterate_options;
+        iterate_options.snapshot = snapshots[1];
+        iterate_options.fill_cache = false;
+        it = hash_db_->NewIterator(iterate_options);
+        break;
+      }
+      case 'z': {
+        rocksdb::ReadOptions iterate_options;
+        iterate_options.snapshot = snapshots[2];
+        iterate_options.fill_cache = false;
+        it = zset_db_->NewIterator(iterate_options);
+        break;
+      }
+      case 's': {
+        rocksdb::ReadOptions iterate_options;
+        iterate_options.snapshot = snapshots[3];
+        iterate_options.fill_cache = false;
+        it = set_db_->NewIterator(iterate_options);
+        break;
+      }
+      case 'l': {
+        rocksdb::ReadOptions iterate_options;
+        iterate_options.snapshot = snapshots[4];
+        iterate_options.fill_cache = false;
+        it = list_db_->NewIterator(iterate_options);
+        break;
+      }
+    }
+    return it;
+}
+
 Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBNemo> &db, Snapshot *snapshot, const std::string pattern, std::vector<std::string>& keys) {
     rocksdb::ReadOptions iterate_options;
 
@@ -691,7 +729,7 @@ Status Nemo::ScanKeysWithTTL(std::unique_ptr<rocksdb::DBNemo> &db, Snapshot *sna
           keys.push_back(key);
       }
   //     printf ("ScanDB key=(%s) value=(%s) val_size=%u\n", it->key().ToString().c_str(), it->value().ToString().c_str(),
-   //           it->value().ToString().size());
+  //           it->value().ToString().size());
     }
 
     db->ReleaseSnapshot(iterate_options.snapshot);
@@ -786,7 +824,7 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
     int ok_cnt = 0;
     int64_t del_cnt = 0;
     Status s;
-    
+
     std::string tmp;
 
     {
@@ -872,7 +910,7 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
 Status Nemo::Expire(const std::string &key, const int32_t seconds, int64_t *res) {
     int cnt = 0;
     Status kv_result, s;
-    
+
     kv_result = KExpire(key, seconds, res);
     if (kv_result.ok()) {
       cnt++;
@@ -918,7 +956,7 @@ Status Nemo::Expire(const std::string &key, const int32_t seconds, int64_t *res)
 
 Status Nemo::TTL(const std::string &key, int64_t *res) {
     Status s;
-    
+
     s = KTTL(key, res);
     if (s.ok()) return s;
 
@@ -934,14 +972,14 @@ Status Nemo::TTL(const std::string &key, int64_t *res) {
     s = LTTL(key, res);
     if (s.ok()) return s;
 
-    return s; 
+    return s;
 }
 
 Status Nemo::Persist(const std::string &key, int64_t *res) {
     int ok_cnt = 0;
     int res_total = 0;
     Status s;
-    
+
     s = KPersist(key, res);
     if (s.ok()) {
       ok_cnt++;
@@ -997,7 +1035,7 @@ Status Nemo::Persist(const std::string &key, int64_t *res) {
 Status Nemo::Expireat(const std::string &key, const int32_t timestamp, int64_t *res) {
     int cnt = 0;
     Status s;
-    
+
     s = KExpireat(key, timestamp, res);
     if (s.ok()) {
       cnt++;
@@ -1054,9 +1092,9 @@ Status Nemo::Type(const std::string& key, std::string* type) {//the sequence is 
     } else if (!s.IsNotFound()) {
         return s;
     }
-    
+
     s = hash_db_->Get(rocksdb::ReadOptions(), std::string(1, DataType::kHSize) + key, &val);
-    if (s.ok() && *(reinterpret_cast<const int64_t*>(val.data())) > 0) { 
+    if (s.ok() && *(reinterpret_cast<const int64_t*>(val.data())) > 0) {
         *type = "hash";
         return s;
     } else if (!s.IsNotFound() && !s.ok()) {
@@ -1072,7 +1110,7 @@ Status Nemo::Type(const std::string& key, std::string* type) {//the sequence is 
     }
 
     s = zset_db_->Get(rocksdb::ReadOptions(), std::string(1, DataType::kZSize) + key, &val);
-    if (s.ok() && *(reinterpret_cast<const int64_t*>(val.data())) > 0) { 
+    if (s.ok() && *(reinterpret_cast<const int64_t*>(val.data())) > 0) {
         *type = "zset";
         return s;
     } else if (!s.IsNotFound() && !s.ok()) {
