@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <mutex>
 #include <cstdlib>
+#include <fstream>
 #include "nemo.h"
 
 #include "time_keeper.h"
@@ -16,9 +17,12 @@
 
 
 #define PRE tk.restart()
+/*
 #define POST int64_t delay=tk.delay_us(); \
              conf->mtx.lock(); count=++ conf->finishedRequests; conf->latency[count-1]=delay;\
              conf->mtx.unlock(); break
+*/
+#define POST  ct->latency[ct->finishedRequests]=tk.delay_us(); break;
 
 using namespace nemo;
 
@@ -26,34 +30,50 @@ template <typename T>
 inline static void  buildVec(std::vector<T> &newVec,const std::vector<T> &srcVEc,int &start,int &len);
 inline static void buildFV(std::vector<nemo::FV> &fv,const std::vector<std::string> &val,const std::vector<std::string> &field,int start,int len);
 
-void showReports(const config &conf) {
+void showReports(const config &conf,std::string fileName) {
     int count=0;
-    std::cout<<conf.finishedRequests<<" requests completed in "<<conf.totalLatency*1.0/1000<<" seconds\n";
+    
+    std::ofstream fout(fileName,std::ios::app);
+    fout<<"======================================================\n";
+    fout<<conf.finishedRequests<<" "<<cmd[conf.op]<<" requests completed in "<<conf.totalLatency*1.0/1000<<" seconds\n";
+    fout<<conf.numOfKeys<<" random Keys\n";
+    fout<<conf.numOfClients<<" parallel clients\n";
+    fout<<conf.playLoad<<" bytes keySize"<<std::endl;
+    fout<<conf.valueSize<<" bytes valueSize"<<std::endl;
+    fout<<conf.m<<" Mvalue for mset .etc "<<std::endl;
+
+    std::cout<<conf.finishedRequests<<" "<<cmd[conf.op]<<" requests completed in "<<conf.totalLatency*1.0/1000<<" seconds\n";
     std::cout<<conf.numOfClients<<" parallel clients\n";
     std::cout<<conf.playLoad<<" bytes keySize"<<std::endl;
-    std::cout<<conf.valueSize<<"bytes keySize"<<std::endl;
+    std::cout<<conf.valueSize<<" bytes valueSize"<<std::endl;
+    std::cout<<conf.m<<" Mvalue for mset .etc "<<std::endl;
     int curlat=0;
     float perc,qps;
     for(int i=0;i<conf.numOfRequests;i++){
-        if(conf.latency[i]/500!=curlat||i==(conf.numOfRequests-1)){
-            curlat=conf.latency[i]/500;
+        if(conf.latency[i]/1000!=curlat||i==(conf.numOfRequests-1)){
+            curlat=conf.latency[i]/1000;
             perc=(i+1)*100.0/conf.numOfRequests;
 	    if(curlat==0) curlat=1;
-            std::cout<<perc<<"%<== "<<curlat*5<<" hundred microseconds\n";
+            std::cout<<perc<<"%<== "<<curlat<<" microseconds\n";
+            fout<<perc<<"%<== "<<curlat<<" microseconds\n";
         }
         count++;
      }
     std::cout<<conf.finishedRequests*1.0/(conf.totalLatency/1000.0)<<"  requests per seconds\n";
+    fout<<conf.finishedRequests*1.0/(conf.totalLatency/1000.0)<<"  requests per seconds\n";
+    fout<<"============!!!!!!!!!!!!!!!!!!========================\n";
 }
 
 void reset(config &conf){
   conf.totalLatency=0;
   conf.finishedRequests=0;
-  conf.latency=std::vector<int64_t>(conf.numOfRequests+3*conf.numOfClients,0);
-
+  conf.latency.clear();
+  conf.latency.shrink_to_fit();
+ // conf.latency=std::vector<int64_t>(conf.numOfRequests+3*conf.numOfClients,0);
+  
 }
 
-void client_op(nemo::Nemo *np,config *conf){
+void client_op(nemo::Nemo *np,config *conf,client *ct){
   time_keeper tk;
   std::string val;
   std::vector<std::string> tempStr;
@@ -70,17 +90,20 @@ void client_op(nemo::Nemo *np,config *conf){
   uint64_t limit=5;
   double score=20.5,dbegin=0.5,dend=10.5;
   int len=5;
+  random_string rs;
+  rs.usrand();
   tk.restart();
-  for(int count=conf->finishedRequests;count<conf->numOfRequests;){
-    for(int index=0;count<conf->numOfRequests&&index<conf->numOfKeys;index++){
+  for(ct->finishedRequests=0;ct->finishedRequests<ct->requests;ct->finishedRequests++){
+   // for(int index=0;count<conf->numOfRequests&&index<conf->numOfKeys;index++){
+      int index=random()%(conf->numOfKeys);
       switch(conf->op){
         //================KV=====================
         case 0:{  PRE; np->Set(conf->kv[index].key,conf->kv[index].val); POST; } 
         case 1:{  PRE; np->Set(conf->kv[index].key,conf->kv[index].val,conf->ttl[index]); POST; }
         case 2:{  PRE; np->Get(conf->kv[index].key,&val); POST;} 
-        case 3:{  PRE; buildVec(kv,conf->kv,index,len);  np->MSet(kv); POST; }
-        case 4:{  PRE; buildVec(tempStr,conf->key,index,len); np->MGet(tempStr, kvss); POST; } 
-        case 5:{  PRE; buildVec(tempStr,conf->key,index,len); np->KMDel(tempStr, (int64_t*)&count); POST; }
+        case 3:{  PRE; buildVec(kv,conf->kv,index,conf->m);  np->MSet(kv); POST; }
+        case 4:{  PRE; buildVec(tempStr,conf->key,index,conf->m); np->MGet(tempStr, kvss); POST; } 
+        case 5:{  PRE; buildVec(tempStr,conf->key,index,conf->m); np->KMDel(tempStr, (int64_t*)&count); POST; }
         case 6:{  PRE; np->Incrby(conf->kv[index].key, count, conf->kv[index].val); POST; }
         case 7:{  PRE; np->Decrby(conf->kv[index].key, count, conf->kv[index].val); POST; }
         case 8:{  PRE; np->Incrbyfloat(conf->kv[index].key,score,conf->kv[index].val); POST;}
@@ -88,7 +111,7 @@ void client_op(nemo::Nemo *np,config *conf){
         case 10:{  PRE; np->Append(conf->kv[index].key,conf->kv[index].val,(int64_t*)&count); POST;}       
         case 11:{  PRE; np->Setnx(conf->kv[index].key,conf->kv[index].val,(int64_t*)&count); POST;}
         case 12:{  PRE; np->Setxx(conf->kv[index].key,conf->kv[index].val,(int64_t*)&count); POST;}        
-        case 13:{  PRE; buildVec(kv,conf->kv,index,len); np->MSetnx(kv,(int64_t*)&count); POST;}
+        case 13:{  PRE; buildVec(kv,conf->kv,index,conf->m); np->MSetnx(kv,(int64_t*)&count); POST;}
         case 14:{  PRE; np->Getrange(conf->kv[index].key,begin,end,conf->kv[index].key); POST;}
         case 15:{  PRE; np->Setrange(conf->kv[index].key,count,conf->kv[index].val,(int64_t*)&count); POST;}
         case 16:{  PRE; np->Strlen(conf->kv[index].key,(int64_t*)&count);  POST;}
@@ -101,7 +124,7 @@ void client_op(nemo::Nemo *np,config *conf){
         case 21:{ PRE; np->BitGet(conf->kv[index].key,end,(int64_t*)&count); POST; }
         case 22:{ PRE; np->BitCount(conf->kv[index].key,(int64_t*)&count);   POST;}
         case 23:{ PRE; np->BitPos(conf->kv[index].key,begin,end,(int64_t*)&count); POST;}
-        case 24:{ PRE; BitOpType op=kBitOpOr; buildVec(tempStr,conf->key,index,len); np->BitOp(op,conf->kv[index].key,tempStr,(int64_t*)&count); POST;}
+        case 24:{ PRE; BitOpType op=kBitOpOr; buildVec(tempStr,conf->key,index,conf->m); np->BitOp(op,conf->kv[index].key,tempStr,(int64_t*)&count); POST;}
         case 25:{ PRE; np->SetWithExpireAt(conf->kv[index].key,conf->kv[index].val); POST;}
  
         //==================HASH====================
@@ -114,7 +137,7 @@ void client_op(nemo::Nemo *np,config *conf){
         case 32:{ PRE; np->HLen(conf->kv[index].key); POST;}
         case 33:{ PRE;  buildFV(fv,conf->value,conf->field, index,len);
                      np->HMSet(conf->kv[index].key,fv); POST;}
-        case 34:{ PRE; buildVec(tempStr,conf->key,index,len); np->HMGet(conf->kv[index].key,tempStr,fvs); POST;}
+        case 34:{ PRE; buildVec(tempStr,conf->key,index,conf->m); np->HMGet(conf->kv[index].key,tempStr,fvs); POST;}
         case 35:{ PRE; np->HSetnx(conf->kv[index].key,conf->field[index],conf->kv[index].val); POST;}
         case 36:{ PRE; np->HStrlen(conf->kv[index].key,conf->field[index]); POST;}
         case 37:{ PRE; np->HScan(conf->kv[index].key,conf->kv[index].val,conf->field[index],limit); POST;}
@@ -146,8 +169,8 @@ void client_op(nemo::Nemo *np,config *conf){
         case 58:{ PRE; np->ZScan(conf->kv[index].key,dbegin,dend,limit); POST;}
         case 59:{ PRE; np->ZIncrby(conf->kv[index].key,conf->kv[index].val,score,val); POST;}
         case 60:{ PRE; np->ZRange(conf->kv[index].key,dbegin,dend, sm); POST;} 
-       case 61:{ PRE; buildVec(tempStr,conf->key,index,countInt); enum Aggregate g=SUM; np->ZUnionStore(conf->kv[index].key,countInt,tempStr,weight,g,(int64_t*)&count); POST;}
-        case 62:{ PRE; buildVec(tempStr,conf->key,index,countInt); enum Aggregate g=SUM; np->ZInterStore(conf->kv[index].key,countInt,tempStr,weight,g,(int64_t*)&count); POST;}
+       case 61:{ PRE; buildVec(tempStr,conf->key,index,conf->m); enum Aggregate g=SUM; np->ZUnionStore(conf->kv[index].key,countInt,tempStr,weight,g,(int64_t*)&count); POST;}
+        case 62:{ PRE; buildVec(tempStr,conf->key,index,conf->m); enum Aggregate g=SUM; np->ZInterStore(conf->kv[index].key,countInt,tempStr,weight,g,(int64_t*)&count); POST;}
         case 63:{ PRE; np->ZRangebyscore(conf->kv[index].key,dbegin,dend,sm); POST;}
         case 64:{ PRE; np->ZRem(conf->kv[index].key,conf->kv[index].val,(int64_t*)&count); POST;}
         case 65:{ PRE; np->ZRank(conf->kv[index].key,conf->kv[index].val,(int64_t*)&count);  POST;}
@@ -175,33 +198,51 @@ void client_op(nemo::Nemo *np,config *conf){
        case 85:{ PRE; np->SMove(conf->kv[index].key,conf->kv[index].val,conf->field[index],(int64_t*)&count); POST;}
       
        //=============HyperLogLog=================
-       case 86:{ PRE; bool update=false; buildVec(tempStr,conf->value,index,len); np->PfAdd(conf->kv[index].key,tempStr,update); POST;}
-       case 87:{ PRE; buildVec(tempStr,conf->key,index,len); np->PfCount(tempStr,count); POST;}
-       case 88:{ PRE; buildVec(tempStr,conf->key,index,len); np->PfMerge(tempStr); POST;}
+       case 86:{ PRE; bool update=false; buildVec(tempStr,conf->value,index,conf->m); np->PfAdd(conf->kv[index].key,tempStr,update); POST;}
+       case 87:{ PRE; buildVec(tempStr,conf->key,index,conf->m); np->PfCount(tempStr,countInt); POST;}
+       case 88:{ PRE; buildVec(tempStr,conf->key,index,conf->m); np->PfMerge(tempStr); POST;}
      
        //========default:Set====================
        default: {   exit(0);  break;} 
         
       }
     
-    }
+   // }
   
   }
 }
 
 void test_ops(nemo::Nemo *np,config *conf){
    std::vector<std::thread> pool;
+   std::vector<client> clients;
    pool.reserve(conf->numOfClients*2);
+   int n=conf->numOfRequests/conf->numOfClients;
+
+   for(int i=0;i<conf->numOfClients;i++){
+     clients.push_back(client(i,n));
+   }
+   
    std::cout<<"running....."<<std::endl;
    time_keeper tk;
+
    for(int i=0;i<conf->numOfClients;i++){
-	    pool.push_back(std::thread(client_op,np,conf));
+	    pool.push_back(std::thread(client_op,np,conf,&clients[i]));
    }
+
    for(int i=0;i<conf->numOfClients;i++){
     	pool[i].join();
    }
    conf->totalLatency=tk.delay_ms(); 
+    
+   for(int i=0;i<clients.size();i++){
+     std::vector<int64_t>::iterator it1=conf->latency.end();
+     std::vector<int64_t>::iterator start=clients[i].latency.begin();
+     std::vector<int64_t>::iterator end=clients[i].latency.end();
+     conf->latency.insert(it1,start,end);
+     conf->finishedRequests+= clients[i].finishedRequests;
+   }
    std::sort(conf->latency.begin(),conf->latency.end());
+   std::cout<<"=========end=====\n";
 }
 
 template <typename T>

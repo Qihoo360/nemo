@@ -49,19 +49,20 @@ void parseOption(int argc,char *argv[],config &conf){
 
 	    switch(para1[1]){
 	      case 'c':   conf.numOfClients=atoi(argv[i+1]);
-			               break;
-	    
+			              break;
+        case 'm':   conf.m=atoi(argv[i+1]);
+                    break;
 	      case 'r':   conf.numOfKeys=atoi(argv[i+1]);
-			               break;
+			              break;
 	      case 'n':    conf.numOfRequests=atoi(argv[i+1]);
-			               break;
-	      case 'd':    conf.playLoad=atoi(argv[i+1]);
-			                break;
-        case 's':    conf.valueSize=atoi(argv[i+1]);
-                     break;
+			              break;
+	      case 'd':   conf.playLoad=atoi(argv[i+1]);
+			              break;
+        case 's':   conf.valueSize=atoi(argv[i+1]);
+                    break;
         case 't':   {
                      std::string op;
-                     for(int j=0;j<para2.size();j++){
+                     for(unsigned int j=0;j<para2.size();j++){
                         if(para2[j]!=','&&j<para2.size()-1){
                           op+=para2[j];
                         }
@@ -92,11 +93,24 @@ void parseOption(int argc,char *argv[],config &conf){
     }
 }
 
+void getKVs(std::vector<nemo::KV> &kv,const std::vector<std::string> &key,const std::vector<std::string> &value){
+ std::vector<std::string>::const_iterator it_k=key.begin();
+ std::vector<std::string>::const_iterator it_v=value.begin();
 
-int main(int argc, char* argv[])
-{
+ while(it_k!=key.end()&&it_v!=value.end()){
+   nemo::KV temp;
+   temp.key = *it_k++;
+   temp.val= *it_v++;
+   kv.push_back(temp);
+ }
+}
+
+
+int main(int argc, char* argv[]){
+
     int numOfKeys=1000,numOfClients=1,numOfRequests =1000;
     int playLoad=3,dataSize=3;
+    int m=10;
     
     config conf;   
     conf.numOfClients=numOfClients;
@@ -105,8 +119,10 @@ int main(int argc, char* argv[])
     conf.finishedRequests=0;
     conf.valueSize=dataSize;
     conf.numOfKeys=numOfKeys;
+    conf.m=m;
     parseOption(argc,argv,conf);
     conf.latency=vector<int64_t>(conf.numOfRequests+3*conf.numOfClients,0);
+    
     nemo::Options options;
     options.target_file_size_base=20*1024*1024;  
     nemo::Nemo *np=new nemo::Nemo("./tmp",options);
@@ -118,16 +134,17 @@ int main(int argc, char* argv[])
     conf.kv.reserve(conf.numOfKeys);
     conf.ttl.reserve(conf.numOfKeys);
     rs.getRandomKeyValues(conf.key,conf.value,conf.playLoad,conf.valueSize,conf.numOfKeys);
-    rs.getRandomKVs(conf.kv,conf.playLoad,conf.valueSize,conf.numOfKeys); 
+   // rs.getRandomKVs(conf.kv,conf.playLoad,conf.valueSize,conf.numOfKeys); 
+    getKVs(conf.kv,conf.key,conf.value);
     rs.getRandomFields(conf.field,conf.playLoad,conf.numOfKeys);
     rs.getRandomInts(conf.ttl,conf.numOfKeys);
    
-    for(int i=0;i<conf.ops.size();i++){
+    for(unsigned int i=0;i<conf.ops.size();i++){
       conf.op=conf.ops[i];
      
       test_ops(np,&conf);
      
-      showReports(conf);
+      showReports(conf,"record");
       reset(conf);
     }
  

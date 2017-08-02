@@ -9,11 +9,11 @@
 
 class random_string {
 public:
-	random_string(){}
+	random_string(){usrand();}
 	~random_string(){}
 
 	std::string getRandomChars(const  int length){
-		usrand();
+    //usrand();
 		std::string randomStr;
 		for( int index = 0; index < length; index++)
 		{
@@ -23,18 +23,18 @@ public:
 	}
 
 	std::string getRandomChars(const  int min,const  int max){
-		usrand();
+		//usrand();
 		int len=min + random()%(max - min + 1);
 		return getRandomChars(len);
 	}
 
   int32_t getRandomInt(){
-    usrand();
+   // usrand();
     return random();
   }
 	
   std:: string getRandomBytes(const  int length){
-		usrand();
+		//usrand();
 		std::string randomStr;
 		for(  int index = 0;index<length;index++)
 		{
@@ -44,7 +44,7 @@ public:
 	}
 
 	std::string getRandomBytes(const  int min,const  int max){
-		usrand();
+		//usrand();
 		int len = min + random()%( max - min + 1);
 		return getRandomBytes(len);
 	}
@@ -71,7 +71,7 @@ public:
 
 	std::string getRandomField( int length ){
         	return this->getRandomBytes(length);
-        }
+  }
 
 	std::vector<std::string>& getRandomKeys(std::vector<std::string>&v_key, int playload, int n){
 		for(int i=0;i<n;i++){
@@ -129,7 +129,6 @@ public:
 		value=getRandomVal();
 	}
 
-		
 	void getRandomKeyValues(std::vector<std::string> &v_key,std::vector<std::string> &v_value,int playload,int valueSize,int n){
 	    for(int i=0;i<n;i++){
 		 v_key.push_back(getRandomKey(playload));
@@ -143,16 +142,17 @@ public:
 		 v_value.push_back(getRandomVal());
 	    }
 	}
+
   void getRandomKVs(std::vector<nemo::KV> &kv,int playLoad,int valueSize,int n){
     for(int i = 0; i < n; i++){
       nemo::KV temp;
       temp.key = getRandomKey(playLoad);
       temp.val = getRandomVal(valueSize);
       kv.push_back(temp);
-    
     }
   
   }	
+
 	void usrand(){
 		struct timeval now;
 		gettimeofday(&now,NULL);
@@ -162,7 +162,7 @@ public:
 
 private:
 	static const int charsSetLen_=62;
-	std::string charSet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz";
+ 	std::string charSet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz";
 	static const  int maxKeyLen_ = 254;
 	static const  int minKeyLen_ =0;
 	static const  int maxFieldLen_=1024000;
