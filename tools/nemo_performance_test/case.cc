@@ -21,9 +21,9 @@
 using namespace nemo;
 
 
-void GetKVs(std::vector<nemo::KV> &kv,const std::vector<std::string> &key,const std::vector<std::string> &value) { 
-  std::vector<std::string>::const_iterator it_k=key.begin();
-  std::vector<std::string>::const_iterator it_v=value.begin();
+void GetKVs(std::vector<nemo::KV> &kv, const std::vector<std::string> &key, const std::vector<std::string> &value) { 
+  std::vector<std::string>::const_iterator it_k = key.begin();
+  std::vector<std::string>::const_iterator it_v = value.begin();
 
   while (it_k != key.end() && it_v != value.end()) {
     nemo::KV temp;

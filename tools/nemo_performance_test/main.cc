@@ -30,7 +30,7 @@ void Usage() {
 }
 
 void ParseOption(int argc,char *argv[],Config &conf) {
-  if(argc%2 == 0) {
+  if (argc%2 == 0) {
     Usage();
   }
 
@@ -42,11 +42,11 @@ void ParseOption(int argc,char *argv[],Config &conf) {
   for (int i = 1; i < argc; i += 2) {
     std::string para1=argv[i];
     std::string para2=argv[i+1];
-    if(para1.size() != 2 || para1[0] != '-') {
+    if (para1.size() != 2 || para1[0] != '-') {
       Usage();
     }
 
-    switch(para1[1]) {
+    switch (para1[1]) {
       case 'c':   conf.num_of_clients = atoi(argv[i+1]);
                   break;
       case 'm':   conf.m = atoi(argv[i+1]);
@@ -91,7 +91,7 @@ void ParseOption(int argc,char *argv[],Config &conf) {
   }
 }
 
-void GetKVs(std::vector<nemo::KV> &kv,const std::vector<std::string> &key,const std::vector<std::string> &value) { 
+void GetKVs(std::vector<nemo::KV> &kv, const std::vector<std::string> &key, const std::vector<std::string> &value) { 
   std::vector<std::string>::const_iterator it_k=key.begin();
   std::vector<std::string>::const_iterator it_v=value.begin();
 
