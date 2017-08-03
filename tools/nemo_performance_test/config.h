@@ -1,5 +1,5 @@
-#ifndef _CONFIG_H_
-#define _CONFIG_H_
+#ifndef CONFIG_H
+#define CONFIG_H
 #include <vector>
 #include <string>
 #include <mutex>
@@ -10,56 +10,59 @@
 
 #define cmdLen 89
 
-static std::string cmd[cmdLen]={"set","setttl","get","mset","mget","kmdel","incrby","decrby","incrybyfloat","getset",
-	"append","setnx","setxx","msetnx","getrange","setrange","strlen","kscan","scan","keys",
-	"bitset","bitget","bitcount","bitpos","bitop","setwithexpireat","hset","hget","hdel","hexists",
-	"hkeys","hgetall","hlen","hmset","hmget","hsetnx","hstrlen","hscan","hvals","hincrby",
-	"hincrbyfloat","lindex","llen","lpush","lpop","lpushx","lrange","lset","ltrim","rpush",
-	"rpop","rpushx","rpoplpush","linsert","lrem","zadd","zcard","zcount","zscan","zincrby",
-	"zrange","zunionstore","zinterstore","zrangebyscore","zrem","zrank","zrevrank","zscore","zremrangebylex","zremrangebyrank",
-	"zremrangebyscore","sadd","srem","scard","sscan","smembers","sunionstore","sunion","sinterstore","sinter",
-	"sdifferstore","sdiff","sismember","spop","srandmember","smove","pfadd","pfcount","pfmerge"
-};
 using namespace nemo;
 
-typedef struct config{
-    int numOfRequests;
-    int numOfClients;
-    int64_t totalLatency;
-    int playLoad;
-    int valueSize;
-    int numOfKeys;
-    int finishedRequests;
-    int op;
-    int m;
-    std::string folder;
+static std::string cmd[cmdLen] = {"set","setttl","get","mset","mget","kmdel","incrby","decrby","incrybyfloat","getset",
+  "append","setnx","setxx","msetnx","getrange","setrange","strlen","kscan","scan","keys",
+  "bitset","bitget","bitcount","bitpos","bitop","setwithexpireat","hset","hget","hdel","hexists",
+  "hkeys","hgetall","hlen","hmset","hmget","hsetnx","hstrlen","hscan","hvals","hincrby",
+  "hincrbyfloat","lindex","llen","lpush","lpop","lpushx","lrange","lset","ltrim","rpush",
+  "rpop","rpushx","rpoplpush","linsert","lrem","zadd","zcard","zcount","zscan","zincrby",
+  "zrange","zunionstore","zinterstore","zrangebyscore","zrem","zrank","zrevrank","zscore","zremrangebylex","zremrangebyrank",
+  "zremrangebyscore","sadd","srem","scard","sscan","smembers","sunionstore","sunion","sinterstore","sinter",
+  "sdifferstore","sdiff","sismember","spop","srandmember","smove","pfadd","pfcount","pfmerge"
+};
 
-    std::vector<int> ops;
-    std::vector<int64_t> latency;
-    std::vector<std::string> key;
-    std::vector<std::string> value;
-    std::vector<std::string> field;
-    std::vector<nemo::KV> kv;
-    std::vector<int64_t> ttl;
-}config;
+typedef struct Config {
+  int32_t num_of_requests;
+  int32_t num_of_clients;
+  int64_t total_latency;
+  int32_t key_size;
+  int32_t value_size;
+  int32_t num_of_keys;
+  int32_t finished_requests;
+  int32_t op;
+  int32_t m;
+  std::string folder;
 
-typedef struct client{
-    int no; //the index of the client
-    int requests;
-    int finishedRequests;
-    std::vector<int64_t> latency;  //the latency of every request sent by this client
-    client(int index,int n):
-      no(index),
-      requests(n),
-      finishedRequests(0){
-        latency.reserve(n);
-      }
-}client;
+  std::vector<int32_t> ops;
+  std::vector<int64_t> latency;
+  std::vector<std::string> key;
+  std::vector<std::string> value;
+  std::vector<std::string> field;
+  std::vector<nemo::KV> kv;
+  std::vector<int64_t> ttl;
+} Config;
 
-void showReports(const config &conf,std::string fileName);
-void client_op(nemo::Nemo *np,config *conf,client *ct);
-void test_ops(nemo::Nemo *np,config *conf);
-void reset(config &conf);
+typedef struct Client {
+  //the index of the client
+  int32_t no; 
+  int32_t requests;
+  int32_t finished_requests;
+  //the latency of every request sent by this client
+  std::vector<int64_t> latency;  
+  Client(int index, int n):
+    no(index),
+    requests(n),
+    finished_requests(0) {
+      latency.reserve(n);
+    }
+} Client;
+
+void ShowReports(const Config &conf, std::string file_name);
+void ClientOP(nemo::Nemo *np, Config *conf, Client *ct);
+void TestOPs(nemo::Nemo *np, Config *conf);
+void Reset(Config &conf);
 
 
 
