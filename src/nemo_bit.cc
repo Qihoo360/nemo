@@ -400,8 +400,8 @@ Status Nemo::BitOp(BitOpType op, const std::string &dest_key, const std::vector<
     int64_t max_len;
     int64_t min_len;
     std::tie(max_len, min_len) = BitOpGetSrcValue(src_keys, src_values);
-    log_info("max_len:%d min_len:%d",max_len,min_len);
-    log_info("src_values num:%d ",src_values.size());
+//    log_info("max_len:%d min_len:%d",max_len,min_len);
+//    log_info("src_values num:%d ",src_values.size());
     if (src_values.size() != src_key_num ) {
       return Status::Corruption("bitop not:error getting src values");
     }

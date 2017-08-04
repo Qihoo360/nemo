@@ -1,9 +1,21 @@
 CXX = g++
-CXXFLAGS = -DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX  -DOS_LINUX -Wall -Wno-format -DDEBUG -g -O0 -std=c++11 -D__XDEBUG__
+CXXFLAGS = -DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX  -DOS_LINUX -Wall -Wno-format -DDEBUG -g -O2 -std=c++11 -D__XDEBUG__
 
 OBJECT = main test_bgsave zset test_server hash kv_test ttl bench_hash list_lock simple_test
 
-LIB_PATH = -L../output/lib/
+ifndef NEMODB_PATH
+$(warning Warning: missing nemo-rocksdb path, using default: ../3rdparty/nemo-rocksdb)
+NEMODB_PATH=../3rdparty/nemo-rocksdb
+endif
+
+ifndef ROCKSDB_PATH
+$(warning Warning: missing rocksdb path, using default: ../3rdparty/nemo-rocksdb/rocksdb)
+ROCKSDB_PATH=../3rdparty/nemo-rocksdb/rocksdb
+endif
+
+LIB_PATH = -L../lib/ \
+					 -L$(NEMODB_PATH)/lib/ \
+					 -L$(ROCKSDB_PATH)/
 
 LIBS = -lnemo \
 	-lnemodb \
@@ -14,9 +26,10 @@ LIBS = -lnemo \
 	-lrt \
 	-lpthread
 
-INCLUDE_PATH = -I../output/include/ \
-							 -I../3rdparty/nemo-rocksdb/rocksdb/ \
-							 -I../3rdparty/nemo-rocksdb/rocksdb/include
+INCLUDE_PATH = -I../include/ \
+							 -I$(NEMODB_PATH)/include \
+							 -I$(ROCKSDB_PATH)/ \
+							 -I$(ROCKSDB_PATH)/include
 
 OBJS = main.o test_bgsave.o zset.o test_server.o test_mset.o hash.o hash_test.o kv_test.o zset_test.o set_test.o list_test.o ttl.o bench_hash.o list_lock.o simple_test.o
 

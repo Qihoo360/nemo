@@ -1,94 +1,164 @@
-CXX = g++
+CLEAN_FILES = # deliberately empty, so we can append below.
+CXX=g++
+LDFLAGS= -lpthread -lrt
+CXXFLAGS=-std=c++11 -fno-builtin-memcmp -msse -msse4.2
+PROFILING_FLAGS=-pg
+ARFLAGS = rs
+OPT=
 
-ifeq ($(__PERF), 1)
-	CXXFLAGS = -DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX  -DOS_LINUX -O0 -g -gstabs+ -pg -pipe -fPIC -D__XDEBUG__ -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -Wconversion -Wno-unused-parameter -D_GNU_SOURCE -std=c++11
-else
-	# CXXFLAGS = -O2 -g -pipe -fPIC -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -Wconversion -D_GNU_SOURCE
-	CXXFLAGS = -DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX  -DOS_LINUX -Wall -W -Wno-unused-parameter -g -O2 -D__STDC_FORMAT_MACROS -fPIC -std=c++11
+# Set the default DEBUG_LEVEL to 0
+DEBUG_LEVEL?=0
+
+ifeq ($(MAKECMDGOALS),dbg)
+  DEBUG_LEVEL=2 # compatible with rocksdb
 endif
 
-OBJECT = nemo
-SRC_DIR = ./src
-OUTPUT = ./output
+ifeq ($(MAKECMDGOALS),all)
+  DEBUG_LEVEL=0
+endif
 
-ROCKSDB_PATH = ./3rdparty/nemo-rocksdb
+ifeq ($(MAKECMDGOALS),clean)
+  DEBUG_LEVEL=0
+endif
 
-LIB_PATH = -L./ \
-					 -L$(ROCKSDB_PATH)/output/lib
-LIBS = -lpthread -lnemodb -lrocksdb
+ifeq ($(MAKECMDGOALS),static_lib)
+  DEBUG_LEVEL=0
+endif
 
+# compile with -O2 if for release
+# if we're compiling for release, compile without debug code (-DNDEBUG) and
+# don't treat warnings as errors
+ifeq ($(DEBUG_LEVEL),0)
+DISABLE_WARNING_AS_ERROR=1
+OPT += -O2 -fno-omit-frame-pointer -DNDEBUG
+else
+$(warning Warning: Compiling in debug mode. Don't use the resulting binary in production)
+OPT += -O0 -D__XDEBUG__ -D_GNU_SOURCE $(PROFILING_FLAGS)
+endif
 
-# tools
-TOOLS_COMPACT_PATH = ./tools/compact
-TOOLS_COMPACT_OBJ = compact
-TOOLS_METASCAN_PATH = ./tools/meta_scan
-TOOLS_METASCAN_OBJ = meta_scan
-TOOLS_NEMOCK_PATH = ./tools/nemock
-TOOLS_NEMOCK_OBJ = nemock
+#-----------------------------------------------
 
-INCLUDE_PATH = -I./include/ \
-			   			 -I$(ROCKSDB_PATH)/output/include \
-							 -I$(ROCKSDB_PATH)/rocksdb \
-							 -I$(ROCKSDB_PATH)/rocksdb/include
+SRC_DIR=src
+VERSION_CC=$(SRC_DIR)/build_version.cc
+LIB_SOURCES :=  $(VERSION_CC) \
+				$(filter-out $(VERSION_CC), $(wildcard $(SRC_DIR)/*.cc))
 
-LIBRARY = libnemo.a
-ROCKSDB = libnemodb.a
+ifndef NEMODB_PATH
+$(warning Warning: missing nemo-rocksdb path, using default: $(CURDIR)/3rdparty/nemo-rocksdb)
+NEMODB_PATH=$(CURDIR)/3rdparty/nemo-rocksdb
+endif
 
-.PHONY: all clean
+NEMODB_INCLUDE_DIR=$(NEMODB_PATH)/include
+NEMODB_LIBRARY=$(NEMODB_PATH)/lib/libnemodb.a
 
+AM_DEFAULT_VERBOSITY = 0
 
-BASE_OBJS := $(wildcard $(SRC_DIR)/*.cc)
-BASE_OBJS += $(wildcard $(SRC_DIR)/*.c)
-BASE_OBJS += $(wildcard $(SRC_DIR)/*.cpp)
-OBJS = $(patsubst %.cc,%.o,$(BASE_OBJS))
+AM_V_GEN = $(am__v_GEN_$(V))
+am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
+am__v_GEN_0 = @echo "  GEN     " $@;
+am__v_GEN_1 =
+AM_V_at = $(am__v_at_$(V))
+am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
+am__v_at_0 = @
+am__v_at_1 =
 
-all: $(ROCKSDB) $(LIBRARY)
-	@echo "Success, go, go, go..."
+AM_V_CXX = $(am__v_CXX_$(V))
+am__v_CXX_ = $(am__v_CXX_$(AM_DEFAULT_VERBOSITY))
+am__v_CXX_0 = @echo "  CXX     " $@;
+am__v_CXX_1 =
+LD = $(CXX)
+AM_V_LD = $(am__v_LD_$(V))
+am__v_LD_ = $(am__v_LD_$(AM_DEFAULT_VERBOSITY))
+am__v_LD_0 = @echo "  LD      " $@;
+am__v_LD_1 =
+AM_V_AR = $(am__v_AR_$(V))
+am__v_AR_ = $(am__v_AR_$(AM_DEFAULT_VERBOSITY))
+am__v_AR_0 = @echo "  AR      " $@;
+am__v_AR_1 =
 
-$(ROCKSDB):
-	make -C $(ROCKSDB_PATH)
+AM_LINK = $(AM_V_LD)$(CXX) $^ $(EXEC_LDFLAGS) -o $@ $(LDFLAGS)
 
-$(LIBRARY): $(OBJS)
-	rm -rf $(OUTPUT)
-	mkdir $(OUTPUT)
-	mkdir $(OUTPUT)/include
-	mkdir $(OUTPUT)/lib
-	mkdir $(OUTPUT)/tools
-	rm -rf $@
-	ar -rcs $@ $(OBJS)
-	cp -rf $(ROCKSDB_PATH)/include/* $(OUTPUT)/include
-	cp -rf ./include/* $(OUTPUT)/include
-	mv ./libnemo.a $(OUTPUT)/lib/
-	cp $(ROCKSDB_PATH)/output/lib/libnemodb.a $(OUTPUT)/lib
-	cp $(ROCKSDB_PATH)/output/lib/librocksdb.a $(OUTPUT)/lib
-	# tools
-	$(MAKE) -C $(TOOLS_COMPACT_PATH) $(TOOLS_COMPACT_OBJ)
-	$(MAKE) -C $(TOOLS_METASCAN_PATH) $(TOOLS_METASCAN_OBJ)
-	$(MAKE) -C $(TOOLS_NEMOCK_PATH) $(TOOLS_NEMOCK_OBJ)
-	mv $(TOOLS_COMPACT_PATH)/$(TOOLS_COMPACT_OBJ) $(OUTPUT)/tools
-	mv $(TOOLS_METASCAN_PATH)/$(TOOLS_METASCAN_OBJ) $(OUTPUT)/tools
-	mv $(TOOLS_NEMOCK_PATH)/$(TOOLS_NEMOCK_OBJ) $(OUTPUT)/tools
-	make -C example
+CXXFLAGS += -g
 
-$(OBJECT): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LIBS)
+# This (the first rule) must depend on "all".
+default: all
 
-$(OBJS): %.o : %.cc
-	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDE_PATH) 
+WARNING_FLAGS = -W -Wextra -Wall -Wsign-compare \
+  -Wno-unused-parameter -Wno-redundant-decls -Wwrite-strings \
+	-Wpointer-arith -Wreorder -Wswitch -Wsign-promo \
+	-Woverloaded-virtual -Wnon-virtual-dtor -Wno-missing-field-initializers
 
-$(TOBJS): %.o : %.cc
-	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDE_PATH) 
+ifndef DISABLE_WARNING_AS_ERROR
+  WARNING_FLAGS += -Werror
+endif
 
-clean: 
-	make -C $(ROCKSDB_PATH) clean
-	make -C example clean
-	$(MAKE) -C $(TOOLS_COMPACT_PATH) clean
-	$(MAKE) -C $(TOOLS_METASCAN_PATH) clean
-	rm -rf $(SRC_DIR)/*.o
-	rm -rf $(OUTPUT)
-	rm -rf $(LIBRARY)
-	rm -rf $(OBJECT)
+CXXFLAGS += $(WARNING_FLAGS) -I./include -I$(NEMODB_INCLUDE_DIR) -I$(NEMODB_PATH)/rocksdb -I$(NEMODB_PATH)/rocksdb/include $(OPT)
 
-distclean: clean 
-	make clean -C $ROCKSDB_PATH)/rocksdb
+date := $(shell date +%F)
+git_sha := $(shell git rev-parse HEAD 2>/dev/null)
+gen_build_version = sed -e s/@@GIT_SHA@@/$(git_sha)/ -e s/@@GIT_DATE_TIME@@/$(date)/ $(SRC_DIR)/build_version.cc.in
+# Record the version of the source that we are compiling.
+# We keep a record of the git revision in this file.  It is then built
+# as a regular source file as part of the compilation process.
+# One can run "strings executable_filename | grep _build_" to find
+# the version of the source that we used to build the executable file.
+CLEAN_FILES += $(SRC_DIR)/build_version.cc
 
+$(SRC_DIR)/build_version.cc: FORCE
+	$(AM_V_GEN)rm -f $@-t
+	$(AM_V_at)$(gen_build_version) > $@-t
+	$(AM_V_at)if test -f $@; then         \
+	  cmp -s $@-t $@ && rm -f $@-t || mv -f $@-t $@;    \
+	else mv -f $@-t $@; fi
+FORCE: 
+
+LIBOBJECTS = $(LIB_SOURCES:.cc=.o)
+
+# if user didn't config LIBNAME, set the default
+ifeq ($(LIBNAME),)
+# we should only run pink in production with DEBUG_LEVEL 0
+ifeq ($(DEBUG_LEVEL),0)
+        LIBNAME=libnemo
+else
+        LIBNAME=libnemo_debug
+endif
+endif
+LIBOUTPUT = ./lib
+dummy := $(shell mkdir -p $(LIBOUTPUT))
+LIBRARY = $(LIBOUTPUT)/${LIBNAME}.a
+
+.PHONY: clean dbg static_lib all
+
+all: $(LIBRARY)
+
+static_lib: $(LIBRARY)
+
+check: $(LIBRARY)
+	@make -C test
+	for t in $(notdir $(TESTS)); do echo "***** Running $$t"; ./test/$$t || exit 1; done
+
+dbg: $(LIBRARY)
+
+$(LIBRARY): $(LIBOBJECTS)
+	$(AM_V_AR)rm -f $@
+	$(AM_V_at)$(AR) $(ARFLAGS) $@ $(LIBOBJECTS)
+
+clean:
+	make -C ./example clean
+	rm -f $(LIBRARY)
+	rm -rf $(CLEAN_FILES)
+	rm -rf $(LIBOUTPUT)
+	find . -name "*.[oda]*" ! -path "./3rdparty/*" -exec rm -f {} \;
+	find . -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
+
+%.o: %.cc
+	$(AM_V_CXX)$(CXX) $(CXXFLAGS) -c $< -o $@
+
+%.d: %.cc
+	@set -e; rm -f $@; $(CXX) -MM $(CXXFLAGS) $< > $@.$$$$; \
+	sed 's,\($(notdir $*)\)\.o[ :]*,$(SRC_DIR)/\1.o $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
+
+ifneq ($(MAKECMDGOALS),clean)
+  -include $(LIBOBJECTS:.o=.d)
+endif
