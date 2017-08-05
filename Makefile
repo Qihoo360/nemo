@@ -91,7 +91,7 @@ ifndef DISABLE_WARNING_AS_ERROR
   WARNING_FLAGS += -Werror
 endif
 
-CXXFLAGS += $(WARNING_FLAGS) -I./include -I$(NEMODB_INCLUDE_DIR) -I$(NEMODB_PATH)/rocksdb -I$(NEMODB_PATH)/rocksdb/include $(OPT)
+CXXFLAGS += $(WARNING_FLAGS) -I./include -I$(NEMODB_INCLUDE_DIR) -I$(ROCKSDB_PATH) -I$(ROCKSDB_PATH)/include $(OPT)
 
 date := $(shell date +%F)
 git_sha := $(shell git rev-parse HEAD 2>/dev/null)
