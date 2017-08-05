@@ -49,7 +49,6 @@ NEMODB_PATH=$(CURDIR)/3rdparty/nemo-rocksdb
 endif
 
 NEMODB_INCLUDE_DIR=$(NEMODB_PATH)/include
-NEMODB_LIBRARY=$(NEMODB_PATH)/lib/libnemodb.a
 
 AM_DEFAULT_VERBOSITY = 0
 
