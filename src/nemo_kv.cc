@@ -907,6 +907,77 @@ Status Nemo::Del(const std::string &key, int64_t *count) {
     return Status::OK();
 }
 
+Status Nemo::DelSingleType(const std::string &key, int64_t *count, const char key_type) {
+    Status s;
+    
+    std::string tmp;
+    switch (key_type) {
+      case 'k':
+        {
+          RecordLock l(&mutex_kv_record_, key);
+          s = KDel(key, count);
+          //if (s.ok()) {
+            //if (bgtask_flag_) {
+            //  AddBGTask({DBType::kKV, OPERATION::kDEL_KEY, key, tmp});
+            //}
+          //}
+          return s;
+        }
+        break;
+      case 'h':
+        {
+          RecordLock l(&mutex_hash_record_, key);
+          s = HDelKey(key, count);
+          if (s.ok()) {
+            if (bgtask_flag_) {
+              AddBGTask({DBType::kHASH_DB, OPERATION::kDEL_KEY, key, tmp});
+            }
+          }
+          return s;
+        }
+        break;
+      case 'z':
+        {
+          RecordLock l(&mutex_zset_record_, key);
+          s = ZDelKey(key, count);
+          if (s.ok()) {
+            if (bgtask_flag_) {
+              AddBGTask({DBType::kZSET_DB, OPERATION::kDEL_KEY, key, tmp});
+            }
+          }
+          return s;
+        }
+        break;
+      case 's':
+        {
+          RecordLock l(&mutex_set_record_, key);
+          s = SDelKey(key, count);
+          if (s.ok()) {
+            if (bgtask_flag_) {
+              AddBGTask({DBType::kSET_DB, OPERATION::kDEL_KEY, key, tmp});
+            }
+          }
+          return s;
+        }
+        break;
+      case 'l':
+        {
+          RecordLock l(&mutex_list_record_, key);
+          s = LDelKey(key, count);
+          if (s.ok()) {
+            if (bgtask_flag_) {
+              AddBGTask({DBType::kLIST_DB, OPERATION::kDEL_KEY, key, tmp});
+            }
+          }
+          return s;
+        }
+        break;
+      default:
+        break;
+    }
+    return Status::OK();
+}
+
 Status Nemo::Expire(const std::string &key, const int32_t seconds, int64_t *res) {
     int cnt = 0;
     Status kv_result, s;
