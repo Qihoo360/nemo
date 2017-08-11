@@ -306,13 +306,14 @@ Status Nemo::Setrange(const std::string key, const int64_t offset, const std::st
     if (offset < 0) {
         return Status::Corruption("offset < 0");
     }
+
+    if (value.length() + offset > (1<<29)) {
+        return Status::Corruption("too big");
+    }
     //MutexLock l(&mutex_kv_);
     RecordLock l(&mutex_kv_record_, key);
     Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &val);
     if (s.ok()) {
-        if (val.length() + offset > (1<<29)) {
-            return Status::Corruption("too big");
-        }
         if ((size_t)offset > val.length()) {
             val.resize(offset);
             new_val = val.append(value);
