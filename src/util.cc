@@ -26,14 +26,11 @@ int StrToUint64(const char *s, size_t slen, uint64_t *value) {
     const char *p = s;
     size_t plen = 0;
     uint64_t v;
-
-    if (plen == slen)
-        return 0;
-
-    /* Special case: first and only digit is 0. */
-    if (slen == 1 && p[0] == '0') {
-        if (value != NULL) *value = 0;
-        return 1;
+    
+    /* s should not be NULL. */
+    if (s == NULL) {
+      if (value != NULL)  *value = 0;
+      return 0;
     }
 
     while (plen < slen && p[0] == '0') {
@@ -47,21 +44,18 @@ int StrToUint64(const char *s, size_t slen, uint64_t *value) {
 
     /* First digit should be 1-9, otherwise the string should just be 0. */
     if (p[0] >= '1' && p[0] <= '9') {
-        v = p[0]-'0';
+        v = p[0] - '0';
         p++; plen++;
-    } else if (p[0] == '0' && slen == 1) {
-        *value = 0;
-        return 1;
     } else {
         return 0;
     }
 
     while (plen < slen && p[0] >= '0' && p[0] <= '9') {
-        if (v > (ULLONG_MAX / 10)) /* Overflow. */
+        if (v * 10 > v) /* Overflow. */
             return 0;
         v *= 10;
 
-        if (v > (ULLONG_MAX - (p[0]-'0'))) /* Overflow. */
+        if (v + (p[0] - '0') < v) /* Overflow. */
             return 0;
         v += p[0]-'0';
 
@@ -72,8 +66,6 @@ int StrToUint64(const char *s, size_t slen, uint64_t *value) {
     if (plen < slen)
         return 0;
 
-    if (v > LLONG_MAX) /* Overflow. */
-      return 0;
     if (value != NULL) *value = v;
 
     return 1;
@@ -85,14 +77,14 @@ int StrToInt64(const char *s, size_t slen, int64_t *value) {
     int negative = 0;
     uint64_t v;
 
+    /* s should not be NULL. */
+    if (s == NULL) {
+      if (value != NULL)  *value = 0;
+      return 1;
+    }
+
     if (plen == slen)
         return 0;
-
-    /* Special case: first and only digit is 0. */
-    if (slen == 1 && p[0] == '0') {
-        if (value != NULL) *value = 0;
-        return 1;
-    }
 
     if (p[0] == '-' || p[0] == '+') {
         if (p[0] == '-') {
@@ -108,15 +100,20 @@ int StrToInt64(const char *s, size_t slen, int64_t *value) {
     if (!StrToUint64(p, slen - plen, &v))
         return 0;
 
+    if (v > INT64_MAX){
+      return 0;
+    }
+
     if (negative) {
-        if (v > ((unsigned long long)(-(LLONG_MIN+1))+1)) /* Overflow. */
+        if (v > ((uint64_t)(-(INT64_MIN+1))+1)) /* Overflow. */
             return 0;
         if (value != NULL) *value = -v;
     } else {
-        if (v > LLONG_MAX) /* Overflow. */
+        if (v > INT64_MAX) /* Overflow. */
             return 0;
         if (value != NULL) *value = v;
     }
+
     return 1;
 }
 
@@ -126,10 +123,9 @@ int StrToInt32(const char *s, size_t slen, int32_t *val) {
     if (!StrToInt64(s, slen, &llval))
         return 0;
 
-    if (llval < LONG_MIN || llval > LONG_MAX)
+    if (llval < INT32_MIN || llval > INT32_MAX)
         return 0;
-
-    *val = (int32_t)llval;
+    if (val != NULL) *val = (int32_t)llval;
     return 1;
 }
 
@@ -139,7 +135,7 @@ int StrToUint32(const char *s, size_t slen, uint32_t *val) {
     if (!StrToUint64(s, slen, &llval))
         return 0;
 
-    if (llval > ULONG_MAX)
+    if (llval > UINT32_MAX)
         return 0;
 
     *val = (uint32_t)llval;
