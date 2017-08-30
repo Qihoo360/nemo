@@ -114,7 +114,7 @@ public:
     KIterator* KScan(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
     Status Scan(int64_t cursor, std::string &pattern, int64_t count, std::vector<std::string>& keys, int64_t* cursor_ret);
 
-    Status Keys(const std::string &pattern, std::vector<std::string>& keys);
+    Status Keys(const std::string &pattern, std::vector<std::string>& keys, const char* type);
 
     rocksdb::Iterator * Scanbytype(const char kType);
     // ==============BITMAP=====================

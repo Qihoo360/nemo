@@ -770,28 +770,47 @@ Status Nemo::ScanKeys(std::unique_ptr<rocksdb::DBNemo> &db, Snapshot *snapshot, 
 
 // String APIs
 
-Status Nemo::Keys(const std::string &pattern, std::vector<std::string>& keys) {
+Status Nemo::Keys(const std::string &pattern, std::vector<std::string>& keys, const char* type) {
     Status s;
     std::vector<const rocksdb::Snapshot*> snapshots;
 
     s = GetSnapshot(snapshots);
     if (!s.ok()) return s;
 
-    s = ScanKeysWithTTL(kv_db_, snapshots[0], pattern, keys);
-    if (!s.ok()) return s;
-
-    s = ScanKeys(hash_db_, snapshots[1], DataType::kHSize, pattern, keys);
-    if (!s.ok()) return s;
-
-    s = ScanKeys(zset_db_, snapshots[2], DataType::kZSize, pattern, keys);
-    if (!s.ok()) return s;
-
-    s = ScanKeys(set_db_, snapshots[3], DataType::kSSize, pattern, keys);
-    if (!s.ok()) return s;
-
-    s = ScanKeys(list_db_, snapshots[4], DataType::kLMeta, pattern, keys);
-    if (!s.ok()) return s;
-
+    switch (*type) {
+      case 'k':
+        s = ScanKeysWithTTL(kv_db_, snapshots[0], pattern, keys);
+        if (!s.ok()) return s;
+        break;
+      case 'h':
+        s = ScanKeys(hash_db_, snapshots[1], DataType::kHSize, pattern, keys);
+        if (!s.ok()) return s;
+        break;
+      case 'z':
+        s = ScanKeys(zset_db_, snapshots[2], DataType::kZSize, pattern, keys);
+        if (!s.ok()) return s;
+        break;
+      case 's':
+        s = ScanKeys(set_db_, snapshots[3], DataType::kSSize, pattern, keys);
+        if (!s.ok()) return s;
+        break;
+      case 'l':
+        s = ScanKeys(list_db_, snapshots[4], DataType::kLMeta, pattern, keys);
+        if (!s.ok()) return s;
+        break;
+      default:
+        s = ScanKeysWithTTL(kv_db_, snapshots[0], pattern, keys);
+        if (!s.ok()) return s;
+        s = ScanKeys(hash_db_, snapshots[1], DataType::kHSize, pattern, keys);
+        if (!s.ok()) return s;
+        s = ScanKeys(zset_db_, snapshots[2], DataType::kZSize, pattern, keys);
+        if (!s.ok()) return s;
+        s = ScanKeys(set_db_, snapshots[3], DataType::kSSize, pattern, keys);
+        if (!s.ok()) return s;
+        s = ScanKeys(list_db_, snapshots[4], DataType::kLMeta, pattern, keys);
+        if (!s.ok()) return s;
+        break;
+    }
     return s;
 }
 
