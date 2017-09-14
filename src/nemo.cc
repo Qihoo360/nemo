@@ -70,7 +70,7 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
    if (options.max_background_flushes > 0 && options.max_background_flushes <= 4) {
       open_options_.max_background_flushes = options.max_background_flushes;
    }
-   if (options.max_background_compactions > 0 && options.max_background_compactions <= 4) {
+   if (options.max_background_compactions > 0 && options.max_background_compactions <= 8) {
       open_options_.max_background_compactions = options.max_background_compactions;
    }
    if (options.max_bytes_for_level_multiplier < 10) {
