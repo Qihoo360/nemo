@@ -139,7 +139,7 @@ int StrToUint32(const char *s, size_t slen, uint32_t *val) {
     if (!StrToUint64(s, slen, &llval))
         return 0;
 
-    if (llval > UINT32_MAX)
+    if (llval > ULONG_MAX)
         return 0;
 
     *val = (uint32_t)llval;
