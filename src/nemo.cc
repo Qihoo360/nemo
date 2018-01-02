@@ -53,8 +53,12 @@ Nemo::Nemo(const std::string &db_path, const Options &options)
    open_options_.max_manifest_file_size = 64*1024*1024;
    open_options_.max_log_file_size = 512*1024*1024;
    open_options_.keep_log_file_num = 10;
-   if (!options.compression) {
+   if (options.compression == Options::CompressionType::kNoCompression) {
      open_options_.compression = rocksdb::CompressionType::kNoCompression;
+   } else if (options.compression == Options::CompressionType::kSnappyCompression) {
+     open_options_.compression = rocksdb::CompressionType::kSnappyCompression;
+   } else if (options.compression == Options::CompressionType::kZlibCompression) {
+     open_options_.compression = rocksdb::CompressionType::kZlibCompression;
    }
    if (options.max_open_files > 0) {
      open_options_.max_open_files = options.max_open_files;
