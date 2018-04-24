@@ -516,27 +516,32 @@ Status Nemo::DoCompact(DBType type) {
       return Status::InvalidArgument("");
   }
 
-  current_task_type_ = OPERATION::kCLEAN_ALL;
-
   Status s;
   rocksdb::CompactRangeOptions ops;
   ops.exclusive_manual_compaction = false;
-  if (type == kALL || type == kKV_DB) {
+  if (type == kKV_DB) {
+    current_task_type_ = OPERATION::kCLEAN_KV;
     s = kv_db_->CompactRange(ops, NULL, NULL);
-  }
-  if (type == kALL || type == kHASH_DB) {
+  } else if (type == kHASH_DB) {
+    current_task_type_ = OPERATION::kCLEAN_HASH;
     s = hash_db_->CompactRange(ops, NULL, NULL);
-  }
-  if (type == kALL || type == kZSET_DB) {
+  } else if (type == kZSET_DB) {
+    current_task_type_ = OPERATION::kCLEAN_ZSET;
     s = zset_db_->CompactRange(ops, NULL, NULL);
-  }
-  if (type == kALL || type == kSET_DB) {
+  } else if (type == kSET_DB) {
+    current_task_type_ = OPERATION::kCLEAN_SET;
     s = set_db_->CompactRange(ops, NULL, NULL);
-  }
-  if (type == kALL || type == kLIST_DB) {
+  } else if (type == kLIST_DB) {
+    current_task_type_ = OPERATION::kCLEAN_LIST;
+    s = list_db_->CompactRange(ops, NULL, NULL);
+  } else {
+    current_task_type_ = OPERATION::kCLEAN_ALL;
+    s = kv_db_->CompactRange(ops, NULL, NULL);
+    s = hash_db_->CompactRange(ops, NULL, NULL);
+    s = zset_db_->CompactRange(ops, NULL, NULL);
+    s = set_db_->CompactRange(ops, NULL, NULL);
     s = list_db_->CompactRange(ops, NULL, NULL);
   }
-
   current_task_type_ = OPERATION::kNONE_OP;
   return s;
 }
@@ -560,6 +565,16 @@ std::string Nemo::GetCurrentTaskType() {
       return "Key";
     case kCLEAN_ALL:
       return "All";
+    case kCLEAN_KV:
+      return "String";
+    case kCLEAN_HASH:
+      return "Hash";
+    case kCLEAN_ZSET:
+      return "ZSet";
+    case kCLEAN_SET:
+      return "Set";
+    case kCLEAN_LIST:
+      return "List";
     case kNONE_OP:
     default:
       return "No";

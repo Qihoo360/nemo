@@ -32,6 +32,11 @@ enum OPERATION {
   kDEL_KEY,
   kCLEAN_RANGE,
   kCLEAN_ALL,
+  kCLEAN_KV,
+  kCLEAN_HASH,
+  kCLEAN_ZSET,
+  kCLEAN_SET,
+  kCLEAN_LIST,
 };
 
 // Usage Type
