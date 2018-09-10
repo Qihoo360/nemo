@@ -414,6 +414,7 @@ Status Nemo::LRange(const std::string &key, const int64_t begin, const int64_t e
     if (s.ok()) {
         if (meta.DecodeFrom(meta_val)) {
             if (meta.len == 0) {
+                list_db_->ReleaseSnapshot(ss);
                 return Status::NotFound("not found the key");
             } else if (meta.len > 0) {
                 int64_t index_b = begin >= 0 ? begin : meta.len + begin;
