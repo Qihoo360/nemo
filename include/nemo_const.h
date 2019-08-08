@@ -39,13 +39,10 @@ enum OPERATION {
   kCLEAN_LIST,
 };
 
-// Usage Type
-const std::string USAGE_TYPE_ALL = "all";
-const std::string USAGE_TYPE_NEMO = "nemo";
-const std::string USAGE_TYPE_ROCKSDB = "rocksdb";
-const std::string USAGE_TYPE_ROCKSDB_MEMTABLE = "rocksdb.memtable";
-//const std::string USAGE_TYPE_ROCKSDB_BLOCK_CACHE = "rocksdb.block_cache";
-const std::string USAGE_TYPE_ROCKSDB_TABLE_READER = "rocksdb.table_reader";
+// Property Type
+const std::string PROPERTY_TYPE_ROCKSDB_MEMTABLE = "rocksdb.cur-size-all-mem-tables";
+const std::string PROPERTY_TYPE_ROCKSDB_TABLE_READER = "rocksdb.estimate-table-readers-mem";
+const std::string PROPERTY_TYPE_ROCKSDB_BACKGROUND_ERRORS = "rocksdb.background-errors";
 
 const uint32_t KEY_MAX_LENGTH = 255;
 

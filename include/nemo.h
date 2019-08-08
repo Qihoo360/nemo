@@ -222,7 +222,8 @@ public:
     Status ScanKeyNumWithTTL(std::unique_ptr<rocksdb::DBNemo> &db, uint64_t &num);
     Status StopScanKeyNum();
 
-    Status GetUsage(const std::string& type, uint64_t *result);
+    Status GetUsage(const std::string& property, uint64_t *result);
+    Status GetUsage(const std::string& property, std::map<std::string, uint64_t>* const result_map);
 
     rocksdb::DBNemo* GetDBByType(const std::string& type);
 
@@ -351,7 +352,7 @@ private:
     char GetMetaPrefix(DBType type);
 
     // GetProperty of 5 DBs
-    uint64_t GetProperty(const std::string &property);
+    uint64_t GetProperty(const std::string& db_type, const std::string& property);
     // Get estimate RecordMutex memory usage
     uint64_t GetLockUsage();
 

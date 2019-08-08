@@ -757,23 +757,31 @@ Status Nemo::StartBGThread() {
   return Status::OK();
 }
 
-uint64_t Nemo::GetProperty(const std::string &property) {
+uint64_t Nemo::GetProperty(const std::string& db_type, const std::string& property) {
   uint64_t result = 0;
   char *pEnd;
   std::string out;
 
-  kv_db_->GetProperty(property, &out);
-  result += std::strtoull(out.c_str(), &pEnd, 10);
-  hash_db_->GetProperty(property, &out);
-  result += std::strtoull(out.c_str(), &pEnd, 10);
-  zset_db_->GetProperty(property, &out);
-  result += std::strtoull(out.c_str(), &pEnd, 10);
-  set_db_->GetProperty(property, &out);
-  result += std::strtoull(out.c_str(), &pEnd, 10);
-  list_db_->GetProperty(property, &out);
-  result += std::strtoull(out.c_str(), &pEnd, 10);
-
-  //printf ("cur-size-all-mem-tables: (%s)\n", out.c_str());
+  if (db_type == ALL_DB || db_type == KV_DB) {
+    kv_db_->GetProperty(property, &out);
+    result += std::strtoull(out.c_str(), &pEnd, 10);
+  }
+  if (db_type == ALL_DB || db_type == HASH_DB) {
+    hash_db_->GetProperty(property, &out);
+    result += std::strtoull(out.c_str(), &pEnd, 10);
+  }
+  if (db_type == ALL_DB || db_type == ZSET_DB) {
+    zset_db_->GetProperty(property, &out);
+    result += std::strtoull(out.c_str(), &pEnd, 10);
+  }
+  if (db_type == ALL_DB || db_type == SET_DB) {
+    set_db_->GetProperty(property, &out);
+    result += std::strtoull(out.c_str(), &pEnd, 10);
+  }
+  if (db_type == ALL_DB || db_type == LIST_DB) {
+    list_db_->GetProperty(property, &out);
+    result += std::strtoull(out.c_str(), &pEnd, 10);
+  }
   return result;
 }
 
@@ -783,44 +791,21 @@ uint64_t Nemo::GetLockUsage() {
   result += mutex_zset_record_.GetUsage();
   result += mutex_set_record_.GetUsage();
   result += mutex_list_record_.GetUsage();
-
   return result;
 }
 
-Status Nemo::GetUsage(const std::string& type, uint64_t *result) {
-  *result = 0;
+Status Nemo::GetUsage(const std::string& property,
+                      std::map<std::string, uint64_t>* const result_map) {
+  result_map->clear();
+  (*result_map)[KV_DB]   = GetProperty(KV_DB, property);
+  (*result_map)[HASH_DB] = GetProperty(HASH_DB, property);
+  (*result_map)[LIST_DB] = GetProperty(LIST_DB, property);
+  (*result_map)[ZSET_DB] = GetProperty(ZSET_DB, property);
+  (*result_map)[SET_DB]  = GetProperty(SET_DB, property);
+  return Status::OK();
+}
 
-  // TODO rm
-  //std::shared_ptr<TableFactory> table_factory;
-  //const BlockBasedTableOptions& GetTableOptions() const;
-  
-//  std::shared_ptr<rocksdb::TableFactory> kv_tf = kv_db_->GetOptions().table_factory;
-//  //kv_tf->GetTableOptions();
-//  int64_t block_cache = (dynamic_cast<rocksdb::BlockBasedTableFactory *>(kv_tf))->GetTableOptions().block_cache->GetUsage();
-//  //int64_t pin_usage = kv_tf->GetTableOptions().block_cache->GetPinnedUsage();
-//  printf ("block_cache : %ld\n", block_cache);
-//  //printf ("pin_usage : %ld\n", pin_usage);
-
-
-//  rocksdb::BlockBasedTableOptions table_options;
-//  *result = table_options.block_cache->GetUsage();
-//  printf ("block_cache usage:%lu\n", *result);
-//  *result = table_options.block_cache->GetPinnedUsage();
-//  printf ("block_cache pinned usage:%lu\n", *result);
-
-  //kv_db_->GetProperty("rocksdb.estimate-table-readers-mem", &out);
-  //printf ("table_readers: (%s)\n", out.c_str());
-
-  // Rocksdb part
-  if (type == USAGE_TYPE_ALL || type == USAGE_TYPE_ROCKSDB || type == USAGE_TYPE_ROCKSDB_MEMTABLE) {
-    *result += GetProperty("rocksdb.cur-size-all-mem-tables");
-  }
-  if (type == USAGE_TYPE_ALL || type == USAGE_TYPE_ROCKSDB || type == USAGE_TYPE_ROCKSDB_TABLE_READER) {
-    *result += GetProperty("rocksdb.estimate-table-readers-mem");
-  }
-  if (type == USAGE_TYPE_ALL || type == USAGE_TYPE_NEMO) {
-    *result += GetLockUsage(); 
-  }
-
+Status Nemo::GetUsage(const std::string& property, uint64_t *result) {
+  *result = GetProperty(ALL_DB, property);
   return Status::OK();
 }
