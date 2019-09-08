@@ -14,6 +14,9 @@ using namespace nemo;
 Status Nemo::BitSet(const std::string &key, const std::int64_t offset, const int64_t on, int64_t* res) {
     std::string value;
     Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &value);
+    if (s.IsNotFound()) {
+        value = "";
+    }
     if (s.ok() || s.IsNotFound()) {
         size_t byte = offset >> 3;
         size_t bit = 7 - (offset & 0x7);
@@ -55,6 +58,9 @@ Status Nemo::BitSet(const std::string &key, const std::int64_t offset, const int
 Status Nemo::BitGet(const std::string &key, const std::int64_t offset, std::int64_t* res) {
     std::string value;
     Status s = kv_db_->Get(rocksdb::ReadOptions(), key, &value);
+    if (s.IsNotFound()) {
+        value = "";
+    }
     if (s.ok() || s.IsNotFound()) {
         size_t byte = offset >> 3;
         size_t bit = 7 - (offset & 0x7);
